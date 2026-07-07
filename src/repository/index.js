@@ -1,6 +1,6 @@
 import { localClient } from '../services/localClient.js';
 
-// Repository wrapper - centraliza persistência para facilitar futura troca por Supabase
+// Centraliza persistencia para facilitar a troca futura por Supabase.
 export const repository = {
   list(entity) {
     return localClient.list(entity);
@@ -13,7 +13,7 @@ export const repository = {
   },
   removeSoft(entity, id) {
     return localClient.removeSoft(entity, id);
-  }
+  },
 };
 
 export default repository;

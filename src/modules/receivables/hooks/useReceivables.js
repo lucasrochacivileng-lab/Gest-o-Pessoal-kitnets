@@ -2,34 +2,48 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import receivableService from '../services/receivableService.js';
 import { RECEIVABLE_FILTERS } from '../types/receivable.types.js';
 
+const initialSummary = {
+  toReceiveToday: 0,
+  overdueValue: 0,
+  next7DaysValue: 0,
+  receivedThisMonthValue: 0,
+};
+
+const initialFilters = {
+  statusFilter: RECEIVABLE_FILTERS.ALL,
+  search: '',
+  kitnetFilter: '',
+  contractFilter: '',
+  tenantFilter: '',
+  competenceFilter: '',
+};
+
 export function useReceivables() {
   const [receivables, setReceivables] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({
-    toReceiveToday: 0,
-    overdueValue: 0,
-    next7DaysValue: 0,
-    receivedThisMonthValue: 0,
-  });
-  const [filters, setFilters] = useState({
-    statusFilter: RECEIVABLE_FILTERS.ALL,
-    search: '',
-    kitnetFilter: '',
-    contractFilter: '',
-    tenantFilter: '',
-    competenceFilter: '',
-  });
+  const [error, setError] = useState(null);
+  const [summary, setSummary] = useState(initialSummary);
+  const [filters, setFilters] = useState(initialFilters);
+  const [contracts, setContracts] = useState([]);
   const [kitnets, setKitnets] = useState([]);
   const [tenants, setTenants] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const result = await receivableService.loadPageData();
-    setReceivables(result.receivables);
-    setSummary(result.summary);
-    setKitnets(result.kitnets);
-    setTenants(result.tenants);
-    setLoading(false);
+    setError(null);
+
+    try {
+      const result = await receivableService.loadPageData();
+      setReceivables(result.receivables);
+      setSummary(result.summary);
+      setContracts(result.contracts);
+      setKitnets(result.kitnets);
+      setTenants(result.tenants);
+    } catch (loadError) {
+      setError(loadError);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -38,16 +52,8 @@ export function useReceivables() {
 
   const visibleReceivables = useMemo(() => receivableService.filterReceivables(receivables, filters), [filters, receivables]);
 
-  const setFilter = useCallback((statusFilter) => {
-    setFilters((current) => ({ ...current, statusFilter }));
-  }, []);
-
-  const setKitnetFilter = useCallback((kitnetFilter) => {
-    setFilters((current) => ({ ...current, kitnetFilter }));
-  }, []);
-
-  const setSearchFilter = useCallback((search) => {
-    setFilters((current) => ({ ...current, search }));
+  const updateFilter = useCallback((key, value) => {
+    setFilters((current) => ({ ...current, [key]: value }));
   }, []);
 
   const save = useCallback(async (payload) => {
@@ -70,14 +76,14 @@ export function useReceivables() {
     await load();
   }, [load]);
 
-  const refresh = useCallback(() => load(), [load]);
-
   return {
     receivables: visibleReceivables,
     allReceivables: receivables,
     loading,
+    error,
     summary,
     filters,
+    contracts,
     kitnets,
     tenants,
     load,
@@ -85,10 +91,13 @@ export function useReceivables() {
     pay,
     remove,
     restore,
-    setFilter,
-    setKitnetFilter,
-    setSearchFilter,
-    refresh,
+    setFilter: (statusFilter) => updateFilter('statusFilter', statusFilter),
+    setKitnetFilter: (kitnetFilter) => updateFilter('kitnetFilter', kitnetFilter),
+    setContractFilter: (contractFilter) => updateFilter('contractFilter', contractFilter),
+    setTenantFilter: (tenantFilter) => updateFilter('tenantFilter', tenantFilter),
+    setCompetenceFilter: (competenceFilter) => updateFilter('competenceFilter', competenceFilter),
+    setSearchFilter: (search) => updateFilter('search', search),
+    refresh: load,
   };
 }
 

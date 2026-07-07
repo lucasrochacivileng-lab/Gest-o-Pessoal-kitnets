@@ -3,12 +3,21 @@ import { RECEIVABLE_FILTERS, RECEIVABLE_STATUS } from '../types/receivable.types
 
 const formatDate = (value) => value || '';
 const today = () => new Date().toISOString().slice(0, 10);
+const toMoney = (value) => Number(value || 0);
 
-const getStatus = (receivable, currentDate = today()) => {
+export const getReceivableStatus = (receivable, currentDate = today()) => {
   if (receivable.status === RECEIVABLE_STATUS.PAID) return RECEIVABLE_STATUS.PAID;
   if (receivable.status === RECEIVABLE_STATUS.PARTIAL) return RECEIVABLE_STATUS.PARTIAL;
   if (receivable.due_date && receivable.due_date < currentDate) return RECEIVABLE_STATUS.OVERDUE;
   return RECEIVABLE_STATUS.PENDING;
+};
+
+export const calculatePaymentNetValue = ({ paid_value = 0, discount = 0, fine = 0, interest = 0 } = {}) => {
+  return toMoney(paid_value) - toMoney(discount) + toMoney(fine) + toMoney(interest);
+};
+
+export const calculateOutstandingValue = (receivable) => {
+  return Math.max(toMoney(receivable.expected_value) - toMoney(receivable.paid_value), 0);
 };
 
 const withContext = (receivables, contracts = [], kitnets = [], tenants = []) => {
@@ -19,7 +28,7 @@ const withContext = (receivables, contracts = [], kitnets = [], tenants = []) =>
 
     return {
       ...receivable,
-      status: getStatus(receivable),
+      status: getReceivableStatus(receivable),
       contract,
       kitnet,
       tenant,
@@ -28,7 +37,15 @@ const withContext = (receivables, contracts = [], kitnets = [], tenants = []) =>
 };
 
 const matchesSearch = (row, search) => {
-  const text = `${row.competence || ''} ${row.due_date || ''} ${row.status || ''} ${row.notes || ''}`.toLowerCase();
+  const text = [
+    row.competence,
+    row.due_date,
+    row.status,
+    row.notes,
+    row.kitnet?.name,
+    row.tenant?.name,
+  ].filter(Boolean).join(' ').toLowerCase();
+
   return text.includes(search.toLowerCase());
 };
 
@@ -52,6 +69,7 @@ export const receivableService = {
   async loadPageData() {
     const { receivables, contracts, kitnets, tenants } = await receivableRepository.getContext();
     const data = withContext(receivables, contracts, kitnets, tenants);
+
     return {
       receivables: data,
       summary: this.getSummary(data),
@@ -62,11 +80,18 @@ export const receivableService = {
   },
 
   filterReceivables(receivables, filters = {}) {
-    const { statusFilter = RECEIVABLE_FILTERS.ALL, search = '', kitnetFilter = '', contractFilter = '', tenantFilter = '', competenceFilter = '' } = filters;
+    const {
+      statusFilter = RECEIVABLE_FILTERS.ALL,
+      search = '',
+      kitnetFilter = '',
+      contractFilter = '',
+      tenantFilter = '',
+      competenceFilter = '',
+    } = filters;
     const currentDate = today();
 
     return receivables.filter((row) => {
-      const status = getStatus(row, currentDate);
+      const status = getReceivableStatus(row, currentDate);
       const currentMonth = currentDate.slice(0, 7);
 
       if (kitnetFilter && row.kitnet?.id !== kitnetFilter) return false;
@@ -84,25 +109,30 @@ export const receivableService = {
   },
 
   calculateOverdueValue(receivables) {
-    return receivables.filter((row) => row.status === RECEIVABLE_STATUS.OVERDUE).reduce((sum, row) => sum + Number(row.expected_value || 0), 0);
+    return receivables
+      .filter((row) => row.status === RECEIVABLE_STATUS.OVERDUE)
+      .reduce((sum, row) => sum + calculateOutstandingValue(row), 0);
   },
 
   calculateReceivedValue(receivables) {
-    return receivables.filter((row) => row.status === RECEIVABLE_STATUS.PAID).reduce((sum, row) => sum + Number(row.expected_value || 0), 0);
+    return receivables
+      .filter((row) => row.status === RECEIVABLE_STATUS.PAID)
+      .reduce((sum, row) => sum + toMoney(row.paid_value || row.expected_value), 0);
   },
 
   getSummary(receivables) {
     const currentDate = today();
+    const next7Limit = new Date(new Date(currentDate).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const todayReceivables = receivables.filter((row) => row.due_date === currentDate && row.status !== RECEIVABLE_STATUS.PAID);
     const overdueReceivables = receivables.filter((row) => row.status === RECEIVABLE_STATUS.OVERDUE);
-    const next7Days = receivables.filter((row) => row.status === RECEIVABLE_STATUS.PENDING && row.due_date && row.due_date >= currentDate && row.due_date <= new Date(new Date(currentDate).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+    const next7Days = receivables.filter((row) => row.status === RECEIVABLE_STATUS.PENDING && row.due_date && row.due_date >= currentDate && row.due_date <= next7Limit);
     const receivedThisMonth = receivables.filter((row) => row.status === RECEIVABLE_STATUS.PAID && row.competence?.startsWith(currentDate.slice(0, 7)));
 
     return {
-      toReceiveToday: todayReceivables.reduce((sum, row) => sum + Number(row.expected_value || 0), 0),
-      overdueValue: overdueReceivables.reduce((sum, row) => sum + Number(row.expected_value || 0), 0),
-      next7DaysValue: next7Days.reduce((sum, row) => sum + Number(row.expected_value || 0), 0),
-      receivedThisMonthValue: receivedThisMonth.reduce((sum, row) => sum + Number(row.expected_value || 0), 0),
+      toReceiveToday: todayReceivables.reduce((sum, row) => sum + calculateOutstandingValue(row), 0),
+      overdueValue: overdueReceivables.reduce((sum, row) => sum + calculateOutstandingValue(row), 0),
+      next7DaysValue: next7Days.reduce((sum, row) => sum + calculateOutstandingValue(row), 0),
+      receivedThisMonthValue: receivedThisMonth.reduce((sum, row) => sum + toMoney(row.paid_value || row.expected_value), 0),
     };
   },
 
@@ -131,17 +161,19 @@ export const receivableService = {
   },
 
   async registerPayment(receivable, paymentPayload) {
-    const paidValue = Number(paymentPayload.paid_value || receivable.expected_value || 0);
-    const discount = Number(paymentPayload.discount || 0);
-    const fine = Number(paymentPayload.fine || 0);
-    const interest = Number(paymentPayload.interest || 0);
-    const netValue = paidValue - discount + fine + interest;
-    const status = paidValue >= Number(receivable.expected_value || 0) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
+    const paidValue = toMoney(paymentPayload.paid_value || receivable.expected_value);
+    const discount = toMoney(paymentPayload.discount);
+    const fine = toMoney(paymentPayload.fine);
+    const interest = toMoney(paymentPayload.interest);
+    const netValue = calculatePaymentNetValue({ paid_value: paidValue, discount, fine, interest });
+    const totalPaid = paidValue + toMoney(receivable.paid_value);
+    const status = totalPaid >= toMoney(receivable.expected_value) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
 
     const payload = {
       ...paymentPayload,
       receivable_id: receivable.id,
       paid_value: paidValue,
+      net_value: netValue,
       payment_date: formatDate(paymentPayload.payment_date || today()),
       payment_method: paymentPayload.payment_method || 'pix',
       destination_account: paymentPayload.destination_account || 'Itaú',

@@ -14,7 +14,9 @@ export function ReceivableFilters({ filter, setFilter, search, setSearch, kitnet
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-[1.2fr_1fr] xl:grid-cols-[1.5fr_1fr_1fr]">
         {buttons.map((button) => (
-          <button key={button.key} onClick={() => setFilter(button.key)} className={`rounded-2xl border px-4 py-3 text-sm ${button.className}`}>{button.label}</button>
+          <button key={button.key} type="button" onClick={() => setFilter(button.key)} className={`rounded-2xl border px-4 py-3 text-sm ${button.className}`}>
+            {button.label}
+          </button>
         ))}
       </div>
 
@@ -25,7 +27,7 @@ export function ReceivableFilters({ filter, setFilter, search, setSearch, kitnet
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Competência, vencimento ou status"
+              placeholder="Competência, vencimento, kitnet ou locatário"
               className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </label>
