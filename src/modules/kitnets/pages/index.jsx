@@ -1,14 +1,425 @@
-import React from 'react';
-import EntityPage from '../../../components/ui/EntityPage.jsx';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ExternalLink, FileText, History, Plus, Trash2, Upload } from 'lucide-react';
+import { repository } from '../../../repository/index.js';
+import { financialService } from '../../../services/financialService';
 
 const fields = [
-	{ key: 'name', label: 'Nome', type: 'text' },
-	{ key: 'address', label: 'Endereço', type: 'text' },
-	{ key: 'rent_value', label: 'Valor do Aluguel', type: 'number' },
-	{ key: 'status', label: 'Status', type: 'select', options: ['vaga', 'ocupada', 'manutencao'] },
-	{ key: 'description', label: 'Descrição', type: 'textarea' }
+  { key: 'name', label: 'Nome', type: 'text', placeholder: 'Kitnet 01' },
+  { key: 'address', label: 'Endereço', type: 'text', placeholder: 'Rua, número, bairro' },
+  { key: 'rent_value', label: 'Valor do aluguel', type: 'number', placeholder: '800' },
+  {
+    key: 'status',
+    label: 'Status',
+    type: 'select',
+    options: [
+      { value: 'vaga', label: 'Vaga' },
+      { value: 'ocupada', label: 'Ocupada' },
+      { value: 'manutencao', label: 'Manutenção' },
+    ],
+  },
+  { key: 'description', label: 'Descrição', type: 'textarea', placeholder: 'Características e observações da unidade' },
 ];
 
+const DOCUMENT_TYPES = {
+  contract: 'contrato_pdf',
+  inspection: 'termo_vistoria_pdf',
+};
+
+const DOCUMENT_LABELS = {
+  [DOCUMENT_TYPES.contract]: 'Contrato de locação',
+  [DOCUMENT_TYPES.inspection]: 'Termo de vistoria',
+};
+
+const inputClass = 'ds-input';
+
+function fieldValue(value, type) {
+  if (type === 'number') return value || '';
+  return value || '';
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [metadata, base64] = dataUrl.split(',');
+  const mimeType = metadata.match(/data:(.*);base64/)?.[1] || 'application/pdf';
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
+}
+
+function openDocument(document) {
+  if (!document) return;
+
+  if (document.file_data) {
+    const blob = dataUrlToBlob(document.file_data);
+    const url = URL.createObjectURL(blob);
+    const documentWindow = window.open(url, '_blank');
+
+    if (documentWindow) {
+      documentWindow.focus();
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
+  }
+
+  if (document.file_url) {
+    window.open(document.file_url, '_blank', 'noopener,noreferrer');
+  }
+}
+
+function getDocumentStatus(document) {
+  if (!document) return 'Nenhum arquivo anexado';
+  return document.file_name || document.title || 'Arquivo anexado';
+}
+
 export default function Kitnets() {
-	return <EntityPage entity="Kitnet" title="Kitnets" subtitle="Gerencie suas unidades" fields={fields} cardFields={[ 'name', 'status', 'rent_value' ]} />;
+  const [kitnets, setKitnets] = useState([]);
+  const [contracts, setContracts] = useState([]);
+  const [tenants, setTenants] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+
+  const loadData = async () => {
+    setLoading(true);
+    const [kitnetRows, contractRows, tenantRows, documentRows] = await Promise.all([
+      repository.list('Kitnet'),
+      repository.list('Contract'),
+      repository.list('Tenant'),
+      repository.list('Document'),
+    ]);
+
+    setKitnets(kitnetRows);
+    setContracts(contractRows);
+    setTenants(tenantRows);
+    setDocuments(documentRows);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const contractsByKitnet = useMemo(() => {
+    return contracts.reduce((acc, contract) => {
+      if (!contract.kitnet_id) return acc;
+      acc[contract.kitnet_id] = [...(acc[contract.kitnet_id] || []), contract];
+      acc[contract.kitnet_id].sort((a, b) => String(b.start_date || '').localeCompare(String(a.start_date || '')));
+      return acc;
+    }, {});
+  }, [contracts]);
+
+  const tenantById = useMemo(() => {
+    return tenants.reduce((acc, tenant) => ({ ...acc, [tenant.id]: tenant }), {});
+  }, [tenants]);
+
+  const documentsByKitnet = useMemo(() => {
+    return documents.reduce((acc, document) => {
+      if (!document.kitnet_id || !Object.values(DOCUMENT_TYPES).includes(document.type)) return acc;
+      const current = acc[document.kitnet_id]?.[document.type];
+      const shouldReplace = !current || String(document.uploaded_at || '').localeCompare(String(current.uploaded_at || '')) > 0;
+
+      if (shouldReplace) {
+        acc[document.kitnet_id] = {
+          ...(acc[document.kitnet_id] || {}),
+          [document.type]: document,
+        };
+      }
+
+      return acc;
+    }, {});
+  }, [documents]);
+
+  const handleCreate = async (event) => {
+    event.preventDefault();
+    const payload = fields.reduce((acc, field) => {
+      let value = form[field.key];
+      if (field.type === 'number') value = Number(value || 0);
+      acc[field.key] = value;
+      return acc;
+    }, {});
+
+    await repository.create('Kitnet', { ...payload, active: true });
+    setForm({});
+    setFormOpen(false);
+    setMessage('Kitnet cadastrada.');
+    await loadData();
+  };
+
+  const handleRemove = async (id) => {
+    await repository.removeSoft('Kitnet', id);
+    setMessage('Kitnet removida.');
+    await loadData();
+  };
+
+  const handleDocumentUpload = async ({ kitnet, contract, tenant, documentType, file }) => {
+    if (!file) return;
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setMessage('Envie apenas arquivos PDF.');
+      return;
+    }
+
+    const fileData = await readFileAsDataUrl(file);
+    const existingDocument = documents.find((document) => (
+      document.kitnet_id === kitnet.id
+      && document.type === documentType
+      && document.active !== false
+    ));
+    const payload = {
+      title: `${DOCUMENT_LABELS[documentType]} - ${kitnet.name}`,
+      type: documentType,
+      file_name: file.name,
+      file_type: file.type || 'application/pdf',
+      file_data: fileData,
+      kitnet_id: kitnet.id,
+      tenant_id: tenant?.id || contract?.tenant_id || '',
+      contract_id: contract?.id || '',
+      uploaded_at: new Date().toISOString(),
+      notes: `${DOCUMENT_LABELS[documentType]} anexado pela tela de Kitnets`,
+      active: true,
+    };
+
+    if (existingDocument) {
+      await repository.update('Document', existingDocument.id, payload);
+    } else {
+      await repository.create('Document', payload);
+    }
+
+    setMessage(`${DOCUMENT_LABELS[documentType]} anexado com sucesso.`);
+    await loadData();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--color-text)]">Kitnets</h1>
+          <p className="text-sm text-[var(--color-text-muted)]">
+            Gerencie suas unidades, documentos PDF e histórico de locações.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setFormOpen((state) => !state)}
+          className="ds-btn ds-btn-primary"
+        >
+          <Plus className="h-4 w-4" /> Novo
+        </button>
+      </div>
+
+      {message ? (
+        <div className="ds-alert ds-alert-info">{message}</div>
+      ) : null}
+
+      {formOpen ? (
+        <form onSubmit={handleCreate} className="ds-card">
+          <div className="grid gap-4 lg:grid-cols-2">
+            {fields.map((field) => (
+              <label key={field.key} className="ds-form-field">
+                {field.label}
+                {field.type === 'textarea' ? (
+                  <textarea
+                    rows="3"
+                    value={fieldValue(form[field.key], field.type)}
+                    onChange={(event) => setForm((prev) => ({ ...prev, [field.key]: event.target.value }))}
+                    className={inputClass}
+                    placeholder={field.placeholder || ''}
+                  />
+                ) : field.type === 'select' ? (
+                  <select
+                    value={fieldValue(form[field.key], field.type)}
+                    onChange={(event) => setForm((prev) => ({ ...prev, [field.key]: event.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">Selecione</option>
+                    {field.options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type || 'text'}
+                    value={fieldValue(form[field.key], field.type)}
+                    onChange={(event) => setForm((prev) => ({ ...prev, [field.key]: event.target.value }))}
+                    className={inputClass}
+                    placeholder={field.placeholder || ''}
+                  />
+                )}
+              </label>
+            ))}
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
+            <button type="submit" className="ds-btn ds-btn-primary">
+              Salvar
+            </button>
+            <button type="button" onClick={() => setFormOpen(false)} className="ds-btn ds-btn-secondary">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        {loading ? (
+          <div className="ds-card text-[var(--color-text-muted)]">Carregando...</div>
+        ) : kitnets.length > 0 ? (
+          kitnets.map((kitnet) => {
+            const kitnetContracts = contractsByKitnet[kitnet.id] || [];
+            const activeContract = kitnetContracts.find((contract) => contract.status === 'ativo') || kitnetContracts[0] || null;
+            const activeTenant = activeContract ? tenantById[activeContract.tenant_id] : null;
+            const kitnetDocuments = documentsByKitnet[kitnet.id] || {};
+            const contractDocument = kitnetDocuments[DOCUMENT_TYPES.contract];
+            const inspectionDocument = kitnetDocuments[DOCUMENT_TYPES.inspection];
+
+            return (
+              <div key={kitnet.id} className="ds-card">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-semibold text-slate-900">{kitnet.name}</p>
+                    <p className="text-sm text-slate-500">{kitnet.address || 'Endereço não informado'}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="ds-badge ds-badge-info">{kitnet.status || 'sem status'}</span>
+                      <span className="ds-badge ds-badge-success">{financialService.formatCurrency(kitnet.rent_value)}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(kitnet.id)}
+                    className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600"
+                    aria-label={`Excluir ${kitnet.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                  <p className="font-semibold text-slate-900">Contrato atual</p>
+                  {activeContract ? (
+                    <div className="mt-2 space-y-1 text-slate-600">
+                      <p>Locatário: {activeTenant?.name || 'Não informado'}</p>
+                      <p>Vigência: {activeContract.start_date || '-'} até {activeContract.end_date || '-'}</p>
+                      <p>Vencimento: dia {activeContract.due_day || '-'}</p>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-slate-500">Nenhum contrato vinculado a esta kitnet.</p>
+                  )}
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm">
+                  <p className="flex items-center gap-2 font-semibold text-slate-900">
+                    <FileText className="h-4 w-4" /> Documentos PDF
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <p className="text-xs text-slate-500">Contrato: {getDocumentStatus(contractDocument)}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openDocument(contractDocument)}
+                          disabled={!contractDocument}
+                          className="ds-btn ds-btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <ExternalLink className="h-4 w-4" /> Abrir contrato
+                        </button>
+                        <label className="ds-btn ds-btn-secondary cursor-pointer">
+                          <Upload className="h-4 w-4" /> {contractDocument ? 'Trocar contrato' : 'Subir contrato'}
+                          <input
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            className="hidden"
+                            onChange={(event) => handleDocumentUpload({
+                              kitnet,
+                              contract: activeContract,
+                              tenant: activeTenant,
+                              documentType: DOCUMENT_TYPES.contract,
+                              file: event.target.files?.[0],
+                            })}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-slate-500">Termo de vistoria: {getDocumentStatus(inspectionDocument)}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openDocument(inspectionDocument)}
+                          disabled={!inspectionDocument}
+                          className="ds-btn ds-btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <ExternalLink className="h-4 w-4" /> Abrir vistoria
+                        </button>
+                        <label className="ds-btn ds-btn-secondary cursor-pointer">
+                          <Upload className="h-4 w-4" /> {inspectionDocument ? 'Trocar vistoria' : 'Subir vistoria'}
+                          <input
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            className="hidden"
+                            onChange={(event) => handleDocumentUpload({
+                              kitnet,
+                              contract: activeContract,
+                              tenant: activeTenant,
+                              documentType: DOCUMENT_TYPES.inspection,
+                              file: event.target.files?.[0],
+                            })}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                  <p className="flex items-center gap-2 font-semibold text-slate-900">
+                    <History className="h-4 w-4" /> Histórico de locações
+                  </p>
+                  {kitnetContracts.length ? (
+                    <div className="mt-3 space-y-2">
+                      {kitnetContracts.map((contract) => {
+                        const tenant = tenantById[contract.tenant_id];
+                        return (
+                          <div key={contract.id} className="rounded-xl bg-white p-3 text-slate-600">
+                            <p className="font-medium text-slate-900">{tenant?.name || 'Locatário não informado'}</p>
+                            <p>{contract.start_date || '-'} até {contract.end_date || '-'}</p>
+                            <p>Status: {contract.status || 'sem status'}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-slate-500">Nenhum histórico de contrato registrado.</p>
+                  )}
+                </div>
+
+                {kitnet.description ? (
+                  <p className="mt-3 text-sm text-slate-500">{kitnet.description}</p>
+                ) : null}
+              </div>
+            );
+          })
+        ) : (
+          <div className="ds-card text-[var(--color-text-muted)]">Nenhuma kitnet encontrada.</div>
+        )}
+      </div>
+    </div>
+  );
 }

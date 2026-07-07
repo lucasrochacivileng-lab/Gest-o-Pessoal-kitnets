@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { repository } from '../../repository/index.js';
 import { Plus, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import NotificationActionDialog from '../../modules/notifications/components/NotificationActionDialog.jsx';
+import notificationService from '../../modules/notifications/services/notificationService.js';
 
 const inputClass = 'ds-input';
 
@@ -18,12 +21,35 @@ function getRelationEntity(field) {
   return field.optionsEntity || field.entity;
 }
 
-export default function EntityPage({ title, subtitle, entity, fields, cardFields, relations = [] }) {
+function getOptionValue(option) {
+  if (typeof option === 'string' || typeof option === 'number') return option;
+  return option.value ?? option.id ?? option.name ?? option.title ?? '';
+}
+
+function getOptionLabel(option) {
+  if (typeof option === 'string' || typeof option === 'number') return option;
+  return option.label ?? option.name ?? option.title ?? option.competence ?? option.process_number ?? option.id;
+}
+
+export default function EntityPage({
+  title,
+  subtitle,
+  entity,
+  fields,
+  cardFields,
+  relations = [],
+  selectedId = '',
+  deepLinkEntity = '',
+  deepLinkBasePath = '',
+  getDeepLinkLabel,
+}) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({});
   const [relationData, setRelationData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [actionItem, setActionItem] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
@@ -62,6 +88,39 @@ export default function EntityPage({ title, subtitle, entity, fields, cardFields
   const handleRemove = async (id) => {
     await repository.removeSoft(entity, id);
     await loadData();
+  };
+
+  useEffect(() => {
+    if (!selectedId || !deepLinkEntity || loading) return;
+
+    const row = rows.find((item) => item.id === selectedId);
+    if (!row) return;
+
+    setActionItem(row);
+    notificationService.markOpenedByTarget(deepLinkEntity, selectedId);
+  }, [deepLinkEntity, loading, rows, selectedId]);
+
+  const closeActionDialog = () => {
+    setActionItem(null);
+    if (deepLinkBasePath) {
+      navigate(deepLinkBasePath);
+    }
+  };
+
+  const handleConfirmAction = async () => {
+    await notificationService.confirmTarget(deepLinkEntity, actionItem.id);
+    await loadData();
+    closeActionDialog();
+  };
+
+  const handleSnoozeAction = async () => {
+    await notificationService.snoozeTarget(deepLinkEntity, actionItem.id);
+    closeActionDialog();
+  };
+
+  const handleIgnoreAction = async () => {
+    await notificationService.ignoreTarget(deepLinkEntity, actionItem.id);
+    closeActionDialog();
   };
 
   const relationOptions = useMemo(() => {
@@ -114,9 +173,9 @@ export default function EntityPage({ title, subtitle, entity, fields, cardFields
                       className={inputClass}
                     >
                       <option value="">Selecione</option>
-                      {(field.options || relationList || []).map((option) => (
-                        <option key={option.value ?? option.id ?? option.name} value={option.value ?? option.id ?? option.name}>
-                          {option.label ?? option.name ?? option.title ?? option.competence ?? option.process_number ?? option.id}
+                      {(field.options || relationList || []).map((option, optionIndex) => (
+                        <option key={`${fieldName}-${getOptionValue(option) || optionIndex}`} value={getOptionValue(option)}>
+                          {getOptionLabel(option)}
                         </option>
                       ))}
                     </select>
@@ -175,6 +234,17 @@ export default function EntityPage({ title, subtitle, entity, fields, cardFields
           <div className="ds-card text-[var(--color-text-muted)]">Nenhum registro encontrado.</div>
         )}
       </div>
+
+      {actionItem ? (
+        <NotificationActionDialog
+          entity={deepLinkEntity}
+          itemLabel={getDeepLinkLabel ? getDeepLinkLabel(actionItem) : actionItem.description || actionItem.name || actionItem.id}
+          onConfirm={handleConfirmAction}
+          onSnooze={handleSnoozeAction}
+          onIgnore={handleIgnoreAction}
+          onClose={closeActionDialog}
+        />
+      ) : null}
     </div>
   );
 }

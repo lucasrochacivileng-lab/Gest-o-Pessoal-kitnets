@@ -14,6 +14,7 @@ import CreditCards from '../../pages/CreditCards.jsx';
 import Documents from '../../pages/Documents.jsx';
 import Settings from '../../pages/Settings.jsx';
 import Reports from '../../pages/Reports.jsx';
+import NotificationsPage from '../../modules/notifications/pages/NotificationsPage.jsx';
 
 export default function AppRoutes() {
   return (
@@ -24,13 +25,17 @@ export default function AppRoutes() {
         <Route path="/kitnets" element={<Kitnets />} />
         <Route path="/locatarios" element={<Tenants />} />
         <Route path="/contratos" element={<Contratos />} />
+        <Route path="/contratos/:id" element={<Contratos />} />
         <Route path="/recebimentos" element={<Recebimentos />} />
+        <Route path="/recebimentos/:id" element={<Recebimentos />} />
         <Route path="/pagamentos" element={<Payments />} />
         <Route path="/despesas" element={<Expenses />} />
+        <Route path="/despesas/:id" element={<Expenses />} />
         <Route path="/obra" element={<ConstructionPage />} />
         <Route path="/cartoes" element={<CreditCards />} />
         <Route path="/documentos" element={<Documents />} />
         <Route path="/relatorios" element={<Reports />} />
+        <Route path="/notificacoes" element={<NotificationsPage />} />
         <Route path="/configuracoes" element={<Settings />} />
         <Route path="/financas-pessoais" element={<GenericModule title="Finanças Pessoais" entity="PersonalIncome" />} />
         <Route path="/pericias" element={<GenericModule title="Perícias Judiciais" entity="ExpertReport" />} />

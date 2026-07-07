@@ -1,14 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useReceivables } from '../hooks/useReceivables.js';
 import { ReceivableSummary } from '../components/ReceivableSummary.jsx';
 import { ReceivableFilters } from '../components/ReceivableFilters.jsx';
 import { ReceivableCard } from '../components/ReceivableCard.jsx';
 import { ReceivePaymentDialog } from '../components/ReceivePaymentDialog.jsx';
 import { ReceivableHistoryDialog } from '../components/ReceivableHistoryDialog.jsx';
+import NotificationActionDialog from '../../notifications/components/NotificationActionDialog.jsx';
+import notificationService from '../../notifications/services/notificationService.js';
+import { NOTIFICATION_ENTITY } from '../../notifications/types/notification.types.js';
 
 export default function ReceivablesPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const {
     receivables,
+    allReceivables,
     loading,
     error,
     summary,
@@ -24,10 +31,12 @@ export default function ReceivablesPage() {
     setTenantFilter,
     setCompetenceFilter,
     setSearchFilter,
+    refresh,
   } = useReceivables();
   const [selectedReceivable, setSelectedReceivable] = useState(null);
   const [editingReceivable, setEditingReceivable] = useState(null);
   const [historyReceivable, setHistoryReceivable] = useState(null);
+  const [notificationReceivable, setNotificationReceivable] = useState(null);
 
   const handlePaymentSubmit = async (payload) => {
     await pay(selectedReceivable, payload);
@@ -44,6 +53,37 @@ export default function ReceivablesPage() {
     kitnet_id: contract.kitnet_id,
     tenant_id: contract.tenant_id,
   })), [contracts]);
+
+  useEffect(() => {
+    if (!id || loading) return;
+
+    const receivable = allReceivables.find((item) => item.id === id);
+    if (!receivable) return;
+
+    setNotificationReceivable(receivable);
+    notificationService.markOpenedByTarget(NOTIFICATION_ENTITY.RECEIVABLE, id);
+  }, [allReceivables, id, loading]);
+
+  const closeNotificationDialog = () => {
+    setNotificationReceivable(null);
+    navigate('/recebimentos');
+  };
+
+  const handleNotificationConfirm = async () => {
+    await notificationService.confirmTarget(NOTIFICATION_ENTITY.RECEIVABLE, notificationReceivable.id);
+    await refresh();
+    closeNotificationDialog();
+  };
+
+  const handleNotificationSnooze = async () => {
+    await notificationService.snoozeTarget(NOTIFICATION_ENTITY.RECEIVABLE, notificationReceivable.id);
+    closeNotificationDialog();
+  };
+
+  const handleNotificationIgnore = async () => {
+    await notificationService.ignoreTarget(NOTIFICATION_ENTITY.RECEIVABLE, notificationReceivable.id);
+    closeNotificationDialog();
+  };
 
   return (
     <div className="space-y-6">
@@ -106,6 +146,16 @@ export default function ReceivablesPage() {
         onClose={() => setEditingReceivable(null)}
       />
       <ReceivableHistoryDialog receivable={historyReceivable} onClose={() => setHistoryReceivable(null)} />
+      {notificationReceivable ? (
+        <NotificationActionDialog
+          entity={NOTIFICATION_ENTITY.RECEIVABLE}
+          itemLabel={`${notificationReceivable.competence || notificationReceivable.id} - vencimento ${notificationReceivable.due_date || '-'}`}
+          onConfirm={handleNotificationConfirm}
+          onSnooze={handleNotificationSnooze}
+          onIgnore={handleNotificationIgnore}
+          onClose={closeNotificationDialog}
+        />
+      ) : null}
     </div>
   );
 }

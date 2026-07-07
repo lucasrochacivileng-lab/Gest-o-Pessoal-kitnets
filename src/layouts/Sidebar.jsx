@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings, Bell } from 'lucide-react';
 
 const menuSections = [
   { title: 'Geral', items: [
@@ -25,6 +25,7 @@ const menuSections = [
     { label: 'Projetos', icon: Briefcase, path: '/projetos' }
   ]},
   { title: 'Sistema', items: [
+    { label: 'Notificações', icon: Bell, path: '/notificacoes' },
     { label: 'Configurações', icon: Settings, path: '/configuracoes' }
   ]}
 ];

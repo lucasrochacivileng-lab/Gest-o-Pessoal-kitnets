@@ -1,5 +1,7 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import EntityPage from '../../../components/ui/EntityPage.jsx';
+import { NOTIFICATION_ENTITY } from '../../notifications/types/notification.types.js';
 
 const fields = [
 	{ key: 'kitnet_id', label: 'Kitnet', type: 'relation', entity: 'Kitnet' },
@@ -11,6 +13,8 @@ const fields = [
 ];
 
 export default function Contracts() {
+	const { id } = useParams();
+
 	return (
 		<EntityPage
 			entity="Contract"
@@ -22,6 +26,10 @@ export default function Contracts() {
 				{ key: 'Kitnet', entity: 'Kitnet' },
 				{ key: 'Tenant', entity: 'Tenant' }
 			]}
+			selectedId={id}
+			deepLinkEntity={NOTIFICATION_ENTITY.CONTRACT}
+			deepLinkBasePath="/contratos"
+			getDeepLinkLabel={(item) => `Contrato ${item.id} - vencimento ${item.end_date || '-'}`}
 		/>
 	);
 }

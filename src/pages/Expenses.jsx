@@ -1,5 +1,7 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import EntityPage from '../components/ui/EntityPage.jsx';
+import { NOTIFICATION_ENTITY } from '../modules/notifications/types/notification.types.js';
 
 const fields = [
   { name: 'date', label: 'Data', type: 'date' },
@@ -33,6 +35,8 @@ const fields = [
 ];
 
 export default function Expenses() {
+  const { id } = useParams();
+
   return (
     <EntityPage
       title="Despesas"
@@ -41,6 +45,10 @@ export default function Expenses() {
       fields={fields}
       cardFields={['date', 'description']}
       relations={[{ key: 'Kitnet', entity: 'Kitnet' }]}
+      selectedId={id}
+      deepLinkEntity={NOTIFICATION_ENTITY.EXPENSE}
+      deepLinkBasePath="/despesas"
+      getDeepLinkLabel={(item) => item.description || item.category || item.id}
     />
   );
 }
