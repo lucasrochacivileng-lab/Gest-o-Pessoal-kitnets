@@ -1,0 +1,19 @@
+import { localClient } from '../services/localClient.js';
+
+// Repository wrapper - centraliza persistência para facilitar futura troca por Supabase
+export const repository = {
+  list(entity) {
+    return localClient.list(entity);
+  },
+  create(entity, payload) {
+    return localClient.create(entity, payload);
+  },
+  update(entity, id, payload) {
+    return localClient.update(entity, id, payload);
+  },
+  removeSoft(entity, id) {
+    return localClient.removeSoft(entity, id);
+  }
+};
+
+export default repository;

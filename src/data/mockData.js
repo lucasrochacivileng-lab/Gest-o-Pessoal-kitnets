@@ -1,0 +1,11 @@
+export const db = {
+  Kitnet: [
+    { id: 'k1', name: 'Kitnet 01', status: 'ocupada', rent_value: 800, active: true },
+    { id: 'k2', name: 'Kitnet 02', status: 'vaga', rent_value: 800, active: true },
+    { id: 'k3', name: 'Kitnet 03', status: 'manutencao', rent_value: 850, active: true }
+  ],
+  Tenant: [{ id: 't1', name: 'Locatário Exemplo', phone: '62999999999', whatsapp: '62999999999', kitnet_id: 'k1', status: 'ativo', active: true }],
+  Contract: [{ id: 'c1', kitnet_id: 'k1', tenant_id: 't1', start_date: '2026-07-01', end_date: '2027-06-30', rent_value: 800, due_day: 10, status: 'ativo', active: true }],
+  Receivable: [{ id: 'r1', kitnet_id: 'k1', tenant_id: 't1', contract_id: 'c1', competence: '07/2026', expected_value: 800, due_date: '2026-07-10', status: 'pendente', active: true }],
+  Payment: [], Expense: [], Construction: [], CreditCard: [], Document: [], PersonalIncome: [], ExpertReport: [], ComplementaryProject: []
+};

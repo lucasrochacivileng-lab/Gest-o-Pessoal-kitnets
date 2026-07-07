@@ -1,0 +1,133 @@
+@import './variables.css';
+@import './theme.css';
+@import './scrollbar.css';
+@import './animations.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer components {
+  .ds-card {
+    @apply rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-sm)] transition-all duration-[var(--transition-normal)];
+  }
+
+  .ds-card:hover {
+    @apply shadow-[var(--shadow-md)];
+  }
+
+  .ds-dashboard {
+    @apply rounded-[var(--radius-2xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-sm)];
+  }
+
+  .ds-table {
+    @apply w-full overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)];
+  }
+
+  .ds-table thead {
+    @apply bg-[var(--color-surface-alt)] text-[var(--color-text-muted)];
+  }
+
+  .ds-table th,
+  .ds-table td {
+    @apply border-b border-[var(--color-border)] px-4 py-3 text-left;
+  }
+
+  .ds-form-field {
+    @apply flex flex-col gap-2 text-sm text-[var(--color-text)];
+  }
+
+  .ds-input,
+  .ds-select,
+  .ds-textarea {
+    @apply w-full rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-all duration-[var(--transition-fast)];
+  }
+
+  .ds-input:focus,
+  .ds-select:focus,
+  .ds-textarea:focus {
+    @apply border-[var(--color-primary)] ring-2 ring-[color:color-mix(in_srgb,var(--color-primary)_20%,transparent)];
+  }
+
+  .ds-badge {
+    @apply inline-flex items-center rounded-[var(--radius-pill)] px-3 py-1 text-xs font-semibold;
+  }
+
+  .ds-badge-success {
+    @apply bg-[color:color-mix(in_srgb,var(--color-success)_16%,white_84%)] text-[var(--color-success)];
+  }
+
+  .ds-badge-warning {
+    @apply bg-[color:color-mix(in_srgb,var(--color-warning)_16%,white_84%)] text-[var(--color-warning)];
+  }
+
+  .ds-badge-danger {
+    @apply bg-[color:color-mix(in_srgb,var(--color-danger)_16%,white_84%)] text-[var(--color-danger)];
+  }
+
+  .ds-badge-info {
+    @apply bg-[color:color-mix(in_srgb,var(--color-info)_16%,white_84%)] text-[var(--color-info)];
+  }
+
+  .ds-status-online {
+    @apply text-[var(--color-success)];
+  }
+
+  .ds-status-warning {
+    @apply text-[var(--color-warning)];
+  }
+
+  .ds-status-offline {
+    @apply text-[var(--color-danger)];
+  }
+
+  .ds-alert {
+    @apply rounded-[var(--radius-lg)] border px-4 py-3 text-sm;
+  }
+
+  .ds-alert-info {
+    @apply border-[color:color-mix(in_srgb,var(--color-info)_35%,var(--color-border)_65%)] bg-[color:color-mix(in_srgb,var(--color-info)_10%,var(--color-surface)_90%)] text-[var(--color-info)];
+  }
+
+  .ds-alert-success {
+    @apply border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border)_65%)] bg-[color:color-mix(in_srgb,var(--color-success)_10%,var(--color-surface)_90%)] text-[var(--color-success)];
+  }
+
+  .ds-alert-warning {
+    @apply border-[color:color-mix(in_srgb,var(--color-warning)_35%,var(--color-border)_65%)] bg-[color:color-mix(in_srgb,var(--color-warning)_10%,var(--color-surface)_90%)] text-[var(--color-warning)];
+  }
+
+  .ds-alert-danger {
+    @apply border-[color:color-mix(in_srgb,var(--color-danger)_35%,var(--color-border)_65%)] bg-[color:color-mix(in_srgb,var(--color-danger)_10%,var(--color-surface)_90%)] text-[var(--color-danger)];
+  }
+
+  .ds-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold transition-all duration-[var(--transition-fast)];
+  }
+
+  .ds-btn-primary {
+    @apply bg-[var(--color-primary)] text-white shadow-[var(--shadow-sm)] hover:bg-[var(--color-primary-strong)];
+  }
+
+  .ds-btn-secondary {
+    @apply border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-alt)];
+  }
+
+  .ds-btn-success {
+    @apply bg-[var(--color-success)] text-white hover:opacity-90;
+  }
+
+  .ds-btn-warning {
+    @apply bg-[var(--color-warning)] text-white hover:opacity-90;
+  }
+
+  .ds-btn-danger {
+    @apply bg-[var(--color-danger)] text-white hover:opacity-90;
+  }
+}

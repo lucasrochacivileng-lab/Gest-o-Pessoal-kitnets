@@ -1,0 +1,40 @@
+import { CheckCircle2, Eye, PencilLine } from 'lucide-react';
+import { financialService } from '../../../services/financialService';
+
+export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
+  const currency = financialService.formatCurrency;
+  const isOverdue = receivable.status === 'vencido';
+  const isPending = receivable.status === 'pendente';
+  const urgencyClass = isOverdue ? 'border-red-200 bg-red-50' : isPending ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white';
+
+  return (
+    <div className={`rounded-3xl border p-6 shadow-sm ${urgencyClass}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Competência {receivable.competence}</p>
+          <p className="text-sm text-slate-500">Vencimento: {receivable.due_date}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{receivable.status}</p>
+          {receivable.kitnet ? <p className="mt-1 text-xs text-slate-500">Kitnet: {receivable.kitnet.name}</p> : null}
+          {receivable.tenant ? <p className="text-xs text-slate-500">Locatário: {receivable.tenant.name}</p> : null}
+        </div>
+        <div className="space-y-1 text-right">
+          <p className="text-lg font-semibold text-slate-900">{currency(receivable.expected_value)}</p>
+          {isOverdue ? <p className="text-xs text-red-600">Em atraso</p> : null}
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        {receivable.status !== 'pago' ? (
+          <button onClick={() => onPay(receivable)} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">
+            <CheckCircle2 className="h-4 w-4" /> Receber aluguel
+          </button>
+        ) : null}
+        <button onClick={() => onHistory(receivable)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+          <Eye className="h-4 w-4" /> Ver histórico
+        </button>
+        <button onClick={() => onEdit(receivable)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+          <PencilLine className="h-4 w-4" /> Editar
+        </button>
+      </div>
+    </div>
+  );
+}

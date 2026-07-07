@@ -1,0 +1,17 @@
+.fade-in {
+  animation: fadeIn var(--transition-normal) ease-out;
+}
+
+.slide-up {
+  animation: slideUp var(--transition-normal) ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
