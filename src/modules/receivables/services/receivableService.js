@@ -7,8 +7,8 @@ const toMoney = (value) => Number(value || 0);
 
 export const getReceivableStatus = (receivable, currentDate = today()) => {
   if (receivable.status === RECEIVABLE_STATUS.PAID) return RECEIVABLE_STATUS.PAID;
-  if (receivable.status === RECEIVABLE_STATUS.PARTIAL) return RECEIVABLE_STATUS.PARTIAL;
   if (receivable.due_date && receivable.due_date < currentDate) return RECEIVABLE_STATUS.OVERDUE;
+  if (receivable.status === RECEIVABLE_STATUS.PARTIAL) return RECEIVABLE_STATUS.PARTIAL;
   return RECEIVABLE_STATUS.PENDING;
 };
 
@@ -20,11 +20,14 @@ export const calculateOutstandingValue = (receivable) => {
   return Math.max(toMoney(receivable.expected_value) - toMoney(receivable.paid_value), 0);
 };
 
-const withContext = (receivables, contracts = [], kitnets = [], tenants = []) => {
+const withContext = (receivables, contracts = [], kitnets = [], tenants = [], payments = []) => {
   return receivables.map((receivable) => {
     const contract = contracts.find((item) => item.id === receivable.contract_id) || null;
     const kitnet = contract ? kitnets.find((item) => item.id === contract.kitnet_id) || null : null;
     const tenant = contract ? tenants.find((item) => item.id === contract.tenant_id) || null : null;
+    const paymentHistory = payments
+      .filter((item) => item.receivable_id === receivable.id)
+      .sort((a, b) => String(b.payment_date || '').localeCompare(String(a.payment_date || '')));
 
     return {
       ...receivable,
@@ -32,6 +35,7 @@ const withContext = (receivables, contracts = [], kitnets = [], tenants = []) =>
       contract,
       kitnet,
       tenant,
+      payments: paymentHistory,
     };
   });
 };
@@ -67,8 +71,8 @@ export const receivableService = {
   },
 
   async loadPageData() {
-    const { receivables, contracts, kitnets, tenants } = await receivableRepository.getContext();
-    const data = withContext(receivables, contracts, kitnets, tenants);
+    const { receivables, contracts, kitnets, tenants, payments } = await receivableRepository.getContext();
+    const data = withContext(receivables, contracts, kitnets, tenants, payments);
 
     return {
       receivables: data,
@@ -117,7 +121,7 @@ export const receivableService = {
   calculateReceivedValue(receivables) {
     return receivables
       .filter((row) => row.status === RECEIVABLE_STATUS.PAID)
-      .reduce((sum, row) => sum + toMoney(row.paid_value || row.expected_value), 0);
+      .reduce((sum, row) => sum + toMoney(row.net_value || row.paid_value || row.expected_value), 0);
   },
 
   getSummary(receivables) {
@@ -168,10 +172,12 @@ export const receivableService = {
     const netValue = calculatePaymentNetValue({ paid_value: paidValue, discount, fine, interest });
     const totalPaid = paidValue + toMoney(receivable.paid_value);
     const status = totalPaid >= toMoney(receivable.expected_value) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
+    const receiptNumber = await receivableRepository.getNextReceiptNumber();
 
     const payload = {
       ...paymentPayload,
       receivable_id: receivable.id,
+      receipt_number: receiptNumber,
       paid_value: paidValue,
       net_value: netValue,
       payment_date: formatDate(paymentPayload.payment_date || today()),
@@ -190,7 +196,19 @@ export const receivableService = {
     };
 
     const result = await receivableRepository.pay(receivable, payload);
-    return { ...result, netValue, status };
+    return { ...result, netValue, status, receiptNumber };
+  },
+
+  async updateReceivable(receivable, payload) {
+    return receivableRepository.update(receivable.id, {
+      contract_id: payload.contract_id,
+      competence: payload.competence,
+      expected_value: toMoney(payload.expected_value),
+      due_date: formatDate(payload.due_date),
+      notes: payload.notes || '',
+      updated_at: new Date().toISOString(),
+      updated_by: payload.updated_by || 'local-user',
+    });
   },
 };
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, LogOut, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings } from 'lucide-react';
 
 const menuSections = [
   { title: 'Geral', items: [
@@ -16,12 +16,16 @@ const menuSections = [
     { label: 'Despesas', icon: Wallet, path: '/despesas' },
     { label: 'Obra', icon: HardHat, path: '/obra' },
     { label: 'Cartões', icon: CreditCard, path: '/cartoes' },
-    { label: 'Documentos', icon: FolderOpen, path: '/documentos' }
+    { label: 'Documentos', icon: FolderOpen, path: '/documentos' },
+    { label: 'Relatórios', icon: FileText, path: '/relatorios' }
   ]},
   { title: 'Pessoal & Profissional', items: [
     { label: 'Finanças Pessoais', icon: Banknote, path: '/financas-pessoais' },
     { label: 'Perícias', icon: Gavel, path: '/pericias' },
     { label: 'Projetos', icon: Briefcase, path: '/projetos' }
+  ]},
+  { title: 'Sistema', items: [
+    { label: 'Configurações', icon: Settings, path: '/configuracoes' }
   ]}
 ];
 
@@ -42,7 +46,6 @@ export default function Sidebar() {
       <nav className="flex-1 space-y-4 overflow-y-auto p-3">
         {menuSections.map((section) => <div key={section.title}>{!collapsed && <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30">{section.title}</p>}<div className="space-y-1">{section.items.map((item) => <Link key={item.path} to={item.path} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive(item.path) ? 'bg-[color:color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)]' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}><item.icon className={`h-[18px] w-[18px] flex-shrink-0 ${collapsed ? 'mx-auto' : ''}`} />{!collapsed && <span>{item.label}</span>}</Link>)}</div></div>)}
       </nav>
-      <div className="border-t border-white/10 p-3"><button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/40 transition-all hover:bg-red-500/10 hover:text-red-400"><LogOut className={`h-[18px] w-[18px] flex-shrink-0 ${collapsed ? 'mx-auto' : ''}`} />{!collapsed && <span>Sair</span>}</button></div>
     </div>
   );
 

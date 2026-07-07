@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { calculateOutstandingValue } from '../services/receivableService.js';
 
 const initialValues = {
   contract_id: '',
@@ -17,14 +18,27 @@ const initialValues = {
   net_value: 0,
 };
 
-export function ReceivableForm({ receivable, contracts, kitnets, tenants, onSubmit, onCancel }) {
+const calculateNetValue = (values) => {
+  const paidValue = Number(values.paid_value || 0);
+  const discount = Number(values.discount || 0);
+  const fine = Number(values.fine || 0);
+  const interest = Number(values.interest || 0);
+
+  return paidValue - discount + fine + interest;
+};
+
+export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode = 'payment', onSubmit, onCancel }) {
   const [values, setValues] = useState(initialValues);
+  const isPaymentMode = mode === 'payment';
 
   useEffect(() => {
     if (!receivable) {
       setValues(initialValues);
       return;
     }
+
+    const outstandingValue = calculateOutstandingValue(receivable);
+    const paidValue = outstandingValue || receivable.expected_value || '';
 
     setValues({
       ...initialValues,
@@ -35,7 +49,9 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, onSubm
       status: receivable.status || 'pendente',
       notes: receivable.notes || '',
       payment_date: new Date().toISOString().slice(0, 10),
-      paid_value: receivable.expected_value || '',
+      paid_value: paidValue,
+      net_value: Number(paidValue || 0),
+      destination_account: receivable.destination_account || initialValues.destination_account,
     });
   }, [receivable]);
 
@@ -53,11 +69,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, onSubm
     const { name, value } = event.target;
     const nextValues = { ...values, [name]: value };
     if (name === 'paid_value' || name === 'discount' || name === 'fine' || name === 'interest') {
-      const paidValue = Number(nextValues.paid_value || 0);
-      const discount = Number(nextValues.discount || 0);
-      const fine = Number(nextValues.fine || 0);
-      const interest = Number(nextValues.interest || 0);
-      nextValues.net_value = paidValue - discount + fine + interest;
+      nextValues.net_value = calculateNetValue(nextValues);
     }
     setValues(nextValues);
   };
@@ -65,7 +77,10 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, onSubm
   const selectedValue = Number(values.expected_value || 0);
   useEffect(() => {
     if (!values.paid_value) {
-      setValues((current) => ({ ...current, paid_value: selectedValue }));
+      setValues((current) => {
+        const nextValues = { ...current, paid_value: selectedValue };
+        return { ...nextValues, net_value: calculateNetValue(nextValues) };
+      });
     }
   }, [selectedValue]);
 
@@ -118,7 +133,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, onSubm
           </div>
         </div>
 
-        <div>
+        {isPaymentMode ? <div>
           <h3 className="text-lg font-semibold text-slate-900">Pagamento</h3>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <label className="text-sm text-slate-600">
@@ -162,11 +177,18 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, onSubm
               <textarea name="notes" value={values.notes} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" rows={3} />
             </label>
           </div>
-        </div>
+        </div> : (
+          <label className="text-sm text-slate-600">
+            Observação
+            <textarea name="notes" value={values.notes} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" rows={3} />
+          </label>
+        )}
       </div>
 
       <div className="mt-6 flex gap-3">
-        <button type="submit" className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white">Confirmar pagamento</button>
+        <button type="submit" className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white">
+          {isPaymentMode ? 'Confirmar pagamento' : 'Salvar alterações'}
+        </button>
         <button type="button" onClick={onCancel} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">Cancelar</button>
       </div>
     </form>

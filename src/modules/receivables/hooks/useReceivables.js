@@ -66,6 +66,11 @@ export function useReceivables() {
     await load();
   }, [load]);
 
+  const updateReceivable = useCallback(async (receivable, payload) => {
+    await receivableService.updateReceivable(receivable, payload);
+    await load();
+  }, [load]);
+
   const remove = useCallback(async (id) => {
     await receivableService.remove(id);
     await load();
@@ -89,6 +94,7 @@ export function useReceivables() {
     load,
     save,
     pay,
+    updateReceivable,
     remove,
     restore,
     setFilter: (statusFilter) => updateFilter('statusFilter', statusFilter),

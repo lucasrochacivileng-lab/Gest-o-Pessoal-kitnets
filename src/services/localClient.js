@@ -5,6 +5,7 @@ const delay = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms));
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 let memoryDb = clone(seed);
+const emptyDb = () => Object.keys(seed).reduce((acc, entity) => ({ ...acc, [entity]: [] }), {});
 
 const getBrowserStorage = () => {
   if (typeof window === 'undefined' || !window.localStorage) {
@@ -55,6 +56,18 @@ const ensureEntity = (db, entity) => {
   return db[entity];
 };
 
+const validateDb = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Backup inválido: o conteúdo precisa ser um objeto.');
+  }
+
+  Object.entries(value).forEach(([entity, rows]) => {
+    if (!Array.isArray(rows)) {
+      throw new Error(`Backup inválido: ${entity} precisa ser uma lista.`);
+    }
+  });
+};
+
 const createId = () => {
   if (globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
@@ -96,5 +109,24 @@ export const localClient = {
 
   async removeSoft(entity, id) {
     return this.update(entity, id, { active: false });
+  },
+
+  async exportBackup() {
+    await delay();
+    return clone(readStorage());
+  },
+
+  async importBackup(value) {
+    await delay();
+    validateDb(value);
+    writeStorage(value);
+    return clone(value);
+  },
+
+  async resetData() {
+    await delay();
+    const value = emptyDb();
+    writeStorage(value);
+    return clone(value);
   },
 };

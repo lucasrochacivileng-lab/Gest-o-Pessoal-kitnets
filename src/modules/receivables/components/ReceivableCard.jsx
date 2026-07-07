@@ -1,6 +1,17 @@
-import { CheckCircle2, Eye, PencilLine } from 'lucide-react';
+import { CheckCircle2, Eye, MessageCircle, PencilLine } from 'lucide-react';
 import { financialService } from '../../../services/financialService';
 import { calculateOutstandingValue } from '../services/receivableService.js';
+
+const readWhatsappPreference = () => {
+  if (typeof window === 'undefined') return true;
+
+  try {
+    const settings = JSON.parse(window.localStorage.getItem('@kitmanager/settings') || '{}');
+    return settings.whatsappReminders !== false;
+  } catch {
+    return true;
+  }
+};
 
 export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
   const currency = financialService.formatCurrency;
@@ -8,6 +19,23 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
   const isPending = receivable.status === 'pendente';
   const outstandingValue = calculateOutstandingValue(receivable);
   const urgencyClass = isOverdue ? 'border-red-200 bg-red-50' : isPending ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white';
+  const tenantPhone = receivable.tenant?.whatsapp || receivable.tenant?.phone;
+  const whatsappEnabled = readWhatsappPreference();
+
+  const handleWhatsApp = () => {
+    const digits = String(tenantPhone || '').replace(/\D/g, '');
+    if (!digits) return;
+
+    const message = [
+      `Olá, ${receivable.tenant?.name || 'tudo bem'}!`,
+      `Passando para lembrar do aluguel da competência ${receivable.competence}.`,
+      `Valor em aberto: ${currency(outstandingValue || receivable.expected_value)}.`,
+      `Vencimento: ${receivable.due_date}.`,
+    ].join(' ');
+
+    const phone = digits.startsWith('55') ? digits : `55${digits}`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className={`rounded-3xl border p-6 shadow-sm ${urgencyClass}`}>
@@ -30,6 +58,11 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
         {receivable.status !== 'pago' ? (
           <button type="button" onClick={() => onPay(receivable)} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">
             <CheckCircle2 className="h-4 w-4" /> Receber aluguel
+          </button>
+        ) : null}
+        {whatsappEnabled && tenantPhone && receivable.status !== 'pago' ? (
+          <button type="button" onClick={handleWhatsApp} className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">
+            <MessageCircle className="h-4 w-4" /> WhatsApp
           </button>
         ) : null}
         <button type="button" onClick={() => onHistory(receivable)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">

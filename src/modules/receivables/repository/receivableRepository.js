@@ -63,6 +63,19 @@ export const receivableRepository = {
     return rows.filter((row) => row.status === 'pago');
   },
 
+  async listPaymentsByReceivable(receivableId) {
+    const rows = await appRepository.list(PAYMENT_ENTITY);
+    return rows.filter((row) => row.receivable_id === receivableId);
+  },
+
+  async getNextReceiptNumber() {
+    const rows = await appRepository.list(PAYMENT_ENTITY);
+    const year = new Date().getFullYear();
+    const next = rows.filter((row) => String(row.receipt_number || '').startsWith(`${year}-`)).length + 1;
+
+    return `${year}-${String(next).padStart(4, '0')}`;
+  },
+
   async listByKitnet(kitnetId) {
     const [rows, contracts] = await Promise.all([this.list(), appRepository.list(CONTRACT_ENTITY)]);
     const contractIds = contracts.filter((contract) => contract.kitnet_id === kitnetId).map((contract) => contract.id);
@@ -81,14 +94,15 @@ export const receivableRepository = {
   },
 
   async getContext() {
-    const [receivables, contracts, kitnets, tenants] = await Promise.all([
+    const [receivables, contracts, kitnets, tenants, payments] = await Promise.all([
       this.list(),
       appRepository.list(CONTRACT_ENTITY),
       appRepository.list(KITNET_ENTITY),
       appRepository.list(TENANT_ENTITY),
+      appRepository.list(PAYMENT_ENTITY),
     ]);
 
-    return { receivables, contracts, kitnets, tenants };
+    return { receivables, contracts, kitnets, tenants, payments };
   },
 };
 

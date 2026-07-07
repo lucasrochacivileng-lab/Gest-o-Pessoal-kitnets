@@ -45,4 +45,33 @@ describe('receivableService', () => {
 
     expect(result).toHaveLength(1);
   });
+
+  it('keeps payment history attached to each receivable when filtering', () => {
+    const receivables = [
+      {
+        id: 'r1',
+        status: RECEIVABLE_STATUS.PARTIAL,
+        due_date: '2026-07-10',
+        competence: '2026-07',
+        payments: [
+          { id: 'p1', receivable_id: 'r1', paid_value: 300, payment_date: '2026-07-07' },
+        ],
+      },
+    ];
+
+    const result = receivableService.filterReceivables(receivables, {
+      statusFilter: RECEIVABLE_FILTERS.PARTIAL,
+    });
+
+    expect(result[0].payments).toHaveLength(1);
+  });
+
+  it('marks partial receivables as overdue after due date', () => {
+    const status = getReceivableStatus(
+      { status: RECEIVABLE_STATUS.PARTIAL, due_date: '2026-07-01' },
+      '2026-07-07',
+    );
+
+    expect(status).toBe(RECEIVABLE_STATUS.OVERDUE);
+  });
 });

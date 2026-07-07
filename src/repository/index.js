@@ -14,6 +14,15 @@ export const repository = {
   removeSoft(entity, id) {
     return localClient.removeSoft(entity, id);
   },
+  exportBackup() {
+    return localClient.exportBackup();
+  },
+  importBackup(value) {
+    return localClient.importBackup(value);
+  },
+  resetData() {
+    return localClient.resetData();
+  },
 };
 
 export default repository;

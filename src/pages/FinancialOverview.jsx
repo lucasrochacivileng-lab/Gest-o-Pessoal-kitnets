@@ -3,6 +3,9 @@ import { repository } from '../repository/index.js';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const money = (value = 0) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const moneyValue = (value) => Number(value || 0);
+const outstandingValue = (receivable) => Math.max(moneyValue(receivable.expected_value) - moneyValue(receivable.paid_value), 0);
+const paymentValue = (payment) => moneyValue(payment.net_value || payment.paid_value);
 
 function Card({ label, value, icon, sub }) {
   return (
@@ -36,17 +39,18 @@ export default function FinancialOverview() {
       const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const today = now.toISOString().split('T')[0];
 
-      const monthRevenue = payments.filter((item) => item.payment_date?.startsWith(monthKey)).reduce((sum, item) => sum + (item.paid_value || 0), 0);
+      const monthRevenue = payments.filter((item) => item.payment_date?.startsWith(monthKey)).reduce((sum, item) => sum + paymentValue(item), 0);
       const monthExpenses = expenses.filter((item) => item.date?.startsWith(monthKey)).reduce((sum, item) => sum + (item.value || 0), 0);
       const overdueReceivables = receivables.filter((item) => item.status === 'vencido' || (item.status === 'pendente' && item.due_date && item.due_date < today));
       const upcomingReceivables = receivables.filter((item) => item.status === 'pendente' && item.due_date && item.due_date >= today);
-      const pendingValue = receivables.filter((item) => ['pendente', 'vencido', 'parcial'].includes(item.status)).reduce((sum, item) => sum + (item.expected_value || 0), 0);
+      const pendingValue = receivables.filter((item) => ['pendente', 'vencido', 'parcial'].includes(item.status)).reduce((sum, item) => sum + outstandingValue(item), 0);
+      const overdueValue = overdueReceivables.reduce((sum, item) => sum + outstandingValue(item), 0);
 
       const months = [];
       for (let i = 5; i >= 0; i -= 1) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const receipts = payments.filter((item) => item.payment_date?.startsWith(key)).reduce((sum, item) => sum + (item.paid_value || 0), 0);
+        const receipts = payments.filter((item) => item.payment_date?.startsWith(key)).reduce((sum, item) => sum + paymentValue(item), 0);
         const expenseValue = expenses.filter((item) => item.date?.startsWith(key)).reduce((sum, item) => sum + (item.value || 0), 0);
         months.push({ month: date.toLocaleString('pt-BR', { month: 'short' }), receipts, expenses: expenseValue });
       }
@@ -59,6 +63,7 @@ export default function FinancialOverview() {
         monthRevenue,
         monthExpenses,
         pendingValue,
+        overdueValue,
         overdueCount: overdueReceivables.length,
         upcomingCount: upcomingReceivables.length,
         months,
@@ -83,7 +88,7 @@ export default function FinancialOverview() {
         <Card label="Receita do mês" value={money(data.monthRevenue)} icon="R$" />
         <Card label="Despesas do mês" value={money(data.monthExpenses)} icon="—" />
         <Card label="Receita prevista" value={money(data.pendingValue)} icon="⏳" />
-        <Card label="Aluguéis vencidos" value={data.overdueCount} icon="⚠️" sub={money(data.pendingValue)} />
+        <Card label="Aluguéis vencidos" value={data.overdueCount} icon="⚠️" sub={money(data.overdueValue)} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">

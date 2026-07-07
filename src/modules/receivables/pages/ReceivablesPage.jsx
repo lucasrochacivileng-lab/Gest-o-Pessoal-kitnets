@@ -4,6 +4,7 @@ import { ReceivableSummary } from '../components/ReceivableSummary.jsx';
 import { ReceivableFilters } from '../components/ReceivableFilters.jsx';
 import { ReceivableCard } from '../components/ReceivableCard.jsx';
 import { ReceivePaymentDialog } from '../components/ReceivePaymentDialog.jsx';
+import { ReceivableHistoryDialog } from '../components/ReceivableHistoryDialog.jsx';
 
 export default function ReceivablesPage() {
   const {
@@ -16,6 +17,7 @@ export default function ReceivablesPage() {
     kitnets,
     tenants,
     pay,
+    updateReceivable,
     setFilter,
     setKitnetFilter,
     setContractFilter,
@@ -24,13 +26,24 @@ export default function ReceivablesPage() {
     setSearchFilter,
   } = useReceivables();
   const [selectedReceivable, setSelectedReceivable] = useState(null);
+  const [editingReceivable, setEditingReceivable] = useState(null);
+  const [historyReceivable, setHistoryReceivable] = useState(null);
 
-  const handleSubmit = async (payload) => {
+  const handlePaymentSubmit = async (payload) => {
     await pay(selectedReceivable, payload);
     setSelectedReceivable(null);
   };
 
-  const contractOptions = useMemo(() => contracts.map((contract) => ({ id: contract.id })), [contracts]);
+  const handleEditSubmit = async (payload) => {
+    await updateReceivable(editingReceivable, payload);
+    setEditingReceivable(null);
+  };
+
+  const contractOptions = useMemo(() => contracts.map((contract) => ({
+    id: contract.id,
+    kitnet_id: contract.kitnet_id,
+    tenant_id: contract.tenant_id,
+  })), [contracts]);
 
   return (
     <div className="space-y-6">
@@ -67,7 +80,7 @@ export default function ReceivablesPage() {
           <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Carregando recebíveis...</div>
         ) : null}
         {!loading && receivables.length > 0 ? receivables.map((row) => (
-          <ReceivableCard key={row.id} receivable={row} onPay={setSelectedReceivable} onEdit={() => {}} onHistory={() => {}} />
+          <ReceivableCard key={row.id} receivable={row} onPay={setSelectedReceivable} onEdit={setEditingReceivable} onHistory={setHistoryReceivable} />
         )) : null}
         {!loading && !receivables.length ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Nenhum recebível encontrado.</div>
@@ -79,9 +92,20 @@ export default function ReceivablesPage() {
         contracts={contractOptions}
         kitnets={kitnets}
         tenants={tenants}
-        onSubmit={handleSubmit}
+        mode="payment"
+        onSubmit={handlePaymentSubmit}
         onClose={() => setSelectedReceivable(null)}
       />
+      <ReceivePaymentDialog
+        receivable={editingReceivable}
+        contracts={contractOptions}
+        kitnets={kitnets}
+        tenants={tenants}
+        mode="edit"
+        onSubmit={handleEditSubmit}
+        onClose={() => setEditingReceivable(null)}
+      />
+      <ReceivableHistoryDialog receivable={historyReceivable} onClose={() => setHistoryReceivable(null)} />
     </div>
   );
 }

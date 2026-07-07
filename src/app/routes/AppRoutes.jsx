@@ -12,6 +12,8 @@ import Expenses from '../../pages/Expenses.jsx';
 import ConstructionPage from '../../pages/ConstructionPage.jsx';
 import CreditCards from '../../pages/CreditCards.jsx';
 import Documents from '../../pages/Documents.jsx';
+import Settings from '../../pages/Settings.jsx';
+import Reports from '../../pages/Reports.jsx';
 
 export default function AppRoutes() {
   return (
@@ -28,6 +30,8 @@ export default function AppRoutes() {
         <Route path="/obra" element={<ConstructionPage />} />
         <Route path="/cartoes" element={<CreditCards />} />
         <Route path="/documentos" element={<Documents />} />
+        <Route path="/relatorios" element={<Reports />} />
+        <Route path="/configuracoes" element={<Settings />} />
         <Route path="/financas-pessoais" element={<GenericModule title="Finanças Pessoais" entity="PersonalIncome" />} />
         <Route path="/pericias" element={<GenericModule title="Perícias Judiciais" entity="ExpertReport" />} />
         <Route path="/projetos" element={<GenericModule title="Projetos Complementares" entity="ComplementaryProject" />} />
