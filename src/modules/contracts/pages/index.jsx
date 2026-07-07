@@ -11,5 +11,17 @@ const fields = [
 ];
 
 export default function Contracts() {
-	return <EntityPage entity="Contract" title="Contratos" subtitle="Gerencie contratos" fields={fields} cardFields={[ 'kitnet_id', 'tenant_id', 'rent_value' ]} />;
+	return (
+		<EntityPage
+			entity="Contract"
+			title="Contratos"
+			subtitle="Gerencie contratos"
+			fields={fields}
+			cardFields={[ 'kitnet_id', 'tenant_id', 'rent_value' ]}
+			relations={[
+				{ key: 'Kitnet', entity: 'Kitnet' },
+				{ key: 'Tenant', entity: 'Tenant' }
+			]}
+		/>
+	);
 }

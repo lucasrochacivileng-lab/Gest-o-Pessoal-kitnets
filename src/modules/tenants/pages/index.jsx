@@ -10,5 +10,5 @@ const fields = [
 ];
 
 export default function Tenants() {
-	return <EntityPage entity="Tenant" title="Locatários" subtitle="Lista de locatários" fields={fields} cardFields={[ 'name', 'phone', 'status' ]} />;
+	return <EntityPage entity="Tenant" title="Locatários" subtitle="Lista de locatários" fields={fields} cardFields={[ 'name', 'phone', 'status' ]} relations={[{ key: 'Kitnet', entity: 'Kitnet' }]} />;
 }

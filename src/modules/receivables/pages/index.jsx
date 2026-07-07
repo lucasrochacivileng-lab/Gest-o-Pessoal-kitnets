@@ -12,5 +12,18 @@ const fields = [
 ];
 
 export default function Receivables() {
-	return <EntityPage entity="Receivable" title="Recebimentos" subtitle="Contas a receber" fields={fields} cardFields={[ 'competence', 'expected_value', 'status' ]} />;
+	return (
+		<EntityPage
+			entity="Receivable"
+			title="Recebimentos"
+			subtitle="Contas a receber"
+			fields={fields}
+			cardFields={[ 'competence', 'expected_value', 'status' ]}
+			relations={[
+				{ key: 'Contract', entity: 'Contract' },
+				{ key: 'Kitnet', entity: 'Kitnet' },
+				{ key: 'Tenant', entity: 'Tenant' }
+			]}
+		/>
+	);
 }

@@ -10,6 +10,14 @@ function fieldValue(value, type) {
   return value || '';
 }
 
+function getFieldName(field) {
+  return field.name || field.key;
+}
+
+function getRelationEntity(field) {
+  return field.optionsEntity || field.entity;
+}
+
 export default function EntityPage({ title, subtitle, entity, fields, cardFields, relations = [] }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -38,10 +46,11 @@ export default function EntityPage({ title, subtitle, entity, fields, cardFields
   const handleCreate = async (event) => {
     event.preventDefault();
     const payload = fields.reduce((acc, field) => {
-      let value = form[field.name];
+      const fieldName = getFieldName(field);
+      let value = form[fieldName];
       if (field.type === 'number') value = Number(value || 0);
       if (field.type === 'checkbox') value = Boolean(value);
-      acc[field.name] = value;
+      acc[fieldName] = value;
       return acc;
     }, {});
     await repository.create(entity, { ...payload, active: true });
@@ -82,28 +91,32 @@ export default function EntityPage({ title, subtitle, entity, fields, cardFields
         <form onSubmit={handleCreate} className="ds-card">
           <div className="grid gap-4 lg:grid-cols-2">
             {fields.map((field) => {
-              const relationList = field.optionsEntity ? relationOptions[field.optionsEntity] || [] : null;
+              const fieldName = getFieldName(field);
+              const relationEntity = getRelationEntity(field);
+              const relationList = relationEntity ? relationOptions[relationEntity] || [] : null;
+              const isSelect = field.type === 'select' || field.type === 'relation';
+
               return (
-                <label key={field.name} className="ds-form-field">
+                <label key={fieldName} className="ds-form-field">
                   {field.label}
                   {field.type === 'textarea' ? (
                     <textarea
                       rows="3"
-                      value={fieldValue(form[field.name], field.type)}
-                      onChange={(event) => setForm((prev) => ({ ...prev, [field.name]: event.target.value }))}
+                      value={fieldValue(form[fieldName], field.type)}
+                      onChange={(event) => setForm((prev) => ({ ...prev, [fieldName]: event.target.value }))}
                       className={inputClass}
                       placeholder={field.placeholder || ''}
                     />
-                  ) : field.type === 'select' ? (
+                  ) : isSelect ? (
                     <select
-                      value={fieldValue(form[field.name], field.type)}
-                      onChange={(event) => setForm((prev) => ({ ...prev, [field.name]: event.target.value }))}
+                      value={fieldValue(form[fieldName], field.type)}
+                      onChange={(event) => setForm((prev) => ({ ...prev, [fieldName]: event.target.value }))}
                       className={inputClass}
                     >
                       <option value="">Selecione</option>
-                      {(field.options || relationList).map((option) => (
+                      {(field.options || relationList || []).map((option) => (
                         <option key={option.value ?? option.id ?? option.name} value={option.value ?? option.id ?? option.name}>
-                          {option.label ?? option.name ?? option.title ?? option.competence ?? option.process_number}
+                          {option.label ?? option.name ?? option.title ?? option.competence ?? option.process_number ?? option.id}
                         </option>
                       ))}
                     </select>
@@ -111,8 +124,8 @@ export default function EntityPage({ title, subtitle, entity, fields, cardFields
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
-                        checked={Boolean(form[field.name])}
-                        onChange={(event) => setForm((prev) => ({ ...prev, [field.name]: event.target.checked }))}
+                        checked={Boolean(form[fieldName])}
+                        onChange={(event) => setForm((prev) => ({ ...prev, [fieldName]: event.target.checked }))}
                         className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
                       <span className="text-sm text-slate-600">{field.help || ''}</span>
@@ -120,8 +133,8 @@ export default function EntityPage({ title, subtitle, entity, fields, cardFields
                   ) : (
                     <input
                       type={field.type || 'text'}
-                      value={fieldValue(form[field.name], field.type)}
-                      onChange={(event) => setForm((prev) => ({ ...prev, [field.name]: event.target.value }))}
+                      value={fieldValue(form[fieldName], field.type)}
+                      onChange={(event) => setForm((prev) => ({ ...prev, [fieldName]: event.target.value }))}
                       className={inputClass}
                       placeholder={field.placeholder || ''}
                     />
