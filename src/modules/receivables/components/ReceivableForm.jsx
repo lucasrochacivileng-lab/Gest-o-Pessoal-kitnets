@@ -10,7 +10,7 @@ const initialValues = {
   notes: '',
   payment_date: new Date().toISOString().slice(0, 10),
   payment_method: 'pix',
-  destination_account: 'Itaú',
+  destination_account: 'Mercado Pago',
   paid_value: '',
   discount: 0,
   fine: 0,
@@ -39,6 +39,11 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
 
     const outstandingValue = calculateOutstandingValue(receivable);
     const paidValue = outstandingValue || receivable.expected_value || '';
+    // Contrato prevê multa de 10% sobre o valor devido em caso de atraso — sugerida
+    // automaticamente para recebíveis vencidos (o valor continua editável).
+    const suggestedFine = mode === 'payment' && receivable.status === 'vencido'
+      ? Math.round(Number(paidValue || 0) * 0.10 * 100) / 100
+      : 0;
 
     setValues({
       ...initialValues,
@@ -50,10 +55,11 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       notes: receivable.notes || '',
       payment_date: new Date().toISOString().slice(0, 10),
       paid_value: paidValue,
-      net_value: Number(paidValue || 0),
+      fine: suggestedFine,
+      net_value: Number(paidValue || 0) + suggestedFine,
       destination_account: receivable.destination_account || initialValues.destination_account,
     });
-  }, [receivable]);
+  }, [mode, receivable]);
 
   const selectedContract = useMemo(() => contracts.find((contract) => contract.id === values.contract_id) || null, [contracts, values.contract_id]);
   const selectedKitnet = useMemo(() => kitnets.find((kitnet) => kitnet.id === selectedContract?.kitnet_id) || null, [kitnets, selectedContract]);
@@ -145,7 +151,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
               <input name="discount" type="number" value={values.discount} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
             </label>
             <label className="text-sm text-slate-600">
-              Multa
+              Multa (10% sugerida em atrasos)
               <input name="fine" type="number" value={values.fine} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
             </label>
             <label className="text-sm text-slate-600">

@@ -24,6 +24,7 @@ export default function ReceivablesPage() {
     kitnets,
     tenants,
     pay,
+    generate,
     updateReceivable,
     setFilter,
     setKitnetFilter,
@@ -37,6 +38,25 @@ export default function ReceivablesPage() {
   const [editingReceivable, setEditingReceivable] = useState(null);
   const [historyReceivable, setHistoryReceivable] = useState(null);
   const [notificationReceivable, setNotificationReceivable] = useState(null);
+  const [generateCompetence, setGenerateCompetence] = useState(() => new Date().toISOString().slice(0, 7));
+  const [generateMessage, setGenerateMessage] = useState('');
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setGenerateMessage('');
+
+    try {
+      const result = await generate(generateCompetence);
+      setGenerateMessage(result.created > 0
+        ? `${result.created} recebível(is) gerado(s) para ${generateCompetence}.`
+        : `Nenhum recebível novo: os contratos ativos de ${generateCompetence} já estão lançados.`);
+    } catch {
+      setGenerateMessage('Não foi possível gerar os recebíveis. Tente novamente.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handlePaymentSubmit = async (payload) => {
     await pay(selectedReceivable, payload);
@@ -92,7 +112,28 @@ export default function ReceivablesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Recebimentos</h1>
           <p className="text-sm text-slate-500">Controle de recebíveis e confirmações de pagamento</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="month"
+            value={generateCompetence}
+            onChange={(event) => setGenerateCompetence(event.target.value)}
+            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+            aria-label="Competência para gerar recebíveis"
+          />
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generating || !generateCompetence}
+            className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+          >
+            {generating ? 'Gerando...' : 'Gerar aluguéis do mês'}
+          </button>
+        </div>
       </div>
+
+      {generateMessage ? (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{generateMessage}</div>
+      ) : null}
 
       <ReceivableSummary summary={summary} />
 

@@ -71,6 +71,12 @@ export function useReceivables() {
     await load();
   }, [load]);
 
+  const generate = useCallback(async (competence) => {
+    const result = await receivableService.generateForCompetence(competence);
+    await load();
+    return result;
+  }, [load]);
+
   const remove = useCallback(async (id) => {
     await receivableService.remove(id);
     await load();
@@ -93,6 +99,7 @@ export function useReceivables() {
     tenants,
     load,
     save,
+    generate,
     pay,
     updateReceivable,
     remove,

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { NOTIFICATION_ENTITY } from '../modules/notifications/types/notification.types.js';
+import { recurringExpenseService } from '../services/recurringExpenseService.js';
 
 const fields = [
   { name: 'date', label: 'Data', type: 'date' },
@@ -9,6 +10,8 @@ const fields = [
     { value: 'manutencao', label: 'Manutenção' },
     { value: 'agua', label: 'Água' },
     { value: 'luz', label: 'Luz' },
+    { value: 'energia_solar', label: 'Energia solar (parcela)' },
+    { value: 'moveis', label: 'Móveis/eletrodomésticos (parcela)' },
     { value: 'internet', label: 'Internet' },
     { value: 'iptu', label: 'IPTU' },
     { value: 'seguro', label: 'Seguro' },
@@ -26,29 +29,76 @@ const fields = [
   { name: 'description', label: 'Descrição', type: 'textarea', placeholder: 'Descrição da despesa' },
   { name: 'value', label: 'Valor', type: 'number', placeholder: '1200' },
   { name: 'payment_method', label: 'Forma de pagamento', placeholder: 'Pix, dinheiro, transferência' },
-  { name: 'account', label: 'Conta', placeholder: 'Itaú, Nubank' },
+  { name: 'account', label: 'Conta', placeholder: 'Mercado Pago, Itaú, Nubank' },
   { name: 'status', label: 'Status', type: 'select', options: [
     { value: 'pendente', label: 'Pendente' },
     { value: 'pago', label: 'Pago' },
   ] },
+  { name: 'recurring', label: 'Despesa recorrente', type: 'checkbox', help: 'Repete todo mês (água, parcelas de cartão...)' },
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Ex: comprovante anexo' },
 ];
 
 export default function Expenses() {
   const { id } = useParams();
+  const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
+  const [message, setMessage] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setMessage('');
+
+    try {
+      const result = await recurringExpenseService.generateForCompetence(competence);
+      setMessage(result.created > 0
+        ? `${result.created} despesa(s) recorrente(s) lançada(s) para ${competence}.`
+        : `Nenhuma despesa nova: as recorrentes de ${competence} já estão lançadas (ou nenhuma despesa está marcada como recorrente).`);
+      setReloadKey((key) => key + 1);
+    } catch {
+      setMessage('Não foi possível gerar as despesas. Tente novamente.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
-    <EntityPage
-      title="Despesas"
-      subtitle="Registro de despesas por kitnet, categoria e conta"
-      entity="Expense"
-      fields={fields}
-      cardFields={['date', 'description']}
-      relations={[{ key: 'Kitnet', entity: 'Kitnet' }]}
-      selectedId={id}
-      deepLinkEntity={NOTIFICATION_ENTITY.EXPENSE}
-      deepLinkBasePath="/despesas"
-      getDeepLinkLabel={(item) => item.description || item.category || item.id}
-    />
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <input
+          type="month"
+          value={competence}
+          onChange={(event) => setCompetence(event.target.value)}
+          className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+          aria-label="Competência para gerar despesas recorrentes"
+        />
+        <button
+          type="button"
+          onClick={handleGenerate}
+          disabled={generating || !competence}
+          className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+        >
+          {generating ? 'Gerando...' : 'Gerar despesas do mês'}
+        </button>
+      </div>
+
+      {message ? (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{message}</div>
+      ) : null}
+
+      <EntityPage
+        key={reloadKey}
+        title="Despesas"
+        subtitle="Registro de despesas por kitnet, categoria e conta"
+        entity="Expense"
+        fields={fields}
+        cardFields={['date', 'description']}
+        relations={[{ key: 'Kitnet', entity: 'Kitnet' }]}
+        selectedId={id}
+        deepLinkEntity={NOTIFICATION_ENTITY.EXPENSE}
+        deepLinkBasePath="/despesas"
+        getDeepLinkLabel={(item) => item.description || item.category || item.id}
+      />
+    </div>
   );
 }

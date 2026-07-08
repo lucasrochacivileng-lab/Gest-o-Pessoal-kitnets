@@ -1,27 +1,32 @@
 import { localClient } from '../services/localClient.js';
+import { supabaseDataClient } from '../services/supabaseDataClient.js';
+import { isSupabaseEnabled } from '../services/supabaseClient.js';
 
-// Centraliza persistencia para facilitar a troca futura por Supabase.
+// Centraliza a persistência: usa Supabase quando VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY
+// estão configuradas; caso contrário, mantém o modo local (localStorage).
+const client = isSupabaseEnabled ? supabaseDataClient : localClient;
+
 export const repository = {
   list(entity) {
-    return localClient.list(entity);
+    return client.list(entity);
   },
   create(entity, payload) {
-    return localClient.create(entity, payload);
+    return client.create(entity, payload);
   },
   update(entity, id, payload) {
-    return localClient.update(entity, id, payload);
+    return client.update(entity, id, payload);
   },
   removeSoft(entity, id) {
-    return localClient.removeSoft(entity, id);
+    return client.removeSoft(entity, id);
   },
   exportBackup() {
-    return localClient.exportBackup();
+    return client.exportBackup();
   },
   importBackup(value) {
-    return localClient.importBackup(value);
+    return client.importBackup(value);
   },
   resetData() {
-    return localClient.resetData();
+    return client.resetData();
   },
 };
 

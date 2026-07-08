@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { repository } from '../../repository/index.js';
-import { Plus, Trash2 } from 'lucide-react';
+import { PencilLine, Plus, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NotificationActionDialog from '../../modules/notifications/components/NotificationActionDialog.jsx';
 import notificationService from '../../modules/notifications/services/notificationService.js';
@@ -46,6 +46,7 @@ export default function EntityPage({
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({});
+  const [editingId, setEditingId] = useState(null);
   const [relationData, setRelationData] = useState({});
   const [loading, setLoading] = useState(true);
   const [actionItem, setActionItem] = useState(null);
@@ -69,7 +70,7 @@ export default function EntityPage({
     setLoading(false);
   };
 
-  const handleCreate = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const payload = fields.reduce((acc, field) => {
       const fieldName = getFieldName(field);
@@ -79,14 +80,42 @@ export default function EntityPage({
       acc[fieldName] = value;
       return acc;
     }, {});
-    await repository.create(entity, { ...payload, active: true });
+
+    if (editingId) {
+      await repository.update(entity, editingId, payload);
+    } else {
+      await repository.create(entity, { ...payload, active: true });
+    }
+
     setForm({});
+    setEditingId(null);
     setFormOpen(false);
     await loadData();
   };
 
-  const handleRemove = async (id) => {
-    await repository.removeSoft(entity, id);
+  const startEdit = (row) => {
+    const values = fields.reduce((acc, field) => {
+      const fieldName = getFieldName(field);
+      acc[fieldName] = row[fieldName];
+      return acc;
+    }, {});
+    setForm(values);
+    setEditingId(row.id);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setForm({});
+    setEditingId(null);
+    setFormOpen(false);
+  };
+
+  const handleRemove = async (row) => {
+    const label = cardFields.map((field) => row[field]).filter(Boolean).join(' — ') || row.id;
+    const confirmed = window.confirm(`Excluir "${label}"? O registro sai das telas, mas continua no backup.`);
+    if (!confirmed) return;
+
+    await repository.removeSoft(entity, row.id);
     await loadData();
   };
 
@@ -139,7 +168,7 @@ export default function EntityPage({
         </div>
         <button
           type="button"
-          onClick={() => setFormOpen((state) => !state)}
+          onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
           className="ds-btn ds-btn-primary"
         >
           <Plus className="h-4 w-4" /> Novo
@@ -147,7 +176,7 @@ export default function EntityPage({
       </div>
 
       {formOpen ? (
-        <form onSubmit={handleCreate} className="ds-card">
+        <form onSubmit={handleSubmit} className="ds-card">
           <div className="grid gap-4 lg:grid-cols-2">
             {fields.map((field) => {
               const fieldName = getFieldName(field);
@@ -204,9 +233,9 @@ export default function EntityPage({
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
             <button type="submit" className="ds-btn ds-btn-primary">
-              Salvar
+              {editingId ? 'Salvar alterações' : 'Salvar'}
             </button>
-            <button type="button" onClick={() => setFormOpen(false)} className="ds-btn ds-btn-secondary">
+            <button type="button" onClick={closeForm} className="ds-btn ds-btn-secondary">
               Cancelar
             </button>
           </div>
@@ -224,9 +253,14 @@ export default function EntityPage({
                   <p className="text-sm font-semibold text-slate-900">{cardFields.map((field) => row[field]).filter(Boolean).join(' — ') || row.id}</p>
                   {row.notes ? <p className="mt-2 text-sm text-slate-500">{row.notes}</p> : null}
                 </div>
-                <button type="button" onClick={() => handleRemove(row.id)} className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => startEdit(row)} title="Editar" className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                    <PencilLine className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={() => handleRemove(row)} title="Excluir" className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))

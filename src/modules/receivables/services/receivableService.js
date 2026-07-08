@@ -40,6 +40,44 @@ const withContext = (receivables, contracts = [], kitnets = [], tenants = [], pa
   });
 };
 
+// Regra pura: dado o mês (competência 'YYYY-MM'), monta os recebíveis que faltam
+// para contratos vigentes, sem duplicar os que já existem.
+export const buildReceivablesForCompetence = (contracts = [], receivables = [], competence) => {
+  const existing = new Set(receivables.map((row) => `${row.contract_id}|${row.competence}`));
+
+  return contracts
+    .filter((contract) => !contract.status || contract.status === 'ativo')
+    .filter((contract) => {
+      const start = String(contract.start_date || '').slice(0, 7);
+      const end = String(contract.end_date || '').slice(0, 7);
+      if (start && competence < start) return false;
+      if (end && competence > end) return false;
+      return true;
+    })
+    .filter((contract) => !existing.has(`${contract.id}|${competence}`))
+    .map((contract) => {
+      const [year, month] = competence.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const dueDay = Math.min(Math.max(Number(contract.due_day) || 10, 1), daysInMonth);
+
+      return {
+        contract_id: contract.id,
+        kitnet_id: contract.kitnet_id,
+        tenant_id: contract.tenant_id,
+        competence,
+        expected_value: toMoney(contract.rent_value),
+        due_date: `${competence}-${String(dueDay).padStart(2, '0')}`,
+        status: RECEIVABLE_STATUS.PENDING,
+        notes: '',
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_by: 'local-user',
+        updated_by: 'local-user',
+      };
+    });
+};
+
 const matchesSearch = (row, search) => {
   const text = [
     row.competence,
@@ -164,6 +202,17 @@ export const receivableService = {
     return receivables.filter((row) => row.tenant?.id === tenantId);
   },
 
+  async generateForCompetence(competence) {
+    const { receivables, contracts } = await receivableRepository.getContext();
+    const toCreate = buildReceivablesForCompetence(contracts, receivables, competence);
+
+    for (const payload of toCreate) {
+      await receivableRepository.create(payload);
+    }
+
+    return { created: toCreate.length };
+  },
+
   async registerPayment(receivable, paymentPayload) {
     const paidValue = toMoney(paymentPayload.paid_value || receivable.expected_value);
     const discount = toMoney(paymentPayload.discount);
@@ -182,7 +231,7 @@ export const receivableService = {
       net_value: netValue,
       payment_date: formatDate(paymentPayload.payment_date || today()),
       payment_method: paymentPayload.payment_method || 'pix',
-      destination_account: paymentPayload.destination_account || 'Itaú',
+      destination_account: paymentPayload.destination_account || 'Mercado Pago',
       notes: paymentPayload.notes || '',
       discount,
       interest,

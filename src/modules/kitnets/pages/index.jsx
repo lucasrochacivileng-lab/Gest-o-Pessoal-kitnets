@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, FileText, History, Plus, Trash2, Upload } from 'lucide-react';
+import { ExternalLink, FileText, History, PencilLine, Plus, Trash2, Upload } from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
 
 const fields = [
   { key: 'name', label: 'Nome', type: 'text', placeholder: 'Kitnet 01' },
-  { key: 'address', label: 'Endereço', type: 'text', placeholder: 'Rua, número, bairro' },
+  { key: 'address', label: 'Endereço', type: 'text', placeholder: 'Rua Kaikang, nº 25, Jardim Santa Paula, Goiatuba-GO' },
   { key: 'rent_value', label: 'Valor do aluguel', type: 'number', placeholder: '800' },
   {
     key: 'status',
@@ -15,6 +15,34 @@ const fields = [
       { value: 'vaga', label: 'Vaga' },
       { value: 'ocupada', label: 'Ocupada' },
       { value: 'manutencao', label: 'Manutenção' },
+    ],
+  },
+  {
+    key: 'finish_standard',
+    label: 'Padrão de acabamento',
+    type: 'select',
+    options: [
+      { value: 'antigo', label: 'Antigo' },
+      { value: 'novo', label: 'Novo' },
+    ],
+  },
+  {
+    key: 'garage',
+    label: 'Garagem',
+    type: 'select',
+    options: [
+      { value: 'carro', label: 'Carro' },
+      { value: 'moto', label: 'Moto' },
+      { value: 'nenhuma', label: 'Nenhuma' },
+    ],
+  },
+  {
+    key: 'furnished',
+    label: 'Mobiliada',
+    type: 'select',
+    options: [
+      { value: 'nao', label: 'Não' },
+      { value: 'sim', label: 'Sim' },
     ],
   },
   { key: 'description', label: 'Descrição', type: 'textarea', placeholder: 'Características e observações da unidade' },
@@ -92,6 +120,7 @@ export default function Kitnets() {
   const [documents, setDocuments] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({});
+  const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -145,7 +174,7 @@ export default function Kitnets() {
     }, {});
   }, [documents]);
 
-  const handleCreate = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const payload = fields.reduce((acc, field) => {
       let value = form[field.key];
@@ -154,15 +183,41 @@ export default function Kitnets() {
       return acc;
     }, {});
 
-    await repository.create('Kitnet', { ...payload, active: true });
+    if (editingId) {
+      await repository.update('Kitnet', editingId, payload);
+      setMessage('Kitnet atualizada.');
+    } else {
+      await repository.create('Kitnet', { ...payload, active: true });
+      setMessage('Kitnet cadastrada.');
+    }
+
     setForm({});
+    setEditingId(null);
     setFormOpen(false);
-    setMessage('Kitnet cadastrada.');
     await loadData();
   };
 
-  const handleRemove = async (id) => {
-    await repository.removeSoft('Kitnet', id);
+  const startEdit = (kitnet) => {
+    const values = fields.reduce((acc, field) => {
+      acc[field.key] = kitnet[field.key];
+      return acc;
+    }, {});
+    setForm(values);
+    setEditingId(kitnet.id);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setForm({});
+    setEditingId(null);
+    setFormOpen(false);
+  };
+
+  const handleRemove = async (kitnet) => {
+    const confirmed = window.confirm(`Excluir "${kitnet.name || kitnet.id}"? O registro sai das telas, mas continua no backup.`);
+    if (!confirmed) return;
+
+    await repository.removeSoft('Kitnet', kitnet.id);
     setMessage('Kitnet removida.');
     await loadData();
   };
@@ -216,7 +271,7 @@ export default function Kitnets() {
         </div>
         <button
           type="button"
-          onClick={() => setFormOpen((state) => !state)}
+          onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
           className="ds-btn ds-btn-primary"
         >
           <Plus className="h-4 w-4" /> Novo
@@ -228,7 +283,7 @@ export default function Kitnets() {
       ) : null}
 
       {formOpen ? (
-        <form onSubmit={handleCreate} className="ds-card">
+        <form onSubmit={handleSubmit} className="ds-card">
           <div className="grid gap-4 lg:grid-cols-2">
             {fields.map((field) => (
               <label key={field.key} className="ds-form-field">
@@ -268,9 +323,9 @@ export default function Kitnets() {
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
             <button type="submit" className="ds-btn ds-btn-primary">
-              Salvar
+              {editingId ? 'Salvar alterações' : 'Salvar'}
             </button>
-            <button type="button" onClick={() => setFormOpen(false)} className="ds-btn ds-btn-secondary">
+            <button type="button" onClick={closeForm} className="ds-btn ds-btn-secondary">
               Cancelar
             </button>
           </div>
@@ -298,16 +353,29 @@ export default function Kitnets() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span className="ds-badge ds-badge-info">{kitnet.status || 'sem status'}</span>
                       <span className="ds-badge ds-badge-success">{financialService.formatCurrency(kitnet.rent_value)}</span>
+                      {kitnet.finish_standard ? <span className="ds-badge ds-badge-info">padrão {kitnet.finish_standard}</span> : null}
+                      {kitnet.garage && kitnet.garage !== 'nenhuma' ? <span className="ds-badge ds-badge-info">garagem {kitnet.garage}</span> : null}
+                      {kitnet.furnished === 'sim' ? <span className="ds-badge ds-badge-info">mobiliada</span> : null}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(kitnet.id)}
-                    className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600"
-                    aria-label={`Excluir ${kitnet.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(kitnet)}
+                      className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600"
+                      aria-label={`Editar ${kitnet.name}`}
+                    >
+                      <PencilLine className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(kitnet)}
+                      className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600"
+                      aria-label={`Excluir ${kitnet.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
