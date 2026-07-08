@@ -68,14 +68,19 @@ describe('buildForecast', () => {
     expect(result.outgoings.find((row) => row.label.includes('Pizza'))).toBeUndefined();
   });
 
-  it('inclui despesas recorrentes das kitnets e transações de cartão ficam fora', () => {
+  it('inclui despesas recorrentes das kitnets e parcelas de cartão importadas na previsão', () => {
     const result = buildForecast({
       ...base,
       expenses: [{ description: 'Água das kitnets', value: 110, date: '2026-07-05', recurring: true, status: 'pago' }],
-      personal: [{ type: 'card_transaction', description: 'EC LOJA', value: 999, date: '2027-07-01', status: 'revisar' }],
+      personal: [{ type: 'card_transaction', card_name: 'Nubank', description: 'EC LOJA', installment: '2/3', value: 999, date: '2027-07-01', status: 'revisar' }],
     });
 
-    expect(result.outgoings).toHaveLength(1);
-    expect(result.outgoings[0].label).toContain('Água');
+    expect(result.outgoings).toHaveLength(2);
+    expect(result.outgoings.find((row) => row.label.includes('Água'))).toBeTruthy();
+    expect(result.outgoings.find((row) => row.label.includes('EC LOJA'))).toMatchObject({
+      label: 'Nubank - EC LOJA (2/3)',
+      value: 999,
+      source: 'cartão importado - revisar',
+    });
   });
 });

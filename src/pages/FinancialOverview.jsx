@@ -8,6 +8,10 @@ const money = (value = 0) => value.toLocaleString('pt-BR', { style: 'currency', 
 const moneyValue = (value) => Number(value || 0);
 const outstandingValue = (receivable) => Math.max(moneyValue(receivable.expected_value) - moneyValue(receivable.paid_value), 0);
 const paymentValue = (payment) => moneyValue(payment.net_value || payment.paid_value);
+const addCategory = (map, category, value) => {
+  const key = category || 'outros';
+  map[key] = (map[key] || 0) + moneyValue(value);
+};
 
 function Card({ label, value, icon, sub }) {
   return (
@@ -59,9 +63,21 @@ export default function FinancialOverview() {
       }
 
       const cashflow = buildCashflow({ payments, expenses, personal, monthKey });
+      const categoryTotals = {};
+      expenses
+        .filter((item) => item.date?.startsWith(monthKey))
+        .forEach((item) => addCategory(categoryTotals, item.category, item.value));
+      personal
+        .filter((item) => item.status !== 'ignorar' && ['expense', 'card_transaction'].includes(item.type) && item.date?.startsWith(monthKey))
+        .forEach((item) => addCategory(categoryTotals, item.category, item.value));
+      const categoryRanking = Object.entries(categoryTotals)
+        .map(([category, value]) => ({ category, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8);
 
       setData({
         cashflow,
+        categoryRanking,
         kitnets: kitnets.length,
         occupied: kitnets.filter((item) => item.status === 'ocupada').length,
         vacant: kitnets.filter((item) => item.status === 'vaga').length,
@@ -119,6 +135,25 @@ export default function FinancialOverview() {
             <Link to="/financas-pessoais" className="font-semibold underline">Revisar agora</Link>
           </div>
         ) : null}
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-slate-900">Gastos por categoria no mês</h2>
+          <Link to="/cartoes" className="text-sm font-semibold text-blue-700 hover:underline">Importar fatura</Link>
+        </div>
+        {data.categoryRanking.length ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {data.categoryRanking.map((item) => (
+              <div key={item.category} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.category}</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{money(item.value)}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-slate-500">Sem despesas categorizadas neste mês.</p>
+        )}
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
