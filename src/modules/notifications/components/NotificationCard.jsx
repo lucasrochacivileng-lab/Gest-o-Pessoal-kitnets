@@ -1,8 +1,9 @@
-import { ExternalLink, Send } from 'lucide-react';
+import { ExternalLink, MessageCircle, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   notificationStatusLabels,
   notificationTypeLabels,
+  NOTIFICATION_ENTITY,
   NOTIFICATION_STATUS,
 } from '../types/notification.types.js';
 
@@ -14,7 +15,14 @@ const statusClass = {
   [NOTIFICATION_STATUS.IGNORED]: 'ds-badge-info',
 };
 
-export function NotificationCard({ notification, onSendNow }) {
+export function NotificationCard({ notification, onSendNow, onWhatsApp }) {
+  // WhatsApp só faz sentido quando há locatário por trás (aluguel/contrato)
+  // e a notificação ainda está em aberto.
+  const canWhatsApp = Boolean(onWhatsApp)
+    && (notification.entity === NOTIFICATION_ENTITY.RECEIVABLE || notification.entity === NOTIFICATION_ENTITY.CONTRACT)
+    && notification.status !== NOTIFICATION_STATUS.CONFIRMED
+    && notification.status !== NOTIFICATION_STATUS.IGNORED;
+
   return (
     <article className="ds-card">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -40,6 +48,15 @@ export function NotificationCard({ notification, onSendNow }) {
           <Link to={notification.deep_link || '/notificacoes'} className="ds-btn ds-btn-secondary">
             <ExternalLink className="h-4 w-4" /> Abrir item
           </Link>
+          {canWhatsApp ? (
+            <button
+              type="button"
+              onClick={() => onWhatsApp(notification.id)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+            >
+              <MessageCircle className="h-4 w-4" /> Cobrar no WhatsApp
+            </button>
+          ) : null}
           <button type="button" onClick={() => onSendNow(notification.id)} className="ds-btn ds-btn-primary">
             <Send className="h-4 w-4" /> Enviar lembrete agora
           </button>

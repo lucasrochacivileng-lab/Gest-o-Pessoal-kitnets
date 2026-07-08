@@ -10,6 +10,7 @@ export const NOTIFICATION_TYPE = {
   EXPENSE_DUE: 'expense_due',
   RENT_DUE: 'rent_due',
   CONTRACT_DUE: 'contract_due',
+  CONTRACT_ADJUST: 'contract_adjust',
 };
 
 export const NOTIFICATION_EVENT = {
@@ -40,4 +41,5 @@ export const notificationTypeLabels = {
   [NOTIFICATION_TYPE.EXPENSE_DUE]: 'Conta/despesa a vencer',
   [NOTIFICATION_TYPE.RENT_DUE]: 'Aluguel a vencer',
   [NOTIFICATION_TYPE.CONTRACT_DUE]: 'Contrato a vencer',
+  [NOTIFICATION_TYPE.CONTRACT_ADJUST]: 'Reajuste anual de aluguel',
 };

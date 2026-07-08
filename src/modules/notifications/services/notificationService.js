@@ -1,5 +1,6 @@
 import { repository } from '../../../repository/index.js';
 import notificationDeliveryService from './notificationDeliveryService.js';
+import { buildWhatsAppLink } from '../../../services/whatsappService.js';
 import {
   NOTIFICATION_ENTITY,
   NOTIFICATION_EVENT,
@@ -166,6 +167,54 @@ const buildContractCandidate = (contract, tenants, kitnets, settings, currentDat
   };
 };
 
+// Próximo aniversário do contrato (data de reajuste anual): a menor data
+// "start_date + k anos" (k >= 1) que ainda não passou. Retorna '' sem start_date.
+export const getNextAdjustmentDate = (startDate, currentDate = todayString()) => {
+  const start = String(startDate || '').slice(0, 10);
+  if (!start || start.length < 10) return '';
+
+  const startYear = Number(start.slice(0, 4));
+  const monthDay = start.slice(4); // '-MM-DD'
+  let year = Math.max(startYear + 1, Number(currentDate.slice(0, 4)));
+  let candidate = `${year}${monthDay}`;
+
+  if (candidate < currentDate) {
+    candidate = `${year + 1}${monthDay}`;
+  }
+
+  return candidate;
+};
+
+const buildContractAdjustCandidate = (contract, tenants, kitnets, settings, currentDate) => {
+  if (contract.status !== 'ativo' || !contract.start_date) return null;
+
+  const adjustDate = getNextAdjustmentDate(contract.start_date, currentDate);
+  if (!adjustDate) return null;
+  if (contract.end_date && adjustDate > String(contract.end_date).slice(0, 10)) return null;
+
+  const days = parseDays(settings.contractAlertDays, [30, 60]);
+  if (!isDateWithinAlertWindow(adjustDate, days, currentDate)) return null;
+
+  const years = Number(adjustDate.slice(0, 4)) - Number(String(contract.start_date).slice(0, 4));
+  const tenant = getTenantById(tenants, contract.tenant_id);
+  const kitnet = getKitnetById(kitnets, contract.kitnet_id);
+  const title = `Reajuste anual: ${kitnet?.name || contract.id}`;
+  const message = `O contrato de ${tenant?.name || 'locatário não informado'} completa ${years} ano(s) em ${adjustDate}. `
+    + 'Considere aplicar o reajuste anual do aluguel (IGP-M ou IPCA acumulado de 12 meses) e atualizar o valor no contrato.';
+
+  return {
+    type: NOTIFICATION_TYPE.CONTRACT_ADJUST,
+    entity: NOTIFICATION_ENTITY.CONTRACT,
+    entity_id: contract.id,
+    title,
+    message,
+    recipient_email: settings.defaultRecipientEmail,
+    due_date: adjustDate,
+    deep_link: buildDeepLink(NOTIFICATION_ENTITY.CONTRACT, contract.id),
+    scheduled_for: currentDate,
+  };
+};
+
 const findNotificationsForTarget = async (entity, id) => {
   const notifications = await repository.list('Notification');
   return notifications.filter((notification) => (
@@ -234,6 +283,7 @@ export const notificationService = {
       ...expenses.map((expense) => buildExpenseCandidate(expense, settings, currentDate)),
       ...receivables.map((receivable) => buildReceivableCandidate(receivable, contracts, tenants, kitnets, settings, currentDate)),
       ...contracts.map((contract) => buildContractCandidate(contract, tenants, kitnets, settings, currentDate)),
+      ...contracts.map((contract) => buildContractAdjustCandidate(contract, tenants, kitnets, settings, currentDate)),
     ].filter(Boolean);
 
     const created = [];
@@ -258,6 +308,56 @@ export const notificationService = {
     }
 
     return { created, skipped, totalCandidates: candidates.length };
+  },
+
+  // Resolve o link wa.me da notificação (telefone do locatário + mensagem).
+  // Lança erro amigável quando não há locatário/telefone associado.
+  async getWhatsAppLink(notificationId) {
+    const [notifications, receivables, contracts, tenants] = await Promise.all([
+      repository.list('Notification'),
+      repository.list('Receivable'),
+      repository.list('Contract'),
+      repository.list('Tenant'),
+    ]);
+
+    const notification = notifications.find((item) => item.id === notificationId);
+
+    if (!notification) {
+      throw new Error('Notificação não encontrada.');
+    }
+
+    let tenantId = null;
+
+    if (notification.entity === NOTIFICATION_ENTITY.RECEIVABLE) {
+      const receivable = receivables.find((row) => row.id === notification.entity_id);
+      const contract = getContractById(contracts, receivable?.contract_id);
+      tenantId = receivable?.tenant_id || contract?.tenant_id || null;
+    } else if (notification.entity === NOTIFICATION_ENTITY.CONTRACT) {
+      const contract = getContractById(contracts, notification.entity_id);
+      tenantId = contract?.tenant_id || null;
+    }
+
+    const tenant = getTenantById(tenants, tenantId);
+    const phone = tenant?.whatsapp || tenant?.phone;
+    const link = buildWhatsAppLink(phone, notification.message);
+
+    if (!link) {
+      throw new Error(`Sem telefone cadastrado para ${tenant?.name || 'o locatário desta notificação'}. Cadastre o telefone na tela de Locatários.`);
+    }
+
+    return { link, tenantName: tenant?.name || '' };
+  },
+
+  // Registra que a cobrança foi aberta no WhatsApp (a UI abre o link).
+  async registerWhatsAppSent(notificationId, tenantName = '') {
+    const updated = await repository.update('Notification', notificationId, {
+      status: NOTIFICATION_STATUS.SENT,
+      sent_at: new Date().toISOString(),
+      delivery_payload: { provider: 'whatsapp-link' },
+      error_message: '',
+    });
+    await createEvent(notificationId, NOTIFICATION_EVENT.SENT, `Cobrança aberta no WhatsApp${tenantName ? ` de ${tenantName}` : ''}.`);
+    return updated;
   },
 
   async sendNow(notificationId) {

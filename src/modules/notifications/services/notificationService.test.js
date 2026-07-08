@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildDeepLink, notificationService } from './notificationService.js';
-import { NOTIFICATION_ENTITY } from '../types/notification.types.js';
+import { buildDeepLink, getNextAdjustmentDate, notificationService } from './notificationService.js';
+import { NOTIFICATION_ENTITY, NOTIFICATION_TYPE } from '../types/notification.types.js';
 import { repository } from '../../../repository/index.js';
 
 describe('notificationService', () => {
@@ -24,5 +24,38 @@ describe('notificationService', () => {
 
     expect(result.created.some((notification) => notification.entity_id === expense.id)).toBe(true);
     expect(result.created[0].status).toBe('pendente');
+  });
+
+  it('calcula a próxima data de reajuste anual do contrato', () => {
+    // aniversário deste ano ainda não passou
+    expect(getNextAdjustmentDate('2025-08-01', '2026-07-07')).toBe('2026-08-01');
+    // aniversário deste ano já passou -> ano que vem
+    expect(getNextAdjustmentDate('2025-06-01', '2026-07-07')).toBe('2027-06-01');
+    // contrato novo (menos de 1 ano) -> primeiro aniversário
+    expect(getNextAdjustmentDate('2026-03-10', '2026-07-07')).toBe('2027-03-10');
+    // sem data de início
+    expect(getNextAdjustmentDate('', '2026-07-07')).toBe('');
+  });
+
+  it('gera lembrete de reajuste anual para contrato perto do aniversário', async () => {
+    const contract = await repository.create('Contract', {
+      status: 'ativo',
+      start_date: '2025-08-01',
+      end_date: '2028-08-01',
+      due_day: 10,
+      rent_value: 800,
+      active: true,
+    });
+
+    const result = await notificationService.generateDueNotifications('2026-07-07');
+    const adjustNotification = result.created.find((notification) => (
+      notification.type === NOTIFICATION_TYPE.CONTRACT_ADJUST
+      && notification.entity_id === contract.id
+    ));
+
+    expect(adjustNotification).toBeTruthy();
+    expect(adjustNotification.due_date).toBe('2026-08-01');
+    expect(adjustNotification.message).toContain('1 ano(s)');
+    expect(adjustNotification.message).toContain('IGP-M ou IPCA');
   });
 });

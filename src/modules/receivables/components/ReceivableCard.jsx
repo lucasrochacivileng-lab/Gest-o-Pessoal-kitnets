@@ -1,5 +1,6 @@
 import { CheckCircle2, Eye, MessageCircle, PencilLine } from 'lucide-react';
 import { financialService } from '../../../services/financialService';
+import { buildWhatsAppLink } from '../../../services/whatsappService.js';
 import { calculateOutstandingValue } from '../services/receivableService.js';
 
 const readWhatsappPreference = () => {
@@ -23,9 +24,6 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
   const whatsappEnabled = readWhatsappPreference();
 
   const handleWhatsApp = () => {
-    const digits = String(tenantPhone || '').replace(/\D/g, '');
-    if (!digits) return;
-
     const message = [
       `Olá, ${receivable.tenant?.name || 'tudo bem'}!`,
       `Passando para lembrar do aluguel da competência ${receivable.competence}.`,
@@ -33,8 +31,10 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
       `Vencimento: ${receivable.due_date}.`,
     ].join(' ');
 
-    const phone = digits.startsWith('55') ? digits : `55${digits}`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    const link = buildWhatsAppLink(tenantPhone, message);
+    if (!link) return;
+
+    window.open(link, '_blank', 'noopener,noreferrer');
   };
 
   return (

@@ -72,6 +72,29 @@ export default function NotificationsPage() {
     await load();
   };
 
+  const sendWhatsApp = async (notificationId) => {
+    // Abre a janela ANTES do trabalho assíncrono para não cair no bloqueador
+    // de pop-ups; se algo falhar, ela é fechada.
+    const whatsappWindow = window.open('', '_blank', 'noopener,noreferrer');
+
+    try {
+      const { link, tenantName } = await notificationService.getWhatsAppLink(notificationId);
+
+      if (whatsappWindow) {
+        whatsappWindow.location = link;
+      } else {
+        window.open(link, '_blank', 'noopener,noreferrer');
+      }
+
+      await notificationService.registerWhatsAppSent(notificationId, tenantName);
+      setMessage(`Cobrança aberta no WhatsApp${tenantName ? ` de ${tenantName}` : ''}. A notificação foi marcada como enviada.`);
+      await load();
+    } catch (error) {
+      whatsappWindow?.close();
+      setMessage(error instanceof Error ? error.message : 'Não foi possível abrir o WhatsApp.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -125,7 +148,7 @@ export default function NotificationsPage() {
               <Bell className="h-5 w-5" /> Central de notificações
             </h2>
             <p className="text-sm text-slate-500">
-              O envio real será conectado futuramente a Supabase Edge Functions, Resend e PWA Push Notifications.
+              Cobranças de aluguel e contrato podem ser enviadas pelo WhatsApp; o envio por e-mail ainda é simulado.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -153,6 +176,7 @@ export default function NotificationsPage() {
                 key={notification.id}
                 notification={notification}
                 onSendNow={sendOneNow}
+                onWhatsApp={sendWhatsApp}
               />
             ))}
           </div>

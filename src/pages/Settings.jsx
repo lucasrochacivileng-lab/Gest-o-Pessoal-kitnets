@@ -38,15 +38,19 @@ export default function Settings() {
     setMessage('Configurações salvas.');
   };
 
-  const exportBackup = async () => {
-    const backup = await repository.exportBackup();
+  const downloadBackupFile = (backup, filename) => {
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `kitmanager-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportBackup = async () => {
+    const backup = await repository.exportBackup();
+    downloadBackupFile(backup, `kitmanager-backup-${new Date().toISOString().slice(0, 10)}.json`);
     setMessage('Backup exportado.');
   };
 
@@ -54,9 +58,25 @@ export default function Settings() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const confirmed = window.confirm(
+      'Importar substitui TODOS os dados atuais pelos do arquivo. '
+      + 'Uma cópia de segurança dos dados atuais será baixada antes. Continuar?',
+    );
+
+    if (!confirmed) {
+      event.target.value = '';
+      return;
+    }
+
     try {
       const text = await file.text();
-      await repository.importBackup(JSON.parse(text));
+      const parsed = JSON.parse(text);
+
+      // Cópia de segurança dos dados atuais antes de qualquer alteração.
+      const safetyCopy = await repository.exportBackup();
+      downloadBackupFile(safetyCopy, `kitmanager-backup-seguranca-${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16)}.json`);
+
+      await repository.importBackup(parsed);
       setMessage('Backup importado. Recarregue a página para atualizar todos os módulos.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível importar o backup.');

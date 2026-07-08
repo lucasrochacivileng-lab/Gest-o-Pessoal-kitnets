@@ -114,8 +114,9 @@ export const supabaseDataClient = {
 
   async importBackup(value) {
     validateDb(value);
-    await deleteAllRows();
 
+    // Monta todas as linhas ANTES de tocar na base: se o arquivo estiver
+    // malformado, a falha acontece sem apagar nada.
     const rows = Object.entries(value).flatMap(([entity, entityRows]) =>
       entityRows.map((row) => {
         const withId = { id: createId(), ...row };
@@ -128,10 +129,40 @@ export const supabaseDataClient = {
       }),
     );
 
-    for (let start = 0; start < rows.length; start += IMPORT_CHUNK_SIZE) {
-      const chunk = rows.slice(start, start + IMPORT_CHUNK_SIZE);
-      const { error } = await supabase.from(TABLE).insert(chunk);
-      throwIfError(error, 'Falha ao importar backup');
+    // Snapshot dos dados atuais para restaurar caso a importação falhe no meio.
+    const { data: snapshot, error: snapshotError } = await supabase
+      .from(TABLE)
+      .select('id, entity, active, data')
+      .order('created_at', { ascending: true });
+
+    throwIfError(snapshotError, 'Falha ao preparar a cópia de segurança antes da importação');
+
+    const insertInChunks = async (list) => {
+      for (let start = 0; start < list.length; start += IMPORT_CHUNK_SIZE) {
+        const { error } = await supabase.from(TABLE).insert(list.slice(start, start + IMPORT_CHUNK_SIZE));
+        throwIfError(error, 'Falha ao importar backup');
+      }
+    };
+
+    await deleteAllRows();
+
+    try {
+      await insertInChunks(rows);
+    } catch (importError) {
+      let restored = false;
+
+      try {
+        await deleteAllRows();
+        await insertInChunks(snapshot || []);
+        restored = true;
+      } catch {
+        // restauração automática falhou; a orientação vai no erro abaixo
+      }
+
+      const detail = importError instanceof Error ? importError.message : String(importError);
+      throw new Error(restored
+        ? `A importação falhou e os dados anteriores foram restaurados automaticamente. Detalhe: ${detail}`
+        : `A importação falhou e não foi possível restaurar automaticamente. Use o arquivo de segurança baixado antes da importação para recuperar os dados. Detalhe: ${detail}`);
     }
 
     return value;
