@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import receivableService from '../services/receivableService.js';
 import { RECEIVABLE_FILTERS } from '../types/receivable.types.js';
+import { useEntitySync } from '../../../hooks/useEntitySync.js';
 
 const initialSummary = {
   toReceiveToday: 0,
@@ -28,8 +29,8 @@ export function useReceivables() {
   const [kitnets, setKitnets] = useState([]);
   const [tenants, setTenants] = useState([]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
@@ -49,6 +50,11 @@ export function useReceivables() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEntitySync(
+    ['Receivable', 'Payment', 'Contract', 'Kitnet', 'Tenant'],
+    () => load({ silent: true }),
+  );
 
   const visibleReceivables = useMemo(() => receivableService.filterReceivables(receivables, filters), [filters, receivables]);
 

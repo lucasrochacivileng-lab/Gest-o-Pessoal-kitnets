@@ -4,6 +4,7 @@ import { PencilLine, Plus, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NotificationActionDialog from '../../modules/notifications/components/NotificationActionDialog.jsx';
 import notificationService from '../../modules/notifications/services/notificationService.js';
+import { useEntitySync } from '../../hooks/useEntitySync.js';
 
 const inputClass = 'ds-input';
 
@@ -56,8 +57,8 @@ export default function EntityPage({
     loadData();
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     const promises = [repository.list(entity)];
     relations.forEach((relation) => promises.push(repository.list(relation.entity)));
     const results = await Promise.all(promises);
@@ -69,6 +70,11 @@ export default function EntityPage({
     setRelationData(relationState);
     setLoading(false);
   };
+
+  useEntitySync(
+    [entity, ...relations.map((relation) => relation.entity)],
+    () => loadData({ silent: true }),
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, FileText, History, PencilLine, Plus, Trash2, Upload } from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
+import { useEntitySync } from '../../../hooks/useEntitySync.js';
 
 const fields = [
   { key: 'name', label: 'Nome', type: 'text', placeholder: 'Kitnet 01' },
@@ -124,8 +125,8 @@ export default function Kitnets() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     const [kitnetRows, contractRows, tenantRows, documentRows] = await Promise.all([
       repository.list('Kitnet'),
       repository.list('Contract'),
@@ -143,6 +144,8 @@ export default function Kitnets() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEntitySync(['Kitnet', 'Contract', 'Tenant', 'Document'], () => loadData({ silent: true }));
 
   const contractsByKitnet = useMemo(() => {
     return contracts.reduce((acc, contract) => {

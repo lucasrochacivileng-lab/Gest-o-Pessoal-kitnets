@@ -1,3 +1,6 @@
+# node_modules sem symlinks: necessário porque o projeto fica no Google Drive,
+# que não suporta links simbólicos do pnpm (pnpm 11 lê a config daqui, não do .npmrc).
+nodeLinker: hoisted
 allowBuilds:
   esbuild: true
 onlyBuiltDependencies:
