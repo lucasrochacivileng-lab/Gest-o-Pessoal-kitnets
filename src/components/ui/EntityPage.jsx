@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { repository } from '../../repository/index.js';
-import { PencilLine, Plus, Trash2 } from 'lucide-react';
+import { PencilLine, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NotificationActionDialog from '../../modules/notifications/components/NotificationActionDialog.jsx';
 import notificationService from '../../modules/notifications/services/notificationService.js';
@@ -50,6 +50,8 @@ export default function EntityPage({
   const [editingId, setEditingId] = useState(null);
   const [relationData, setRelationData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [actionItem, setActionItem] = useState(null);
   const navigate = useNavigate();
 
@@ -58,17 +60,23 @@ export default function EntityPage({
   }, []);
 
   const loadData = async ({ silent = false } = {}) => {
-    if (!silent) setLoading(true);
-    const promises = [repository.list(entity)];
-    relations.forEach((relation) => promises.push(repository.list(relation.entity)));
-    const results = await Promise.all(promises);
-    setRows(results[0]);
-    const relationState = relations.reduce((acc, relation, index) => {
-      acc[relation.key] = results[index + 1];
-      return acc;
-    }, {});
-    setRelationData(relationState);
-    setLoading(false);
+    try {
+      if (!silent) setLoading(true);
+      const promises = [repository.list(entity)];
+      relations.forEach((relation) => promises.push(repository.list(relation.entity)));
+      const results = await Promise.all(promises);
+      setRows(results[0]);
+      const relationState = relations.reduce((acc, relation, index) => {
+        acc[relation.key] = results[index + 1];
+        return acc;
+      }, {});
+      setRelationData(relationState);
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Falha ao carregar dados.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEntitySync(
@@ -78,6 +86,9 @@ export default function EntityPage({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setSaving(true);
+    setErrorMessage('');
+
     const payload = fields.reduce((acc, field) => {
       const fieldName = getFieldName(field);
       let value = form[fieldName];
@@ -87,16 +98,22 @@ export default function EntityPage({
       return acc;
     }, {});
 
-    if (editingId) {
-      await repository.update(entity, editingId, payload);
-    } else {
-      await repository.create(entity, { ...payload, active: true });
-    }
+    try {
+      if (editingId) {
+        await repository.update(entity, editingId, payload);
+      } else {
+        await repository.create(entity, { ...payload, active: true });
+      }
 
-    setForm({});
-    setEditingId(null);
-    setFormOpen(false);
-    await loadData();
+      setForm({});
+      setEditingId(null);
+      setFormOpen(false);
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Falha ao salvar. Confira sua conexão e tente novamente.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const startEdit = (row) => {
@@ -172,14 +189,29 @@ export default function EntityPage({
           <h1 className="text-2xl font-semibold text-[var(--color-text)]">{title}</h1>
           {subtitle ? <p className="text-sm text-[var(--color-text-muted)]">{subtitle}</p> : null}
         </div>
-        <button
-          type="button"
-          onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
-          className="ds-btn ds-btn-primary"
-        >
-          <Plus className="h-4 w-4" /> Novo
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => loadData()}
+            className="ds-btn ds-btn-secondary"
+          >
+            <RefreshCw className="h-4 w-4" /> Atualizar
+          </button>
+          <button
+            type="button"
+            onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
+            className="ds-btn ds-btn-primary"
+          >
+            <Plus className="h-4 w-4" /> Novo
+          </button>
+        </div>
       </div>
+
+      {errorMessage ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      ) : null}
 
       {formOpen ? (
         <form onSubmit={handleSubmit} className="ds-card">
@@ -238,10 +270,10 @@ export default function EntityPage({
             })}
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
-            <button type="submit" className="ds-btn ds-btn-primary">
-              {editingId ? 'Salvar alterações' : 'Salvar'}
+            <button type="submit" disabled={saving} className="ds-btn ds-btn-primary disabled:opacity-60">
+              {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Salvar'}
             </button>
-            <button type="button" onClick={closeForm} className="ds-btn ds-btn-secondary">
+            <button type="button" onClick={closeForm} disabled={saving} className="ds-btn ds-btn-secondary disabled:opacity-60">
               Cancelar
             </button>
           </div>
