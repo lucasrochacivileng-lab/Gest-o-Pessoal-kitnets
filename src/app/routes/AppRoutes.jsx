@@ -5,7 +5,6 @@ import Recebimentos from '../../modules/receivables/pages/ReceivablesPage.jsx';
 import Kitnets from '../../modules/kitnets/pages/index.jsx';
 import Contratos from '../../modules/contracts/pages/index.jsx';
 import Tenants from '../../modules/tenants/pages/index.jsx';
-import GenericModule from '../../pages/GenericModule.jsx';
 import FinancialOverview from '../../pages/FinancialOverview.jsx';
 import Payments from '../../pages/Payments.jsx';
 import Expenses from '../../pages/Expenses.jsx';
@@ -15,6 +14,9 @@ import Documents from '../../pages/Documents.jsx';
 import Settings from '../../pages/Settings.jsx';
 import Reports from '../../pages/Reports.jsx';
 import PersonalFinances from '../../pages/PersonalFinances.jsx';
+import Forecast from '../../pages/Forecast.jsx';
+import ComplementaryProjects from '../../pages/ComplementaryProjects.jsx';
+import ExpertReports from '../../pages/ExpertReports.jsx';
 import NotificationsPage from '../../modules/notifications/pages/NotificationsPage.jsx';
 
 export default function AppRoutes() {
@@ -39,8 +41,11 @@ export default function AppRoutes() {
         <Route path="/notificacoes" element={<NotificationsPage />} />
         <Route path="/configuracoes" element={<Settings />} />
         <Route path="/financas-pessoais" element={<PersonalFinances />} />
-        <Route path="/pericias" element={<GenericModule title="Perícias Judiciais" entity="ExpertReport" />} />
-        <Route path="/projetos" element={<GenericModule title="Projetos Complementares" entity="ComplementaryProject" />} />
+        <Route path="/previsao" element={<Forecast />} />
+        <Route path="/pericias" element={<ExpertReports />} />
+        <Route path="/pericias/:id" element={<ExpertReports />} />
+        <Route path="/projetos" element={<ComplementaryProjects />} />
+        <Route path="/projetos/:id" element={<ComplementaryProjects />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

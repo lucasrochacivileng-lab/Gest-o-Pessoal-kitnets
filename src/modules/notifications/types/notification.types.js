@@ -11,6 +11,7 @@ export const NOTIFICATION_TYPE = {
   RENT_DUE: 'rent_due',
   CONTRACT_DUE: 'contract_due',
   CONTRACT_ADJUST: 'contract_adjust',
+  PROJECT_PAYMENT_DUE: 'project_payment_due',
 };
 
 export const NOTIFICATION_EVENT = {
@@ -27,6 +28,8 @@ export const NOTIFICATION_ENTITY = {
   EXPENSE: 'Expense',
   RECEIVABLE: 'Receivable',
   CONTRACT: 'Contract',
+  PROJECT: 'ComplementaryProject',
+  EXPERT_REPORT: 'ExpertReport',
 };
 
 export const notificationStatusLabels = {
@@ -42,4 +45,5 @@ export const notificationTypeLabels = {
   [NOTIFICATION_TYPE.RENT_DUE]: 'Aluguel a vencer',
   [NOTIFICATION_TYPE.CONTRACT_DUE]: 'Contrato a vencer',
   [NOTIFICATION_TYPE.CONTRACT_ADJUST]: 'Reajuste anual de aluguel',
+  [NOTIFICATION_TYPE.PROJECT_PAYMENT_DUE]: 'Recebimento de projeto/perícia',
 };

@@ -49,6 +49,8 @@ export const buildDeepLink = (entity, id) => {
     [NOTIFICATION_ENTITY.EXPENSE]: '/despesas',
     [NOTIFICATION_ENTITY.RECEIVABLE]: '/recebimentos',
     [NOTIFICATION_ENTITY.CONTRACT]: '/contratos',
+    [NOTIFICATION_ENTITY.PROJECT]: '/projetos',
+    [NOTIFICATION_ENTITY.EXPERT_REPORT]: '/pericias',
   };
 
   return `${routes[entity] || '/notificacoes'}/${id}`;
@@ -224,6 +226,38 @@ const buildContractAdjustCandidate = (contract, tenants, kitnets, settings, curr
   };
 };
 
+// Projetos e perícias: no dia previsto do recebimento (e enquanto atrasar),
+// pergunta se o valor já caiu na conta.
+const buildProjectPaymentCandidate = (row, entity, settings, currentDate) => {
+  const expectedDate = row.expected_payment_date || '';
+  if (!expectedDate || row.status === 'recebido') return null;
+
+  const isOverdue = expectedDate < currentDate;
+  const isDueToday = expectedDate === currentDate;
+  if (!isOverdue && !isDueToday) return null;
+
+  const kind = entity === NOTIFICATION_ENTITY.EXPERT_REPORT ? 'Perícia' : 'Projeto';
+  const label = [kind, row.client || row.process_number || row.project_type || row.report_type].filter(Boolean).join(' ');
+  const value = Number(row.fee_value ?? row.value ?? 0);
+  const money = value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const title = isOverdue ? `Recebimento atrasado: ${label}` : `Recebimento previsto hoje: ${label}`;
+  const message = isOverdue
+    ? `O recebimento de ${money} (${label.toLowerCase()}) estava previsto para ${formatDateBR(expectedDate)} e ainda não foi confirmado. O valor já caiu na conta?`
+    : `Hoje é o dia previsto do recebimento de ${money} (${label.toLowerCase()}). O valor já caiu na conta?`;
+
+  return {
+    type: NOTIFICATION_TYPE.PROJECT_PAYMENT_DUE,
+    entity,
+    entity_id: row.id,
+    title,
+    message,
+    recipient_email: settings.defaultRecipientEmail,
+    due_date: expectedDate,
+    deep_link: buildDeepLink(entity, row.id),
+    scheduled_for: currentDate,
+  };
+};
+
 const findNotificationsForTarget = async (entity, id) => {
   const notifications = await repository.list('Notification');
   return notifications.filter((notification) => (
@@ -246,6 +280,10 @@ const updateTargetAsPaid = async (entity, id) => {
       paid_value: Number(receivable?.expected_value || receivable?.paid_value || 0),
       payment_date: todayString(),
     });
+  }
+
+  if (entity === NOTIFICATION_ENTITY.PROJECT || entity === NOTIFICATION_ENTITY.EXPERT_REPORT) {
+    return repository.update(entity, id, { status: 'recebido', received_at: todayString() });
   }
 
   return null;
@@ -279,13 +317,15 @@ export const notificationService = {
 
   async generateDueNotifications(currentDate = todayString()) {
     const settings = readNotificationSettings();
-    const [expenses, receivables, contracts, tenants, kitnets, notifications] = await Promise.all([
+    const [expenses, receivables, contracts, tenants, kitnets, notifications, projects, expertReports] = await Promise.all([
       repository.list('Expense'),
       repository.list('Receivable'),
       repository.list('Contract'),
       repository.list('Tenant'),
       repository.list('Kitnet'),
       repository.list('Notification'),
+      repository.list('ComplementaryProject'),
+      repository.list('ExpertReport'),
     ]);
 
     const candidates = [
@@ -293,6 +333,8 @@ export const notificationService = {
       ...receivables.map((receivable) => buildReceivableCandidate(receivable, contracts, tenants, kitnets, settings, currentDate)),
       ...contracts.map((contract) => buildContractCandidate(contract, tenants, kitnets, settings, currentDate)),
       ...contracts.map((contract) => buildContractAdjustCandidate(contract, tenants, kitnets, settings, currentDate)),
+      ...projects.map((project) => buildProjectPaymentCandidate(project, NOTIFICATION_ENTITY.PROJECT, settings, currentDate)),
+      ...expertReports.map((report) => buildProjectPaymentCandidate(report, NOTIFICATION_ENTITY.EXPERT_REPORT, settings, currentDate)),
     ].filter(Boolean);
 
     const created = [];
