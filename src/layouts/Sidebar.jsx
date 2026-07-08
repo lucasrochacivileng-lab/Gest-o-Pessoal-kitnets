@@ -61,5 +61,56 @@ export default function Sidebar() {
     </div>
   );
 
-  return <><div className="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 lg:hidden"><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]"><Building2 className="h-4 w-4 text-white" /></div><span className="text-sm font-semibold text-[var(--color-text)]">Gestão Residencial Rocha</span></div><button onClick={() => setMobileOpen(true)} className="p-2 text-[var(--color-text-muted)]"><Menu className="h-5 w-5" /></button></div>{mobileOpen && <div className="fixed inset-0 z-50 lg:hidden"><div className="absolute inset-0 bg-[var(--color-overlay)]" onClick={() => setMobileOpen(false)} /><div className="absolute left-0 top-0 bottom-0 w-64 bg-[hsl(222,47%,11%)]">{navContent}</div></div>}<aside className={`fixed left-0 top-0 bottom-0 z-30 hidden flex-col bg-[hsl(222,47%,11%)] transition-all duration-300 lg:flex ${collapsed ? 'w-[72px]' : 'w-60'}`}>{navContent}</aside></>;
+  // Atalhos da barra inferior (celular): as 4 telas do dia a dia + menu completo.
+  const bottomNavItems = [
+    { label: 'Início', icon: LayoutDashboard, path: '/' },
+    { label: 'Receber', icon: HandCoins, path: '/recebimentos' },
+    { label: 'Contratos', icon: FileText, path: '/contratos' },
+    { label: 'Kitnets', icon: Building2, path: '/kitnets' },
+  ];
+
+  return <>
+    {/* Barra superior (celular): safe-area para o recorte/status bar do PWA */}
+    <div className="fixed inset-x-0 top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-surface)] pt-[env(safe-area-inset-top)] lg:hidden">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]"><Building2 className="h-4 w-4 text-white" /></div><span className="text-sm font-semibold text-[var(--color-text)]">Gestão Residencial Rocha</span></div>
+        <button onClick={() => setMobileOpen(true)} aria-label="Abrir menu completo" className="-mr-2 p-3 text-[var(--color-text-muted)]"><Menu className="h-5 w-5" /></button>
+      </div>
+    </div>
+
+    {mobileOpen && <div className="fixed inset-0 z-50 lg:hidden"><div className="absolute inset-0 bg-[var(--color-overlay)]" onClick={() => setMobileOpen(false)} /><div className="absolute left-0 top-0 bottom-0 w-64 bg-[hsl(222,47%,11%)] pt-[env(safe-area-inset-top)]">{navContent}</div></div>}
+
+    {/* Barra inferior de navegação (celular): estilo app nativo */}
+    <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      <div className="grid grid-cols-5">
+        {bottomNavItems.map((item) => {
+          const active = isActive(item.path);
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium transition-colors ${active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]'}`}
+            >
+              <span className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors ${active ? 'bg-[color:color-mix(in_srgb,var(--color-primary)_14%,transparent)]' : ''}`}>
+                <item.icon className="h-5 w-5" />
+              </span>
+              {item.label}
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="flex min-h-14 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors"
+        >
+          <span className="flex h-7 w-12 items-center justify-center rounded-full">
+            <Menu className="h-5 w-5" />
+          </span>
+          Menu
+        </button>
+      </div>
+    </nav>
+
+    <aside className={`fixed left-0 top-0 bottom-0 z-30 hidden flex-col bg-[hsl(222,47%,11%)] transition-all duration-300 lg:flex ${collapsed ? 'w-[72px]' : 'w-60'}`}>{navContent}</aside>
+  </>;
 }

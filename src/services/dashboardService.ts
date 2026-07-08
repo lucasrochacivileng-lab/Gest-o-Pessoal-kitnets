@@ -16,14 +16,51 @@ const getContractAlertDays = () => {
   }
 };
 
+const UPCOMING_ACTION_DAYS = 3;
+
+// "Precisa de você": recebíveis vencidos ou vencendo nos próximos dias,
+// enriquecidos com locatário/kitnet para permitir cobrar direto do dashboard.
+const buildActionItems = (receivables, contracts, kitnets, tenants, today) => {
+  const limit = new Date(new Date(`${today}T00:00:00`).getTime() + UPCOMING_ACTION_DAYS * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  return receivables
+    .filter((receivable) => (
+      receivable.status !== 'pago'
+      && receivable.due_date
+      && receivable.due_date <= limit
+    ))
+    .map((receivable) => {
+      const contract = contracts.find((row) => row.id === receivable.contract_id) || null;
+      const kitnet = kitnets.find((row) => row.id === (receivable.kitnet_id || contract?.kitnet_id)) || null;
+      const tenant = tenants.find((row) => row.id === (receivable.tenant_id || contract?.tenant_id)) || null;
+      const daysLate = Math.floor((new Date(`${today}T00:00:00`).getTime() - new Date(`${receivable.due_date}T00:00:00`).getTime()) / (24 * 60 * 60 * 1000));
+
+      return {
+        id: receivable.id,
+        competence: receivable.competence,
+        dueDate: receivable.due_date,
+        daysLate,
+        isFine: receivable.type === 'multa_quebra',
+        outstanding: outstandingValue(receivable),
+        kitnetName: kitnet?.name || '',
+        tenantName: tenant?.name || '',
+        tenantPhone: tenant?.whatsapp || tenant?.phone || '',
+      };
+    })
+    .sort((a, b) => b.daysLate - a.daysLate);
+};
+
 export const dashboardService = {
   async getDashboardData() {
-    const [kitnets, receivables, payments, expenses, contracts] = await Promise.all([
+    const [kitnets, receivables, payments, expenses, contracts, tenants] = await Promise.all([
       dashboardRepository.getKitnets(),
       dashboardRepository.getReceivables(),
       dashboardRepository.getPayments(),
       dashboardRepository.getExpenses(),
       dashboardRepository.getContracts(),
+      dashboardRepository.getTenants(),
     ]);
 
     const now = new Date();
@@ -103,6 +140,7 @@ export const dashboardService = {
       expiringContracts: expiringContracts.length,
       monthlyData,
       categoryData,
+      actionItems: buildActionItems(receivables, contracts, kitnets, tenants, today),
     };
   },
 };

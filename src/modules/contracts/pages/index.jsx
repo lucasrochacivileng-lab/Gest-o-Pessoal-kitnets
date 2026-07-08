@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FileSignature, Plus, XCircle } from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
+import { formatDateBR } from '../../../services/dateUtils.js';
 import { contractService, calculateBreakFine } from '../services/contractService.js';
 import { useEntitySync } from '../../../hooks/useEntitySync.js';
 import NotificationActionDialog from '../../notifications/components/NotificationActionDialog.jsx';
@@ -325,7 +326,7 @@ export default function Contracts() {
                       <span className="ds-badge ds-badge-info">vence dia {contract.due_day || '-'}</span>
                     </div>
                     <p className="mt-2 text-xs text-slate-500">
-                      Vigência: {contract.start_date || '-'} até {contract.end_date || '-'}
+                      Vigência: {formatDateBR(contract.start_date) || '-'} até {formatDateBR(contract.end_date) || '-'}
                       {contract.fine_months ? ` · multa de quebra: ${contract.fine_months} aluguel(éis)` : ''}
                     </p>
                   </div>
@@ -353,8 +354,8 @@ export default function Contracts() {
       </div>
 
       {terminating ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:items-center">
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-slate-900">Encerrar contrato</h2>
             <p className="mt-1 text-sm text-slate-500">
               {kitnetById[terminating.kitnet_id]?.name || 'Kitnet'} · {tenantById[terminating.tenant_id]?.name || 'Locatário'}

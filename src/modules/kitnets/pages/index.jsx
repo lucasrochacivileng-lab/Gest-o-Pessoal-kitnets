@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, FileText, History, PencilLine, Plus, Trash2, Upload } from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
+import { formatDateBR } from '../../../services/dateUtils.js';
 import { useEntitySync } from '../../../hooks/useEntitySync.js';
 
 const fields = [
@@ -386,7 +387,7 @@ export default function Kitnets() {
                   {activeContract ? (
                     <div className="mt-2 space-y-1 text-slate-600">
                       <p>Locatário: {activeTenant?.name || 'Não informado'}</p>
-                      <p>Vigência: {activeContract.start_date || '-'} até {activeContract.end_date || '-'}</p>
+                      <p>Vigência: {formatDateBR(activeContract.start_date) || '-'} até {formatDateBR(activeContract.end_date) || '-'}</p>
                       <p>Vencimento: dia {activeContract.due_day || '-'}</p>
                     </div>
                   ) : (
@@ -470,7 +471,7 @@ export default function Kitnets() {
                         return (
                           <div key={contract.id} className="rounded-xl bg-white p-3 text-slate-600">
                             <p className="font-medium text-slate-900">{tenant?.name || 'Locatário não informado'}</p>
-                            <p>{contract.start_date || '-'} até {contract.end_date || '-'}</p>
+                            <p>{formatDateBR(contract.start_date) || '-'} até {formatDateBR(contract.end_date) || '-'}</p>
                             <p>Status: {contract.status || 'sem status'}</p>
                           </div>
                         );

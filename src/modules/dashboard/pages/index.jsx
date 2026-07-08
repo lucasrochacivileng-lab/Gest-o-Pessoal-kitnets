@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useDashboard } from '../../../hooks/useDashboard';
 import { MetricCard } from '../../../components/dashboard/MetricCard';
-import { OverdueAlert } from '../../../components/dashboard/OverdueAlert';
+import { ActionCenter } from '../../../components/dashboard/ActionCenter.jsx';
 import { RevenueChart } from '../../../components/dashboard/RevenueChart';
 import { ProfitChart } from '../../../components/dashboard/ProfitChart';
 import { ExpenseChart } from '../../../components/dashboard/ExpenseChart';
@@ -35,7 +35,7 @@ export default function Dashboard() {
 				<p className="mt-1 text-sm text-slate-500">Visão geral financeira e operacional das suas kitnets</p>
 			</div>
 
-			<OverdueAlert count={data.overdue} value={data.overdueValue} />
+			<ActionCenter items={data.actionItems} />
 
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
 				<MetricCard icon={TrendingUp} label="Receita do mês" value={financialService.formatCurrency(data.revenue)} color="bg-emerald-50 text-emerald-600" />

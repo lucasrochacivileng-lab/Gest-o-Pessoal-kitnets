@@ -1,6 +1,7 @@
 import { CheckCircle2, Eye, MessageCircle, PencilLine } from 'lucide-react';
 import { financialService } from '../../../services/financialService';
 import { buildWhatsAppLink } from '../../../services/whatsappService.js';
+import { formatCompetenceBR, formatDateBR } from '../../../services/dateUtils.js';
 import { calculateOutstandingValue } from '../services/receivableService.js';
 
 const readWhatsappPreference = () => {
@@ -26,9 +27,9 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
   const handleWhatsApp = () => {
     const message = [
       `Olá, ${receivable.tenant?.name || 'tudo bem'}!`,
-      `Passando para lembrar do aluguel da competência ${receivable.competence}.`,
+      `Passando para lembrar do aluguel de ${formatCompetenceBR(receivable.competence)}.`,
       `Valor em aberto: ${currency(outstandingValue || receivable.expected_value)}.`,
-      `Vencimento: ${receivable.due_date}.`,
+      `Vencimento: ${formatDateBR(receivable.due_date)}.`,
     ].join(' ');
 
     const link = buildWhatsAppLink(tenantPhone, message);
@@ -41,8 +42,8 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
     <div className={`rounded-3xl border p-6 shadow-sm ${urgencyClass}`}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-900">Competência {receivable.competence}</p>
-          <p className="text-sm text-slate-500">Vencimento: {receivable.due_date}</p>
+          <p className="text-sm font-semibold text-slate-900">Competência {formatCompetenceBR(receivable.competence)}</p>
+          <p className="text-sm text-slate-500">Vencimento: {formatDateBR(receivable.due_date)}</p>
           <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{receivable.status}</p>
           {receivable.kitnet ? <p className="mt-1 text-xs text-slate-500">Kitnet: {receivable.kitnet.name}</p> : null}
           {receivable.tenant ? <p className="text-xs text-slate-500">Locatário: {receivable.tenant.name}</p> : null}

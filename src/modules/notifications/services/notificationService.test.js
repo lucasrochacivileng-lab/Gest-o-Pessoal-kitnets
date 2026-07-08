@@ -40,7 +40,7 @@ describe('notificationService', () => {
 
     expect(overdueNotification).toBeTruthy();
     expect(overdueNotification.title).toContain('Aluguel vencido');
-    expect(overdueNotification.message).toContain('venceu em 2026-06-10');
+    expect(overdueNotification.message).toContain('venceu em 10/06/2026');
     expect(overdueNotification.message).toContain('Foi pago?');
   });
 
@@ -73,7 +73,7 @@ describe('notificationService', () => {
 
     expect(adjustNotification).toBeTruthy();
     expect(adjustNotification.due_date).toBe('2026-08-01');
-    expect(adjustNotification.message).toContain('1 ano(s)');
+    expect(adjustNotification.message).toContain('1 ano(s) em 01/08/2026');
     expect(adjustNotification.message).toContain('IGP-M ou IPCA');
   });
 });

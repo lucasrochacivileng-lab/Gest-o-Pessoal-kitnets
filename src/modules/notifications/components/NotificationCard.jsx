@@ -1,5 +1,6 @@
 import { ExternalLink, MessageCircle, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatDateBR } from '../../../services/dateUtils.js';
 import {
   notificationStatusLabels,
   notificationTypeLabels,
@@ -38,10 +39,10 @@ export function NotificationCard({ notification, onSendNow, onWhatsApp }) {
           <h3 className="mt-3 text-base font-semibold text-slate-900">{notification.title}</h3>
           <p className="mt-1 text-sm text-slate-500">{notification.message}</p>
           <div className="mt-3 grid gap-1 text-xs text-slate-500 md:grid-cols-2">
-            <p>Vencimento: {notification.due_date || '-'}</p>
+            <p>Vencimento: {formatDateBR(notification.due_date) || '-'}</p>
             <p>E-mail: {notification.recipient_email || 'não configurado'}</p>
-            <p>Agendado para: {notification.scheduled_for || '-'}</p>
-            <p>Enviado em: {notification.sent_at || '-'}</p>
+            <p>Agendado para: {formatDateBR(notification.scheduled_for) || '-'}</p>
+            <p>Enviado em: {formatDateBR(notification.sent_at) || '-'}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

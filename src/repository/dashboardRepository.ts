@@ -16,4 +16,7 @@ export const dashboardRepository = {
   getContracts() {
     return repository.list('Contract');
   },
+  getTenants() {
+    return repository.list('Tenant');
+  },
 };

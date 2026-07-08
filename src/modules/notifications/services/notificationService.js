@@ -1,6 +1,7 @@
 import { repository } from '../../../repository/index.js';
 import notificationDeliveryService from './notificationDeliveryService.js';
 import { buildWhatsAppLink } from '../../../services/whatsappService.js';
+import { formatDateBR } from '../../../services/dateUtils.js';
 import {
   NOTIFICATION_ENTITY,
   NOTIFICATION_EVENT,
@@ -106,8 +107,8 @@ const buildExpenseCandidate = (expense, settings, currentDate) => {
   const label = expense.description || expense.category || expense.id;
   const title = isOverdue ? `Conta vencida: ${label}` : `Conta a vencer: ${label}`;
   const message = isOverdue
-    ? `A conta "${label}" venceu em ${dueDate} e continua marcada como pendente. Ela já foi paga?`
-    : `A conta "${label}" vence em ${dueDate}. Ela já foi paga?`;
+    ? `A conta "${label}" venceu em ${formatDateBR(dueDate)} e continua marcada como pendente. Ela já foi paga?`
+    : `A conta "${label}" vence em ${formatDateBR(dueDate)}. Ela já foi paga?`;
 
   return {
     type: NOTIFICATION_TYPE.EXPENSE_DUE,
@@ -135,8 +136,8 @@ const buildReceivableCandidate = (receivable, contracts, tenants, kitnets, setti
   const label = kitnet?.name || receivable.competence || receivable.id;
   const title = isOverdue ? `Aluguel vencido: ${label}` : `Aluguel a vencer: ${label}`;
   const message = isOverdue
-    ? `O aluguel de ${tenant?.name || 'locatário não informado'} venceu em ${dueDate} e ainda não foi registrado. Foi pago?`
-    : `O aluguel de ${tenant?.name || 'locatário não informado'} vence em ${dueDate}. O pagamento já foi confirmado?`;
+    ? `O aluguel de ${tenant?.name || 'locatário não informado'} venceu em ${formatDateBR(dueDate)} e ainda não foi registrado. Foi pago?`
+    : `O aluguel de ${tenant?.name || 'locatário não informado'} vence em ${formatDateBR(dueDate)}. O pagamento já foi confirmado?`;
 
   return {
     type: NOTIFICATION_TYPE.RENT_DUE,
@@ -160,7 +161,7 @@ const buildContractCandidate = (contract, tenants, kitnets, settings, currentDat
   const tenant = getTenantById(tenants, contract.tenant_id);
   const kitnet = getKitnetById(kitnets, contract.kitnet_id);
   const title = `Contrato a vencer: ${kitnet?.name || contract.id}`;
-  const message = `O contrato de ${tenant?.name || 'locatário não informado'} vence em ${dueDate}. Abra o app para renovar, encerrar ou acompanhar.`;
+  const message = `O contrato de ${tenant?.name || 'locatário não informado'} vence em ${formatDateBR(dueDate)}. Abra o app para renovar, encerrar ou acompanhar.`;
 
   return {
     type: NOTIFICATION_TYPE.CONTRACT_DUE,
@@ -207,7 +208,7 @@ const buildContractAdjustCandidate = (contract, tenants, kitnets, settings, curr
   const tenant = getTenantById(tenants, contract.tenant_id);
   const kitnet = getKitnetById(kitnets, contract.kitnet_id);
   const title = `Reajuste anual: ${kitnet?.name || contract.id}`;
-  const message = `O contrato de ${tenant?.name || 'locatário não informado'} completa ${years} ano(s) em ${adjustDate}. `
+  const message = `O contrato de ${tenant?.name || 'locatário não informado'} completa ${years} ano(s) em ${formatDateBR(adjustDate)}. `
     + 'Considere aplicar o reajuste anual do aluguel (IGP-M ou IPCA acumulado de 12 meses) e atualizar o valor no contrato.';
 
   return {

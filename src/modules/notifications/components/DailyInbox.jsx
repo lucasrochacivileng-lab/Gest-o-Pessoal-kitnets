@@ -108,7 +108,7 @@ export function DailyInbox() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:items-center">
       <div className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-3xl bg-white shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-6 pb-4">
           <div>
