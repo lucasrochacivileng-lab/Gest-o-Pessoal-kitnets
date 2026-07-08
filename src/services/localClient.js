@@ -1,7 +1,11 @@
 import { db as seed } from '../data/mockData.js';
 
 const STORAGE_KEY = '@kitmanager/db';
-const delay = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms));
+// Microtarefa em vez de setTimeout: mantém a API assíncrona sem sofrer o
+// estrangulamento de timers que o navegador aplica a abas em segundo plano
+// (setTimeout vira 1s+ em aba oculta, travando operações encadeadas como
+// o lançamento do carnê de 12 meses).
+const delay = () => Promise.resolve();
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 let memoryDb = clone(seed);

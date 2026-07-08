@@ -99,11 +99,15 @@ const findExistingNotification = (notifications, candidate) => {
 const buildExpenseCandidate = (expense, settings, currentDate) => {
   const dueDate = getTargetDueDate(expense);
   const days = parseDays(settings.expenseAlertDays, [3]);
+  const isOverdue = Boolean(dueDate) && dueDate < currentDate;
 
-  if (expense.status === 'pago' || !isDateWithinAlertWindow(dueDate, days, currentDate)) return null;
+  if (expense.status === 'pago' || (!isOverdue && !isDateWithinAlertWindow(dueDate, days, currentDate))) return null;
 
-  const title = `Conta a vencer: ${expense.description || expense.category || expense.id}`;
-  const message = `A conta "${expense.description || expense.category || expense.id}" vence em ${dueDate}. Ela já foi paga?`;
+  const label = expense.description || expense.category || expense.id;
+  const title = isOverdue ? `Conta vencida: ${label}` : `Conta a vencer: ${label}`;
+  const message = isOverdue
+    ? `A conta "${label}" venceu em ${dueDate} e continua marcada como pendente. Ela já foi paga?`
+    : `A conta "${label}" vence em ${dueDate}. Ela já foi paga?`;
 
   return {
     type: NOTIFICATION_TYPE.EXPENSE_DUE,
@@ -121,14 +125,18 @@ const buildExpenseCandidate = (expense, settings, currentDate) => {
 const buildReceivableCandidate = (receivable, contracts, tenants, kitnets, settings, currentDate) => {
   const dueDate = getTargetDueDate(receivable);
   const days = parseDays(settings.rentAlertDays, [5]);
+  const isOverdue = Boolean(dueDate) && dueDate < currentDate;
 
-  if (receivable.status === 'pago' || !isDateWithinAlertWindow(dueDate, days, currentDate)) return null;
+  if (receivable.status === 'pago' || (!isOverdue && !isDateWithinAlertWindow(dueDate, days, currentDate))) return null;
 
   const contract = getContractById(contracts, receivable.contract_id);
   const tenant = getTenantById(tenants, receivable.tenant_id || contract?.tenant_id);
   const kitnet = getKitnetById(kitnets, receivable.kitnet_id || contract?.kitnet_id);
-  const title = `Aluguel a vencer: ${kitnet?.name || receivable.competence || receivable.id}`;
-  const message = `O aluguel de ${tenant?.name || 'locatário não informado'} vence em ${dueDate}. O pagamento já foi confirmado?`;
+  const label = kitnet?.name || receivable.competence || receivable.id;
+  const title = isOverdue ? `Aluguel vencido: ${label}` : `Aluguel a vencer: ${label}`;
+  const message = isOverdue
+    ? `O aluguel de ${tenant?.name || 'locatário não informado'} venceu em ${dueDate} e ainda não foi registrado. Foi pago?`
+    : `O aluguel de ${tenant?.name || 'locatário não informado'} vence em ${dueDate}. O pagamento já foi confirmado?`;
 
   return {
     type: NOTIFICATION_TYPE.RENT_DUE,

@@ -26,6 +26,24 @@ describe('notificationService', () => {
     expect(result.created[0].status).toBe('pendente');
   });
 
+  it('gera alerta para aluguel já vencido perguntando se foi pago', async () => {
+    const receivable = await repository.create('Receivable', {
+      competence: '2026-06',
+      due_date: '2026-06-10',
+      expected_value: 800,
+      status: 'pendente',
+      active: true,
+    });
+
+    const result = await notificationService.generateDueNotifications('2026-07-08');
+    const overdueNotification = result.created.find((notification) => notification.entity_id === receivable.id);
+
+    expect(overdueNotification).toBeTruthy();
+    expect(overdueNotification.title).toContain('Aluguel vencido');
+    expect(overdueNotification.message).toContain('venceu em 2026-06-10');
+    expect(overdueNotification.message).toContain('Foi pago?');
+  });
+
   it('calcula a próxima data de reajuste anual do contrato', () => {
     // aniversário deste ano ainda não passou
     expect(getNextAdjustmentDate('2025-08-01', '2026-07-07')).toBe('2026-08-01');
