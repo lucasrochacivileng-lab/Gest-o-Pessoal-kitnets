@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildInstallmentPreview,
   classifyTransaction,
+  parseDate,
   parseStatementRows,
   summarizeByCategory,
 } from './cardStatementImportService.js';
@@ -27,6 +28,37 @@ describe('cardStatementImportService', () => {
         installment_total: 21,
       },
     ]);
+  });
+
+  it('interpreta CSV do Nubank e ignora pagamentos recebidos', () => {
+    const rows = parseStatementRows([
+      {
+        date: '2026-07-01',
+        title: 'Ronaldo Ferragista - Parcela 1/2',
+        amount: '130,00',
+      },
+      {
+        date: '2026-06-10',
+        title: 'Pagamento recebido',
+        amount: '- 5.581,44',
+      },
+    ], { defaultCardName: 'Nubank' });
+
+    expect(rows).toMatchObject([
+      {
+        purchase_date: '2026-07-01',
+        description: 'Ronaldo Ferragista - Parcela 1/2',
+        value: 130,
+        card_name: 'Nubank',
+        installment_current: 1,
+        installment_total: 2,
+      },
+    ]);
+  });
+
+  it('aceita datas americanas geradas por planilhas sem criar mês inválido', () => {
+    expect(parseDate('6/30/26')).toBe('2026-06-30');
+    expect(parseDate('30/6/26')).toBe('2026-06-30');
   });
 
   it('gera parcelas futuras a partir da parcela atual', () => {
@@ -83,6 +115,10 @@ describe('cardStatementImportService', () => {
 
   it('classifica gastos conhecidos e soma por categoria', () => {
     expect(classifyTransaction('Posto Shell')).toEqual({ category: 'combustivel', context: 'pessoal' });
+    expect(classifyTransaction('NuTag*QQP8C28')).toEqual({ category: 'transporte', context: 'pessoal' });
+    expect(classifyTransaction('Casa das Tintas')).toEqual({ category: 'material de construcao', context: 'obra' });
+    expect(classifyTransaction('Ki Kitandas')).toEqual({ category: 'mercado', context: 'pessoal' });
+    expect(classifyTransaction('Marcaobarbearia')).toEqual({ category: 'lazer', context: 'pessoal' });
     expect(classifyTransaction('Fotus Energia Solar')).toEqual({ category: 'investimento kitnets', context: 'obra' });
 
     expect(summarizeByCategory([

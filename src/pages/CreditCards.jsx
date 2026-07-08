@@ -35,6 +35,7 @@ const categoryOptions = [
   'alimentacao',
   'mercado',
   'combustivel',
+  'transporte',
   'farmacia',
   'lazer',
   'assinatura',

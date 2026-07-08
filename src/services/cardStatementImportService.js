@@ -5,20 +5,22 @@ const DEFAULT_CONTEXT = 'pessoal';
 
 const CATEGORY_RULES = [
   { category: 'combustivel', context: 'pessoal', patterns: ['posto', 'shell', 'ipiranga', 'petrobras', 'combustivel', 'gasolina', 'etanol'] },
+  { category: 'transporte', context: 'pessoal', patterns: ['nutag', 'pedagio', 'sem parar', 'conectcar', 'estacionamento'] },
   { category: 'investimento kitnets', context: 'obra', patterns: ['ar condicionado', 'ar-condicionado', 'split', 'fotovoltaico', 'solar', 'soollar', 'fotus', 'kitnet', 'kit 08', 'kit08'] },
-  { category: 'material de construcao', context: 'obra', patterns: ['material', 'construcao', 'cimento', 'telha', 'hidraul', 'eletric', 'leroy', 'casa construtor'] },
-  { category: 'mercado', context: 'pessoal', patterns: ['supermercado', 'mercado', 'atacadao', 'assai', 'carrefour', 'extra'] },
-  { category: 'alimentacao', context: 'pessoal', patterns: ['ifood', 'restaurante', 'lanche', 'pizz', 'burger', 'padaria', 'acai'] },
+  { category: 'material de construcao', context: 'obra', patterns: ['material', 'construcao', 'cimento', 'telha', 'hidraul', 'eletric', 'leroy', 'casa construtor', 'ferragista', 'ferragens', 'casa das tintas', 'mundo das utilidad', 'telascup', 'irmaossoares', 'cioneyrodriguesfe'] },
+  { category: 'mercado', context: 'pessoal', patterns: ['supermercado', 'mercado', 'atacadao', 'assai', 'carrefour', 'extra', 'kitandas', 'tatico', 'primavera supermercado', 'supermercado reis'] },
+  { category: 'alimentacao', context: 'pessoal', patterns: ['ifood', 'restaurante', 'lanche', 'lanchon', 'pizz', 'burger', 'padaria', 'panificadora', 'acai'] },
   { category: 'farmacia', context: 'pessoal', patterns: ['farmacia', 'drogaria', 'raia', 'drogasil', 'medic'] },
-  { category: 'assinatura', context: 'pessoal', patterns: ['netflix', 'spotify', 'prime', 'amazon prime', 'google', 'apple', 'microsoft', 'assinatura'] },
-  { category: 'familia', context: 'pessoal', patterns: ['familia', 'pai', 'mae', 'filho'] },
+  { category: 'lazer', context: 'pessoal', patterns: ['barbearia', 'nuuvem', 'youtube member'] },
+  { category: 'assinatura', context: 'pessoal', patterns: ['netflix', 'spotify', 'prime', 'amazon prime', 'google', 'chatgpt', 'apple', 'microsoft', 'assinatura'] },
+  { category: 'familia', context: 'pessoal', patterns: ['familia', 'pai', 'mae', 'filho', 'bebe', 'metlife', 'vida'] },
   { category: 'impostos', context: 'pessoal', patterns: ['imposto', 'iptu', 'ipva', 'darf', 'gps'] },
   { category: 'emprestimos', context: 'pessoal', patterns: ['emprestimo', 'mutua', 'financiamento'] },
 ];
 
 const FIELD_ALIASES = {
-  date: ['data', 'data compra', 'data_compra', 'data_tx', 'purchase_date', 'dt compra'],
-  description: ['descricao', 'descrição', 'descricao original', 'descricao_original', 'historico', 'histórico', 'estabelecimento', 'lançamento', 'lancamento'],
+  date: ['data', 'date', 'data compra', 'data_compra', 'data_tx', 'purchase_date', 'dt compra'],
+  description: ['descricao', 'descrição', 'descricao original', 'descricao_original', 'historico', 'histórico', 'estabelecimento', 'lançamento', 'lancamento', 'title'],
   value: ['valor', 'valor r$', 'valor_compra', 'valor_compra_r$', 'amount'],
   card: ['cartao', 'cartão', 'card', 'nome cartao', 'nome do cartão'],
   installment: ['parcela', 'parcelas', 'installment'],
@@ -49,6 +51,12 @@ export const parseMoney = (value) => {
   return Number.isFinite(parsed) ? Math.abs(parsed) : 0;
 };
 
+const isCreditRow = ({ description, value }) => {
+  const text = normalize(description);
+  const rawValue = String(value || '').trim();
+  return rawValue.startsWith('-') || ['pagamento recebido', 'estorno', 'credito', 'crédito'].some((term) => text.includes(normalize(term)));
+};
+
 const excelDateToIso = (serial) => {
   const parsed = Number(serial);
   if (!Number.isFinite(parsed)) return '';
@@ -67,7 +75,16 @@ export const parseDate = (value) => {
   const match = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
   if (match) {
     const year = match[3].length === 2 ? `20${match[3]}` : match[3];
-    return `${year}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+    const first = Number(match[1]);
+    const second = Number(match[2]);
+    const isMonthFirst = second > 12 && first <= 12;
+    const day = isMonthFirst ? second : first;
+    const month = isMonthFirst ? first : second;
+    const date = new Date(Date.UTC(Number(year), month - 1, day));
+
+    if (date.getUTCFullYear() === Number(year) && date.getUTCMonth() === month - 1 && date.getUTCDate() === day) {
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
   }
 
   return '';
@@ -134,7 +151,8 @@ export const parseStatementRows = (rows, { defaultCardName = '' } = {}) => {
 
   return rows.map((row, index) => {
     const description = String(getField(row, headers, 'description') || '').trim();
-    const value = parseMoney(getField(row, headers, 'value'));
+    const rawValue = getField(row, headers, 'value');
+    const value = parseMoney(rawValue);
     const cardName = String(getField(row, headers, 'card') || defaultCardName || '').trim();
     const purchaseDate = parseDate(getField(row, headers, 'date'));
     const installment = parseInstallment({
@@ -143,6 +161,8 @@ export const parseStatementRows = (rows, { defaultCardName = '' } = {}) => {
       totalInstallments: getField(row, headers, 'totalInstallments'),
       description,
     });
+
+    if (isCreditRow({ description, value: rawValue })) return null;
 
     return {
       source_index: index + 1,
@@ -154,12 +174,12 @@ export const parseStatementRows = (rows, { defaultCardName = '' } = {}) => {
       installment_total: installment.total,
       raw: row,
     };
-  }).filter((row) => row.value > 0 && row.description);
+  }).filter((row) => row?.value > 0 && row.description);
 };
 
 export const parseStatementFile = async (file, options = {}) => {
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true, raw: true });
   return parseStatementRows(rowsFromWorkbook(workbook), options);
 };
 
