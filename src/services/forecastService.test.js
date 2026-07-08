@@ -83,4 +83,27 @@ describe('buildForecast', () => {
       source: 'cartão importado - revisar',
     });
   });
+
+  it('projeta transação de cartão recorrente em meses futuros', () => {
+    const result = buildForecast({
+      ...base,
+      month: '2026-09',
+      personal: [{
+        type: 'card_transaction',
+        card_name: 'Santander 7535',
+        description: 'CLARO FLEX',
+        value: 39.99,
+        date: '2026-07-10',
+        status: 'revisar',
+        recurring: true,
+      }],
+    });
+
+    expect(result.outgoings).toHaveLength(1);
+    expect(result.outgoings[0]).toMatchObject({
+      label: 'Santander 7535 - CLARO FLEX (recorrente)',
+      value: 39.99,
+      source: 'cartão importado - revisar',
+    });
+  });
 });

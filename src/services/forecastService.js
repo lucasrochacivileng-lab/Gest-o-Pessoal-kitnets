@@ -78,8 +78,19 @@ export const buildForecast = ({
 
   // 3. Finanças pessoais: recorrentes (parcelas, salário, orçamento médio) + lançamentos do mês.
   const cardTransactions = personal.filter((row) => row.type === 'card_transaction' && row.status !== 'ignorar');
+  const recurringCardTransactions = latestRecurring(cardTransactions, (row) => `${row.card_name || ''}-${row.description || row.category}`);
+
+  recurringCardTransactions.forEach((row) => {
+    if (monthOf(row.date) > month) return;
+    outgoings.push({
+      label: `${row.card_name || 'Cartão'} - ${row.description || row.category} (recorrente)`,
+      value: toMoney(row.value),
+      source: row.status === 'revisar' ? 'cartão importado - revisar' : 'cartão',
+    });
+  });
+
   cardTransactions
-    .filter((row) => monthOf(row.date) === month)
+    .filter((row) => row.recurring !== true && monthOf(row.date) === month)
     .forEach((row) => {
       outgoings.push({
         label: `${row.card_name || 'Cartão'} - ${row.description || row.category}${row.installment ? ` (${row.installment})` : ''}`,

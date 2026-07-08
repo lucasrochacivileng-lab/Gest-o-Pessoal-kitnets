@@ -39,11 +39,13 @@ const categoryOptions = [
   'farmacia',
   'lazer',
   'assinatura',
+  'telefone',
   'material de construcao',
   'investimento kitnets',
   'familia',
   'impostos',
   'emprestimos',
+  'tarifas bancarias',
   'outros',
 ];
 const contextOptions = [
