@@ -14,6 +14,7 @@ import CreditCards from '../../pages/CreditCards.jsx';
 import Documents from '../../pages/Documents.jsx';
 import Settings from '../../pages/Settings.jsx';
 import Reports from '../../pages/Reports.jsx';
+import PersonalFinances from '../../pages/PersonalFinances.jsx';
 import NotificationsPage from '../../modules/notifications/pages/NotificationsPage.jsx';
 
 export default function AppRoutes() {
@@ -37,7 +38,7 @@ export default function AppRoutes() {
         <Route path="/relatorios" element={<Reports />} />
         <Route path="/notificacoes" element={<NotificationsPage />} />
         <Route path="/configuracoes" element={<Settings />} />
-        <Route path="/financas-pessoais" element={<GenericModule title="Finanças Pessoais" entity="PersonalIncome" />} />
+        <Route path="/financas-pessoais" element={<PersonalFinances />} />
         <Route path="/pericias" element={<GenericModule title="Perícias Judiciais" entity="ExpertReport" />} />
         <Route path="/projetos" element={<GenericModule title="Projetos Complementares" entity="ComplementaryProject" />} />
       </Route>

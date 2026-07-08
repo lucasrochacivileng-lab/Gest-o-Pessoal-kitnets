@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { repository } from '../repository/index.js';
+import { buildCashflow } from '../services/cashflowService.js';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const money = (value = 0) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -27,12 +29,13 @@ export default function FinancialOverview() {
 
   useEffect(() => {
     const load = async () => {
-      const [kitnets, receivables, payments, expenses, contracts] = await Promise.all([
+      const [kitnets, receivables, payments, expenses, contracts, personal] = await Promise.all([
         repository.list('Kitnet'),
         repository.list('Receivable'),
         repository.list('Payment'),
         repository.list('Expense'),
         repository.list('Contract'),
+        repository.list('PersonalIncome'),
       ]);
 
       const now = new Date();
@@ -55,7 +58,10 @@ export default function FinancialOverview() {
         months.push({ month: date.toLocaleString('pt-BR', { month: 'short' }), receipts, expenses: expenseValue });
       }
 
+      const cashflow = buildCashflow({ payments, expenses, personal, monthKey });
+
       setData({
+        cashflow,
         kitnets: kitnets.length,
         occupied: kitnets.filter((item) => item.status === 'ocupada').length,
         vacant: kitnets.filter((item) => item.status === 'vaga').length,
@@ -94,6 +100,25 @@ export default function FinancialOverview() {
       <div className="grid gap-4 xl:grid-cols-3">
         <Card label="Kitnets" value={data.kitnets} icon="🏠" sub={`${data.occupied} ocupadas • ${data.vacant} vagas`} />
         <Card label="Contratos" value={data.contracts} icon="📄" sub={`${data.upcomingCount} a vencer`} />
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-slate-900">Caixa geral do mês</h2>
+          <p className="text-xs text-slate-500">Regime de caixa: só entra o que foi efetivamente pago ou recebido</p>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card label="Resultado das kitnets" value={money(data.cashflow.kitnetsResult)} icon="🏠" sub={`${money(data.cashflow.kitnetsIn)} recebidos − ${money(data.cashflow.kitnetsOut)} pagos`} />
+          <Card label="Resultado pessoal" value={money(data.cashflow.personalResult)} icon="👤" sub={`${money(data.cashflow.personalIn)} − ${money(data.cashflow.personalOut)}`} />
+          <Card label="Resultado final" value={money(data.cashflow.finalResult)} icon="🧮" sub="kitnets + pessoal" />
+          <Card label="Investido na obra/kitnets" value={money(data.cashflow.investedInBusiness)} icon="🔨" sub="pago pelas contas pessoais (acumulado)" />
+        </div>
+        {data.cashflow.pendingCardReview > 0 ? (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            {data.cashflow.pendingCardReview} transação(ões) de cartão importadas aguardam revisão e ainda não contam no caixa.{' '}
+            <Link to="/financas-pessoais" className="font-semibold underline">Revisar agora</Link>
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
