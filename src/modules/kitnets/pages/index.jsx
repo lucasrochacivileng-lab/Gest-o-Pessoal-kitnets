@@ -359,7 +359,7 @@ export default function Kitnets() {
             return (
               <div key={kitnet.id} className="ds-card">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-base font-semibold text-slate-900">{kitnet.name}</p>
                     <p className="text-sm text-slate-500">{kitnet.address || 'Endereço não informado'}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -370,7 +370,7 @@ export default function Kitnets() {
                       {kitnet.furnished === 'sim' ? <span className="ds-badge ds-badge-info">mobiliada</span> : null}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
                       onClick={() => startEdit(kitnet)}
