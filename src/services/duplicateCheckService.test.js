@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { findAllDuplicates, findDuplicateExpenses, findDuplicatePersonalEntries } from './duplicateCheckService.js';
+import {
+  findAllDuplicates,
+  findDuplicateExpenses,
+  findDuplicatePersonalEntries,
+  findExpenseDuplicateOf,
+  findPersonalDuplicateOf,
+} from './duplicateCheckService.js';
 
 describe('duplicateCheckService', () => {
   it('detecta a mesma conta lançada duas vezes com descrição diferente (caso SPNET)', () => {
@@ -71,5 +77,44 @@ describe('duplicateCheckService', () => {
     const groups = findAllDuplicates({ expenses, personal });
     expect(groups.some((group) => group.origin === 'kitnets')).toBe(true);
     expect(groups.some((group) => group.origin === 'pessoal')).toBe(true);
+  });
+
+  describe('checagem no instante de salvar', () => {
+    it('encontra conflito de despesa antes de gravar (caso SPNET)', () => {
+      const existing = [
+        { id: 'e1', date: '2026-07-10', description: 'Internet SPNET', value: 129.9, kitnet_id: 'k1', active: true },
+      ];
+      const candidate = { date: '2026-07-12', description: 'SPNET energia kitnets', value: 129.9, kitnet_id: 'k1' };
+
+      const match = findExpenseDuplicateOf(candidate, existing);
+      expect(match?.id).toBe('e1');
+    });
+
+    it('não aponta conflito quando é uma despesa realmente diferente', () => {
+      const existing = [
+        { id: 'e1', date: '2026-07-10', description: 'Internet SPNET', value: 129.9, kitnet_id: 'k1', active: true },
+      ];
+      const candidate = { date: '2026-07-12', description: 'Manutenção elétrica', value: 250, kitnet_id: 'k1' };
+
+      expect(findExpenseDuplicateOf(candidate, existing)).toBeNull();
+    });
+
+    it('ignora despesas já excluídas ao checar conflito', () => {
+      const existing = [
+        { id: 'e1', date: '2026-07-10', description: 'Internet SPNET', value: 129.9, kitnet_id: 'k1', active: false },
+      ];
+      const candidate = { date: '2026-07-12', description: 'Internet SPNET', value: 129.9, kitnet_id: 'k1' };
+
+      expect(findExpenseDuplicateOf(candidate, existing)).toBeNull();
+    });
+
+    it('encontra conflito em lançamento pessoal, mas nunca em receitas', () => {
+      const existing = [
+        { id: 'pi1', date: '2026-07-05', category: 'mercado', value: 300, type: 'expense', active: true },
+      ];
+
+      expect(findPersonalDuplicateOf({ date: '2026-07-06', category: 'mercado', value: 300, type: 'expense' }, existing)?.id).toBe('pi1');
+      expect(findPersonalDuplicateOf({ date: '2026-07-06', category: 'mercado', value: 300, type: 'income' }, existing)).toBeNull();
+    });
   });
 });

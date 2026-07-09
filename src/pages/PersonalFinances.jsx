@@ -1,5 +1,6 @@
 import React from 'react';
 import EntityPage from '../components/ui/EntityPage.jsx';
+import { findPersonalDuplicateOf } from '../services/duplicateCheckService.js';
 
 const fields = [
   { name: 'date', label: 'Data', type: 'date' },
@@ -49,6 +50,7 @@ export default function PersonalFinances() {
       cardFields={['date', 'description', 'value']}
       badgeField="status"
       badgeColors={STATUS_BADGE_COLORS}
+      checkDuplicate={findPersonalDuplicateOf}
     />
   );
 }

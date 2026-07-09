@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import NotificationActionDialog from '../../modules/notifications/components/NotificationActionDialog.jsx';
 import notificationService from '../../modules/notifications/services/notificationService.js';
 import { useEntitySync } from '../../hooks/useEntitySync.js';
+import { formatDateBR } from '../../services/dateUtils.js';
+import { financialService } from '../../services/financialService';
 
 const inputClass = 'ds-input';
 
@@ -45,6 +47,7 @@ export default function EntityPage({
   getDeepLinkLabel,
   badgeField = '',
   badgeColors = {},
+  checkDuplicate,
 }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -99,6 +102,26 @@ export default function EntityPage({
       acc[fieldName] = value;
       return acc;
     }, {});
+
+    // Só checa duplicidade ao CRIAR: editar um lançamento que já é o "original"
+    // de um grupo não deveria travar em si mesmo.
+    if (!editingId && checkDuplicate) {
+      const conflict = checkDuplicate(payload, rows);
+
+      if (conflict) {
+        const conflictLabel = conflict.description || conflict.category || 'lançamento';
+        const confirmed = window.confirm(
+          `Já existe um lançamento parecido este mês: "${conflictLabel}" de `
+          + `${financialService.formatCurrency(conflict.value)} em ${formatDateBR(conflict.date)}. `
+          + 'Continuar mesmo assim?',
+        );
+
+        if (!confirmed) {
+          setSaving(false);
+          return;
+        }
+      }
+    }
 
     try {
       if (editingId) {

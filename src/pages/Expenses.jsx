@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { NOTIFICATION_ENTITY } from '../modules/notifications/types/notification.types.js';
 import { recurringExpenseService } from '../services/recurringExpenseService.js';
+import { findExpenseDuplicateOf } from '../services/duplicateCheckService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 
 const fields = [
@@ -93,6 +94,7 @@ export default function Expenses() {
         deepLinkEntity={NOTIFICATION_ENTITY.EXPENSE}
         deepLinkBasePath="/despesas"
         getDeepLinkLabel={(item) => item.description || item.category || item.id}
+        checkDuplicate={findExpenseDuplicateOf}
       />
     </div>
   );
