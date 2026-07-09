@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { NOTIFICATION_ENTITY } from '../modules/notifications/types/notification.types.js';
 import { recurringExpenseService } from '../services/recurringExpenseService.js';
+import { MonthChips } from '../components/ui/MonthChips.jsx';
 
 const fields = [
   { name: 'date', label: 'Data', type: 'date' },
@@ -64,21 +65,15 @@ export default function Expenses() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <input
-          type="month"
-          value={competence}
-          onChange={(event) => setCompetence(event.target.value)}
-          className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
-          aria-label="Competência para gerar despesas recorrentes"
-        />
+      <MonthChips value={competence} onChange={setCompetence} />
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={handleGenerate}
           disabled={generating || !competence}
           className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
         >
-          {generating ? 'Gerando...' : 'Gerar despesas do mês'}
+          {generating ? 'Gerando...' : `Gerar despesas de ${competence}`}
         </button>
       </div>
 

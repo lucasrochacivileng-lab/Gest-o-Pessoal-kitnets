@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
 	TrendingUp,
 	TrendingDown,
@@ -7,6 +9,10 @@ import {
 	FileText,
 	CalendarClock,
 	HandCoins,
+	Wallet,
+	BarChart3,
+	ChevronDown,
+	CalendarRange,
 } from 'lucide-react';
 import { useDashboard } from '../../../hooks/useDashboard';
 import { MetricCard } from '../../../components/dashboard/MetricCard';
@@ -19,6 +25,8 @@ import { financialService } from '../../../services/financialService';
 
 export default function Dashboard() {
 	const { loading, data } = useDashboard();
+	// Gráficos abertos por padrão só em telas grandes; no celular ficam atrás de um toque.
+	const [showCharts, setShowCharts] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
 
 	if (loading) {
 		return (
@@ -33,6 +41,18 @@ export default function Dashboard() {
 			<div>
 				<h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
 				<p className="mt-1 text-sm text-slate-500">Visão geral financeira e operacional das suas kitnets</p>
+			</div>
+
+			<div className="flex flex-wrap gap-2">
+				<Link to="/recebimentos" className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">
+					<HandCoins className="h-4 w-4" /> Receber aluguel
+				</Link>
+				<Link to="/despesas" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+					<Wallet className="h-4 w-4" /> Lançar despesa
+				</Link>
+				<Link to="/previsao" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+					<CalendarRange className="h-4 w-4" /> Previsão
+				</Link>
 			</div>
 
 			<ActionCenter items={data.actionItems} />
@@ -53,12 +73,23 @@ export default function Dashboard() {
 				<MetricCard icon={DollarSign} label="Saldo previsto" value={financialService.formatCurrency(data.revenue - data.expenseTotal + data.overdueValue)} color="bg-cyan-50 text-cyan-600" />
 			</div>
 
-			<div className="grid gap-6 lg:grid-cols-2">
-				<RevenueChart data={data.monthlyData} />
-				<ProfitChart data={data.monthlyData} />
-				<ExpenseChart data={data.categoryData} />
-				<OccupancyChart occupied={data.occupied} vacant={data.vacant} totalKitnets={data.totalKitnets} />
-			</div>
+			<button
+				type="button"
+				onClick={() => setShowCharts((state) => !state)}
+				className="inline-flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 lg:hidden"
+			>
+				<span className="inline-flex items-center gap-2"><BarChart3 className="h-4 w-4" /> {showCharts ? 'Ocultar gráficos' : 'Ver gráficos'}</span>
+				<ChevronDown className={`h-4 w-4 transition-transform ${showCharts ? 'rotate-180' : ''}`} />
+			</button>
+
+			{showCharts ? (
+				<div className="grid gap-6 lg:grid-cols-2">
+					<RevenueChart data={data.monthlyData} />
+					<ProfitChart data={data.monthlyData} />
+					<ExpenseChart data={data.categoryData} />
+					<OccupancyChart occupied={data.occupied} vacant={data.vacant} totalKitnets={data.totalKitnets} />
+				</div>
+			) : null}
 		</div>
 	);
 }

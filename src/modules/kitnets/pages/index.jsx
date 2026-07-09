@@ -367,18 +367,18 @@ export default function Kitnets() {
                     <button
                       type="button"
                       onClick={() => startEdit(kitnet)}
-                      className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600"
+                      className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600"
                       aria-label={`Editar ${kitnet.name}`}
                     >
-                      <PencilLine className="h-4 w-4" />
+                      <PencilLine className="h-5 w-5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRemove(kitnet)}
-                      className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600"
+                      className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600"
                       aria-label={`Excluir ${kitnet.name}`}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                 </div>

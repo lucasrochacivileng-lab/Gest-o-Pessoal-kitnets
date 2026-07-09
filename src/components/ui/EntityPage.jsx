@@ -292,11 +292,11 @@ export default function EntityPage({
                   {row.notes ? <p className="mt-2 text-sm text-slate-500">{row.notes}</p> : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => startEdit(row)} title="Editar" className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
-                    <PencilLine className="h-4 w-4" />
+                  <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                    <PencilLine className="h-5 w-5" />
                   </button>
-                  <button type="button" onClick={() => handleRemove(row)} title="Excluir" className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
-                    <Trash2 className="h-4 w-4" />
+                  <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                    <Trash2 className="h-5 w-5" />
                   </button>
                 </div>
               </div>

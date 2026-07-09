@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { repository } from '../repository/index.js';
 import { buildForecast } from '../services/forecastService.js';
+import { MonthChips } from '../components/ui/MonthChips.jsx';
 
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const currentMonthKey = () => new Date().toISOString().slice(0, 7);
@@ -60,19 +61,12 @@ export default function Forecast() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Previsão</h1>
-          <p className="text-sm text-slate-500">O que deve entrar e sair em qualquer mês — aluguéis, projetos, parcelas e orçamento.</p>
-        </div>
-        <input
-          type="month"
-          value={month}
-          onChange={(event) => setMonth(event.target.value)}
-          className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
-          aria-label="Mês da previsão"
-        />
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Previsão</h1>
+        <p className="text-sm text-slate-500">O que deve entrar e sair em qualquer mês — aluguéis, projetos, parcelas e orçamento.</p>
       </div>
+
+      <MonthChips value={month} onChange={setMonth} />
 
       {loading || !forecast ? (
         <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Calculando previsão...</div>

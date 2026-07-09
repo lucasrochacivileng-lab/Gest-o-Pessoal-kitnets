@@ -20,7 +20,21 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
   const isOverdue = receivable.status === 'vencido';
   const isPending = receivable.status === 'pendente';
   const outstandingValue = calculateOutstandingValue(receivable);
-  const urgencyClass = isOverdue ? 'border-red-200 bg-red-50' : isPending ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white';
+  const isPaid = receivable.status === 'pago';
+  const urgencyClass = isOverdue
+    ? 'border-red-200 border-l-4 border-l-red-500 bg-red-50'
+    : isPending
+      ? 'border-amber-200 border-l-4 border-l-amber-400 bg-white'
+      : isPaid
+        ? 'border-emerald-200 border-l-4 border-l-emerald-500 bg-white'
+        : 'border-slate-200 border-l-4 border-l-slate-300 bg-white';
+  const statusBadgeClass = isOverdue
+    ? 'bg-red-100 text-red-700'
+    : isPending
+      ? 'bg-amber-100 text-amber-700'
+      : isPaid
+        ? 'bg-emerald-100 text-emerald-700'
+        : 'bg-slate-100 text-slate-600';
   const tenantPhone = receivable.tenant?.whatsapp || receivable.tenant?.phone;
   const whatsappEnabled = readWhatsappPreference();
 
@@ -39,37 +53,40 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
   };
 
   return (
-    <div className={`rounded-3xl border p-6 shadow-sm ${urgencyClass}`}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className={`rounded-2xl border p-4 shadow-sm md:p-5 ${urgencyClass}`}>
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-900">Competência {formatCompetenceBR(receivable.competence)}</p>
-          <p className="text-sm text-slate-500">Vencimento: {formatDateBR(receivable.due_date)}</p>
-          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{receivable.status}</p>
-          {receivable.kitnet ? <p className="mt-1 text-xs text-slate-500">Kitnet: {receivable.kitnet.name}</p> : null}
-          {receivable.tenant ? <p className="text-xs text-slate-500">Locatário: {receivable.tenant.name}</p> : null}
+          <p className="text-sm font-semibold text-slate-900">
+            {receivable.kitnet?.name || 'Kitnet'} · {receivable.tenant?.name || 'sem locatário'}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {formatCompetenceBR(receivable.competence)} · vence {formatDateBR(receivable.due_date)}
+          </p>
+          <span className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${statusBadgeClass}`}>
+            {receivable.status}
+          </span>
         </div>
-        <div className="space-y-1 text-right">
-          <p className="text-lg font-semibold text-slate-900">{currency(receivable.expected_value)}</p>
+        <div className="space-y-0.5 text-right">
+          <p className="text-lg font-bold text-slate-900">{currency(receivable.expected_value)}</p>
           {receivable.paid_value ? <p className="text-xs text-emerald-700">Pago: {currency(receivable.paid_value)}</p> : null}
-          {outstandingValue > 0 ? <p className="text-xs text-slate-500">Restante: {currency(outstandingValue)}</p> : null}
-          {isOverdue ? <p className="text-xs text-red-600">Em atraso</p> : null}
+          {outstandingValue > 0 && receivable.paid_value ? <p className="text-xs text-slate-500">Resta: {currency(outstandingValue)}</p> : null}
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {receivable.status !== 'pago' ? (
-          <button type="button" onClick={() => onPay(receivable)} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">
+          <button type="button" onClick={() => onPay(receivable)} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">
             <CheckCircle2 className="h-4 w-4" /> Receber aluguel
           </button>
         ) : null}
         {whatsappEnabled && tenantPhone && receivable.status !== 'pago' ? (
-          <button type="button" onClick={handleWhatsApp} className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">
+          <button type="button" onClick={handleWhatsApp} className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">
             <MessageCircle className="h-4 w-4" /> WhatsApp
           </button>
         ) : null}
-        <button type="button" onClick={() => onHistory(receivable)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+        <button type="button" onClick={() => onHistory(receivable)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
           <Eye className="h-4 w-4" /> Ver histórico
         </button>
-        <button type="button" onClick={() => onEdit(receivable)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+        <button type="button" onClick={() => onEdit(receivable)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
           <PencilLine className="h-4 w-4" /> Editar
         </button>
       </div>

@@ -6,6 +6,7 @@ import { ReceivableFilters } from '../components/ReceivableFilters.jsx';
 import { ReceivableCard } from '../components/ReceivableCard.jsx';
 import { ReceivePaymentDialog } from '../components/ReceivePaymentDialog.jsx';
 import { ReceivableHistoryDialog } from '../components/ReceivableHistoryDialog.jsx';
+import { MonthChips } from '../../../components/ui/MonthChips.jsx';
 import NotificationActionDialog from '../../notifications/components/NotificationActionDialog.jsx';
 import notificationService from '../../notifications/services/notificationService.js';
 import { NOTIFICATION_ENTITY } from '../../notifications/types/notification.types.js';
@@ -112,23 +113,18 @@ export default function ReceivablesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Recebimentos</h1>
           <p className="text-sm text-slate-500">Controle de recebíveis e confirmações de pagamento</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="month"
-            value={generateCompetence}
-            onChange={(event) => setGenerateCompetence(event.target.value)}
-            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
-            aria-label="Competência para gerar recebíveis"
-          />
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={generating || !generateCompetence}
-            className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-          >
-            {generating ? 'Gerando...' : 'Gerar aluguéis do mês'}
-          </button>
-        </div>
+      </div>
+
+      <MonthChips value={generateCompetence} onChange={setGenerateCompetence} />
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={handleGenerate}
+          disabled={generating || !generateCompetence}
+          className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+        >
+          {generating ? 'Gerando...' : `Gerar aluguéis de ${generateCompetence}`}
+        </button>
       </div>
 
       {generateMessage ? (
