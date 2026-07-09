@@ -72,22 +72,22 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
           {outstandingValue > 0 && receivable.paid_value ? <p className="text-xs text-slate-500">Resta: {currency(outstandingValue)}</p> : null}
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex items-center gap-2">
         {receivable.status !== 'pago' ? (
-          <button type="button" onClick={() => onPay(receivable)} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">
-            <CheckCircle2 className="h-4 w-4" /> Receber aluguel
+          <button type="button" onClick={() => onPay(receivable)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 sm:flex-none">
+            <CheckCircle2 className="h-5 w-5" /> Receber
           </button>
         ) : null}
         {whatsappEnabled && tenantPhone && receivable.status !== 'pago' ? (
-          <button type="button" onClick={handleWhatsApp} className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">
-            <MessageCircle className="h-4 w-4" /> WhatsApp
+          <button type="button" onClick={handleWhatsApp} title="Cobrar pelo WhatsApp" aria-label="Cobrar pelo WhatsApp" className="rounded-2xl border border-emerald-200 bg-white p-2.5 text-emerald-600 transition hover:bg-emerald-50">
+            <MessageCircle className="h-5 w-5" />
           </button>
         ) : null}
-        <button type="button" onClick={() => onHistory(receivable)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-          <Eye className="h-4 w-4" /> Ver histórico
+        <button type="button" onClick={() => onHistory(receivable)} title="Ver histórico" aria-label="Ver histórico" className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:bg-slate-50">
+          <Eye className="h-5 w-5" />
         </button>
-        <button type="button" onClick={() => onEdit(receivable)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-          <PencilLine className="h-4 w-4" /> Editar
+        <button type="button" onClick={() => onEdit(receivable)} title="Editar" aria-label="Editar" className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:bg-slate-50">
+          <PencilLine className="h-5 w-5" />
         </button>
       </div>
     </div>

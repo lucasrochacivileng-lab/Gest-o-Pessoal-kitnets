@@ -1,6 +1,14 @@
 const toMoney = (value) => Number(value || 0);
 const monthOf = (date) => String(date || '').slice(0, 7);
 
+// Data prevista dentro do mês alvo, reaproveitando o dia de um lançamento base.
+const dayInMonth = (month, baseDate, fallbackDay = 5) => {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const daysInMonth = new Date(year, monthNumber, 0).getDate();
+  const day = Number(String(baseDate || '').slice(8, 10)) || fallbackDay;
+  return `${month}-${String(Math.min(Math.max(day, 1), daysInMonth)).padStart(2, '0')}`;
+};
+
 // Última ocorrência de cada item recorrente (por descrição) — vira o "modelo" mensal.
 const latestRecurring = (rows, getLabel) => {
   const map = new Map();
@@ -47,12 +55,14 @@ export const buildForecast = ({
       const label = `Aluguel ${kitnet?.name || contract.id}`;
       const receivable = receivables.find((row) => row.contract_id === contract.id && row.competence === month && row.status !== 'cancelado');
 
+      const contractDueDate = dayInMonth(month, `0000-00-${String(contract.due_day || 10).padStart(2, '0')}`, 10);
+
       if (!receivable) {
-        incomes.push({ label, value: toMoney(contract.rent_value), source: 'contrato (carnê a lançar)' });
+        incomes.push({ label, value: toMoney(contract.rent_value), source: 'contrato (carnê a lançar)', date: contractDueDate });
       } else if (receivable.status === 'pago') {
-        incomes.push({ label, value: toMoney(receivable.paid_value || receivable.expected_value), source: 'já recebido', received: true });
+        incomes.push({ label, value: toMoney(receivable.paid_value || receivable.expected_value), source: 'já recebido', received: true, date: receivable.due_date || contractDueDate });
       } else {
-        incomes.push({ label, value: Math.max(toMoney(receivable.expected_value) - toMoney(receivable.paid_value), 0), source: 'aluguel lançado' });
+        incomes.push({ label, value: Math.max(toMoney(receivable.expected_value) - toMoney(receivable.paid_value), 0), source: 'aluguel lançado', date: receivable.due_date || contractDueDate });
       }
     });
 
@@ -73,6 +83,7 @@ export const buildForecast = ({
         label: row.forecastLabel,
         value: row.forecastValue,
         source: rolledOver ? 'atrasado — rolado para este mês' : 'previsto',
+        date: row.expected_payment_date,
       });
     });
 
@@ -86,6 +97,7 @@ export const buildForecast = ({
       label: `${row.card_name || 'Cartão'} - ${row.description || row.category} (recorrente)`,
       value: toMoney(row.value),
       source: row.status === 'revisar' ? 'cartão importado - revisar' : 'cartão',
+      date: dayInMonth(month, row.date),
     });
   });
 
@@ -96,6 +108,7 @@ export const buildForecast = ({
         label: `${row.card_name || 'Cartão'} - ${row.description || row.category}${row.installment ? ` (${row.installment})` : ''}`,
         value: toMoney(row.value),
         source: row.status === 'revisar' ? 'cartão importado - revisar' : 'cartão',
+        date: row.date,
       });
     });
 
@@ -104,7 +117,7 @@ export const buildForecast = ({
 
   personalRecurring.forEach((row) => {
     if (monthOf(row.date) > month) return;
-    const entry = { label: `${row.description || row.category} (recorrente)`, value: toMoney(row.value), source: 'pessoal' };
+    const entry = { label: `${row.description || row.category} (recorrente)`, value: toMoney(row.value), source: 'pessoal', date: dayInMonth(month, row.date) };
     if (row.type === 'income') incomes.push(entry);
     else outgoings.push(entry);
   });
@@ -112,7 +125,7 @@ export const buildForecast = ({
   personalActive
     .filter((row) => row.recurring !== true && monthOf(row.date) === month)
     .forEach((row) => {
-      const entry = { label: row.description || row.category, value: toMoney(row.value), source: 'pessoal' };
+      const entry = { label: row.description || row.category, value: toMoney(row.value), source: 'pessoal', date: row.date };
       if (row.type === 'income') incomes.push(entry);
       else outgoings.push(entry);
     });
@@ -122,14 +135,19 @@ export const buildForecast = ({
 
   expenseRecurring.forEach((row) => {
     if (monthOf(row.date) > month) return;
-    outgoings.push({ label: `${row.description || row.category} (recorrente)`, value: toMoney(row.value), source: 'kitnets' });
+    outgoings.push({ label: `${row.description || row.category} (recorrente)`, value: toMoney(row.value), source: 'kitnets', date: dayInMonth(month, row.date) });
   });
 
   expenses
     .filter((row) => row.recurring !== true && monthOf(row.date) === month)
     .forEach((row) => {
-      outgoings.push({ label: row.description || row.category, value: toMoney(row.value), source: 'kitnets' });
+      outgoings.push({ label: row.description || row.category, value: toMoney(row.value), source: 'kitnets', date: row.date });
     });
+
+  // Tabela em ordem cronológica: o mês vira uma linha do tempo de entradas e saídas.
+  const byDate = (a, b) => String(a.date || '').localeCompare(String(b.date || ''));
+  incomes.sort(byDate);
+  outgoings.sort(byDate);
 
   const totalIn = incomes.reduce((sum, row) => sum + row.value, 0);
   const totalOut = outgoings.reduce((sum, row) => sum + row.value, 0);
