@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { buildForecast } from '../services/forecastService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
@@ -35,9 +36,17 @@ function ForecastTable({ title, rows, total, tone }) {
                   <td className="whitespace-nowrap py-2.5 pr-3 font-medium text-slate-500">{dayOf(row.date)}</td>
                   <td className="py-2.5 pr-3 font-medium text-slate-900">
                     {row.label}
-                    <span className="block text-xs font-normal text-slate-400 sm:hidden">{row.source}{row.received ? ' ✓' : ''}</span>
+                    <span className="flex items-center gap-1 text-xs font-normal text-slate-400 sm:hidden">
+                      {row.source}
+                      {row.received ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : null}
+                    </span>
                   </td>
-                  <td className="hidden py-2.5 pr-3 text-xs text-slate-500 sm:table-cell">{row.source}{row.received ? ' ✓' : ''}</td>
+                  <td className="hidden py-2.5 pr-3 text-xs text-slate-500 sm:table-cell">
+                    <span className="flex items-center gap-1">
+                      {row.source}
+                      {row.received ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : null}
+                    </span>
+                  </td>
                   <td className="whitespace-nowrap py-2.5 text-right font-semibold text-slate-900">{money(row.value)}</td>
                 </tr>
               ))}

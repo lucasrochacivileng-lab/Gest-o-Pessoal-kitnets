@@ -30,6 +30,11 @@ const fields = [
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Detalhes do cartão' },
 ];
 
+const STATUS_BADGE_COLORS = {
+  pago: 'ds-badge-success',
+  pendente: 'ds-badge-warning',
+};
+
 const cardOptions = ['Nubank', 'Santander', 'Itaú', 'Amazon Brasil', 'Mercado Pago Pai'];
 const categoryOptions = [
   'alimentacao',
@@ -317,6 +322,8 @@ export default function CreditCards() {
         entity="CreditCard"
         fields={fields}
         cardFields={['card_name', 'bank']}
+        badgeField="status"
+        badgeColors={STATUS_BADGE_COLORS}
       />
     </div>
   );

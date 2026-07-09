@@ -1,6 +1,23 @@
+// Traço de cor da borda esquerda, derivado da mesma cor do ícone (ex.: "text-emerald-600"
+// -> "border-l-emerald-500"). Classes escritas por extenso para o Tailwind JIT encontrá-las.
+const BORDER_ACCENT = {
+  emerald: 'border-l-emerald-500',
+  red: 'border-l-red-500',
+  blue: 'border-l-blue-500',
+  amber: 'border-l-amber-500',
+  violet: 'border-l-violet-500',
+  orange: 'border-l-orange-500',
+  cyan: 'border-l-cyan-500',
+};
+
+function getAccentClass(color) {
+  const hue = String(color || '').match(/text-(\w+)-\d+/)?.[1];
+  return BORDER_ACCENT[hue] || 'border-l-slate-300';
+}
+
 export function MetricCard({ icon: Icon, label, value, color, sub }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md md:p-5">
+    <div className={`rounded-2xl border border-slate-200 border-l-4 ${getAccentClass(color)} bg-white p-4 shadow-sm transition-shadow hover:shadow-md md:p-5`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 space-y-1.5">
           <p className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 md:text-[11px] md:tracking-[0.2em]">{label}</p>

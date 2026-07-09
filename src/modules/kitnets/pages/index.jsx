@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ExternalLink, FileText, History, PencilLine, Plus, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ExternalLink, FileText, History, PencilLine, Plus, Trash2, Upload, User } from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
 import { formatDateBR } from '../../../services/dateUtils.js';
@@ -58,6 +58,13 @@ const DOCUMENT_TYPES = {
 const DOCUMENT_LABELS = {
   [DOCUMENT_TYPES.contract]: 'Contrato de locação',
   [DOCUMENT_TYPES.inspection]: 'Termo de vistoria',
+};
+
+// Cor por status: ocupada é positivo, vaga precisa de ação, manutenção é alerta.
+const STATUS_BADGE_CLASS = {
+  ocupada: 'ds-badge-success',
+  vaga: 'ds-badge-warning',
+  manutencao: 'ds-badge-danger',
 };
 
 const inputClass = 'ds-input';
@@ -356,7 +363,7 @@ export default function Kitnets() {
                     <p className="text-base font-semibold text-slate-900">{kitnet.name}</p>
                     <p className="text-sm text-slate-500">{kitnet.address || 'Endereço não informado'}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="ds-badge ds-badge-info">{kitnet.status || 'sem status'}</span>
+                      <span className={`ds-badge ${STATUS_BADGE_CLASS[kitnet.status] || 'ds-badge-info'}`}>{kitnet.status || 'sem status'}</span>
                       <span className="ds-badge ds-badge-success">{financialService.formatCurrency(kitnet.rent_value)}</span>
                       {kitnet.finish_standard ? <span className="ds-badge ds-badge-info">padrão {kitnet.finish_standard}</span> : null}
                       {kitnet.garage && kitnet.garage !== 'nenhuma' ? <span className="ds-badge ds-badge-info">garagem {kitnet.garage}</span> : null}
@@ -384,8 +391,9 @@ export default function Kitnets() {
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-2 text-sm text-slate-600">
-                  <p>
-                    {activeTenant ? `👤 ${activeTenant.name}` : kitnet.status === 'ocupada' ? 'Locatário não vinculado' : 'Disponível para alugar'}
+                  <p className="flex items-center gap-1.5">
+                    {activeTenant ? <User className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" /> : null}
+                    {activeTenant ? activeTenant.name : kitnet.status === 'ocupada' ? 'Locatário não vinculado' : 'Disponível para alugar'}
                     {activeContract?.due_day ? ` · vence dia ${activeContract.due_day}` : ''}
                   </p>
                   <button

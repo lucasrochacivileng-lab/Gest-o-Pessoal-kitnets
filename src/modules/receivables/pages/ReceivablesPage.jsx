@@ -69,11 +69,17 @@ export default function ReceivablesPage() {
     setEditingReceivable(null);
   };
 
-  const contractOptions = useMemo(() => contracts.map((contract) => ({
-    id: contract.id,
-    kitnet_id: contract.kitnet_id,
-    tenant_id: contract.tenant_id,
-  })), [contracts]);
+  const contractOptions = useMemo(() => contracts.map((contract) => {
+    const kitnetName = kitnets.find((kitnet) => kitnet.id === contract.kitnet_id)?.name;
+    const tenantName = tenants.find((tenant) => tenant.id === contract.tenant_id)?.name;
+
+    return {
+      id: contract.id,
+      kitnet_id: contract.kitnet_id,
+      tenant_id: contract.tenant_id,
+      label: [kitnetName, tenantName].filter(Boolean).join(' · ') || contract.id,
+    };
+  }), [contracts, kitnets, tenants]);
 
   useEffect(() => {
     if (!id || loading) return;

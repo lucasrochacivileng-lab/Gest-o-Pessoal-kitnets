@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  AlertTriangle,
+  Building2,
+  Calculator,
+  Clock,
+  FileText,
+  Hammer,
+  TrendingDown,
+  TrendingUp,
+  User,
+} from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { buildCashflow } from '../services/cashflowService.js';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -13,7 +24,7 @@ const addCategory = (map, category, value) => {
   map[key] = (map[key] || 0) + moneyValue(value);
 };
 
-function Card({ label, value, icon, sub }) {
+function Card({ label, value, icon: Icon, tone = 'bg-slate-100 text-slate-600', sub }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
@@ -22,7 +33,9 @@ function Card({ label, value, icon, sub }) {
           <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
           {sub ? <p className="mt-1 text-sm text-slate-500">{sub}</p> : null}
         </div>
-        <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">{icon}</div>
+        <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl ${tone}`}>
+          <Icon className="h-5 w-5" />
+        </div>
       </div>
     </div>
   );
@@ -107,15 +120,15 @@ export default function FinancialOverview() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card label="Receita do mês" value={money(data.monthRevenue)} icon="R$" />
-        <Card label="Despesas do mês" value={money(data.monthExpenses)} icon="—" />
-        <Card label="Receita prevista" value={money(data.pendingValue)} icon="⏳" />
-        <Card label="Aluguéis vencidos" value={data.overdueCount} icon="⚠️" sub={money(data.overdueValue)} />
+        <Card label="Receita do mês" value={money(data.monthRevenue)} icon={TrendingUp} tone="bg-emerald-50 text-emerald-600" />
+        <Card label="Despesas do mês" value={money(data.monthExpenses)} icon={TrendingDown} tone="bg-red-50 text-red-600" />
+        <Card label="Receita prevista" value={money(data.pendingValue)} icon={Clock} tone="bg-blue-50 text-blue-600" />
+        <Card label="Aluguéis vencidos" value={data.overdueCount} icon={AlertTriangle} tone="bg-amber-50 text-amber-600" sub={money(data.overdueValue)} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card label="Kitnets" value={data.kitnets} icon="🏠" sub={`${data.occupied} ocupadas • ${data.vacant} vagas`} />
-        <Card label="Contratos" value={data.contracts} icon="📄" sub={`${data.upcomingCount} a vencer`} />
+        <Card label="Kitnets" value={data.kitnets} icon={Building2} tone="bg-emerald-50 text-emerald-600" sub={`${data.occupied} ocupadas • ${data.vacant} vagas`} />
+        <Card label="Contratos" value={data.contracts} icon={FileText} tone="bg-blue-50 text-blue-600" sub={`${data.upcomingCount} a vencer`} />
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -124,10 +137,10 @@ export default function FinancialOverview() {
           <p className="text-xs text-slate-500">Regime de caixa: só entra o que foi efetivamente pago ou recebido</p>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card label="Resultado das kitnets" value={money(data.cashflow.kitnetsResult)} icon="🏠" sub={`${money(data.cashflow.kitnetsIn)} recebidos − ${money(data.cashflow.kitnetsOut)} pagos`} />
-          <Card label="Resultado pessoal" value={money(data.cashflow.personalResult)} icon="👤" sub={`${money(data.cashflow.personalIn)} − ${money(data.cashflow.personalOut)}`} />
-          <Card label="Resultado final" value={money(data.cashflow.finalResult)} icon="🧮" sub="kitnets + pessoal" />
-          <Card label="Investido na obra/kitnets" value={money(data.cashflow.investedInBusiness)} icon="🔨" sub="pago pelas contas pessoais (acumulado)" />
+          <Card label="Resultado das kitnets" value={money(data.cashflow.kitnetsResult)} icon={Building2} tone="bg-emerald-50 text-emerald-600" sub={`${money(data.cashflow.kitnetsIn)} recebidos − ${money(data.cashflow.kitnetsOut)} pagos`} />
+          <Card label="Resultado pessoal" value={money(data.cashflow.personalResult)} icon={User} tone="bg-violet-50 text-violet-600" sub={`${money(data.cashflow.personalIn)} − ${money(data.cashflow.personalOut)}`} />
+          <Card label="Resultado final" value={money(data.cashflow.finalResult)} icon={Calculator} tone="bg-cyan-50 text-cyan-600" sub="kitnets + pessoal" />
+          <Card label="Investido na obra/kitnets" value={money(data.cashflow.investedInBusiness)} icon={Hammer} tone="bg-orange-50 text-orange-600" sub="pago pelas contas pessoais (acumulado)" />
         </div>
         {data.cashflow.pendingCardReview > 0 ? (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">

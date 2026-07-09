@@ -29,6 +29,16 @@ const fields = [
   { name: 'recurring', label: 'Recorrente', type: 'checkbox', help: 'Repete todo mês (parcelas, assinaturas...)' },
 ];
 
+// "Revisar" (importado do cartão) precisa de atenção; os demais são informativos.
+const STATUS_BADGE_COLORS = {
+  pago: 'ds-badge-success',
+  recebido: 'ds-badge-success',
+  pendente: 'ds-badge-warning',
+  revisar: 'ds-badge-warning',
+  previsto: 'ds-badge-info',
+  ignorar: 'ds-badge-info',
+};
+
 export default function PersonalFinances() {
   return (
     <EntityPage
@@ -37,6 +47,8 @@ export default function PersonalFinances() {
       entity="PersonalIncome"
       fields={fields}
       cardFields={['date', 'description', 'value']}
+      badgeField="status"
+      badgeColors={STATUS_BADGE_COLORS}
     />
   );
 }

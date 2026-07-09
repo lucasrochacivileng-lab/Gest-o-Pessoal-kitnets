@@ -65,7 +65,7 @@ export function ReceivableFilters({ filter, setFilter, search, setSearch, kitnet
           </select>
           <select value={filters.contractFilter} onChange={(event) => setContractFilter(event.target.value)} className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700">
             <option value="">Todos os contratos</option>
-            {filters.contracts?.map((contract) => <option key={contract.id} value={contract.id}>{contract.id}</option>)}
+            {filters.contracts?.map((contract) => <option key={contract.id} value={contract.id}>{contract.label || contract.id}</option>)}
           </select>
           <select value={filters.tenantFilter} onChange={(event) => setTenantFilter(event.target.value)} className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700">
             <option value="">Todos os locatários</option>

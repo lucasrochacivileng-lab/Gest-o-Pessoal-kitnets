@@ -43,6 +43,8 @@ export default function EntityPage({
   deepLinkEntity = '',
   deepLinkBasePath = '',
   getDeepLinkLabel,
+  badgeField = '',
+  badgeColors = {},
 }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -289,6 +291,11 @@ export default function EntityPage({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{cardFields.map((field) => row[field]).filter(Boolean).join(' — ') || row.id}</p>
+                  {badgeField && row[badgeField] ? (
+                    <span className={`ds-badge mt-2 ${badgeColors[row[badgeField]] || 'ds-badge-info'}`}>
+                      {row[badgeField]}
+                    </span>
+                  ) : null}
                   {row.notes ? <p className="mt-2 text-sm text-slate-500">{row.notes}</p> : null}
                 </div>
                 <div className="flex items-center gap-2">
