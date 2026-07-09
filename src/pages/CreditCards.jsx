@@ -35,6 +35,16 @@ const STATUS_BADGE_COLORS = {
   pendente: 'ds-badge-warning',
 };
 
+const manualColumns = [
+  { field: 'purchase_date', label: 'Data', format: 'date' },
+  { field: 'description', label: 'Descrição' },
+  { field: 'card_name', label: 'Cartão' },
+  { field: 'category', label: 'Categoria' },
+  { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
+  { field: 'due_date', label: 'Vencimento', format: 'date' },
+  { field: 'status', label: 'Status', format: 'badge' },
+];
+
 const cardOptions = ['Nubank', 'Santander', 'Itaú', 'Amazon Brasil', 'Mercado Pago Pai'];
 const categoryOptions = [
   'alimentacao',
@@ -322,7 +332,7 @@ export default function CreditCards() {
         entity="CreditCard"
         fields={fields}
         cardFields={['card_name', 'bank']}
-        badgeField="status"
+        columns={manualColumns}
         badgeColors={STATUS_BADGE_COLORS}
       />
     </div>

@@ -14,6 +14,18 @@ const fields = [
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Ex: devolução de caução' },
 ];
 
+const cardFields = [
+  { field: 'kitnet_id', format: 'relation', relation: 'Kitnet' },
+  { field: 'tenant_id', format: 'relation', relation: 'Tenant' },
+];
+
+const detailFields = [
+  { field: 'competence', label: 'Competência', format: 'competence' },
+  { field: 'payment_date', label: 'Data do pagamento', format: 'date' },
+  { field: 'payment_method', label: 'Forma de pagamento' },
+  { field: 'destination_account', label: 'Conta destino' },
+];
+
 export default function Payments() {
   return (
     <EntityPage
@@ -21,7 +33,10 @@ export default function Payments() {
       subtitle="Registro de pagamentos realizados"
       entity="Payment"
       fields={fields}
-      cardFields={['competence', 'paid_value']}
+      cardFields={cardFields}
+      detailFields={detailFields}
+      headlineField="paid_value"
+      headlineFormat="currency"
       relations={[
         { key: 'Receivable', entity: 'Receivable' },
         { key: 'Kitnet', entity: 'Kitnet' },

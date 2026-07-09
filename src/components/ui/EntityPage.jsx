@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import NotificationActionDialog from '../../modules/notifications/components/NotificationActionDialog.jsx';
 import notificationService from '../../modules/notifications/services/notificationService.js';
 import { useEntitySync } from '../../hooks/useEntitySync.js';
-import { formatDateBR } from '../../services/dateUtils.js';
+import { formatCompetenceBR, formatDateBR } from '../../services/dateUtils.js';
 import { financialService } from '../../services/financialService';
 
 const inputClass = 'ds-input';
@@ -34,6 +34,31 @@ function getOptionLabel(option) {
   return option.label ?? option.name ?? option.title ?? option.competence ?? option.process_number ?? option.id;
 }
 
+// Formata o valor de UM campo de acordo com o "format" declarado em columns/
+// detailFields — usado tanto no modo tabela quanto no cartão com rótulos.
+function formatFieldValue(row, config, relationOptions) {
+  const raw = row[config.field];
+  if (raw === undefined || raw === null || raw === '') return '';
+
+  switch (config.format) {
+    case 'currency':
+      return financialService.formatCurrency(raw);
+    case 'date':
+      return formatDateBR(raw);
+    case 'competence':
+      return formatCompetenceBR(raw);
+    case 'boolean':
+      return raw ? 'Sim' : 'Não';
+    case 'relation': {
+      const list = (relationOptions[config.relation] || []);
+      const match = list.find((item) => item.id === raw);
+      return match?.name || match?.title || String(raw);
+    }
+    default:
+      return String(raw);
+  }
+}
+
 export default function EntityPage({
   title,
   subtitle,
@@ -48,6 +73,12 @@ export default function EntityPage({
   badgeField = '',
   badgeColors = {},
   checkDuplicate,
+  // Modo tabela (desktop: <table>; celular: cartões empilhados com rótulo).
+  columns,
+  // Modo cartão avançado: linhas "Rótulo: valor" + um valor em destaque.
+  detailFields,
+  headlineField,
+  headlineFormat = 'currency',
 }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -159,7 +190,7 @@ export default function EntityPage({
   };
 
   const handleRemove = async (row) => {
-    const label = cardFields.map((field) => row[field]).filter(Boolean).join(' — ') || row.id;
+    const label = getCardTitle(row);
     const confirmed = window.confirm(`Excluir "${label}"? O registro sai das telas, mas continua no backup.`);
     if (!confirmed) return;
 
@@ -206,6 +237,26 @@ export default function EntityPage({
       return acc;
     }, {});
   }, [relationData, relations]);
+
+  // cardFields aceita nome de campo puro ('name') ou config formatada
+  // ({ field, format, relation }), para o título do cartão poder mostrar
+  // "Kitnet 03 · 07/2026" em vez do valor cru do banco.
+  const getCardTitle = (row) => cardFields
+    .map((entry) => (typeof entry === 'string' ? row[entry] : formatFieldValue(row, entry, relationOptions)))
+    .filter(Boolean)
+    .join(' — ') || row.id;
+
+  // Modo tabela: mais recente primeiro, usando a primeira coluna de data.
+  const sortedRows = useMemo(() => {
+    if (!columns) return rows;
+    const dateColumn = columns.find((column) => column.format === 'date');
+    if (!dateColumn) return rows;
+    return [...rows].sort((a, b) => String(b[dateColumn.field] || '').localeCompare(String(a[dateColumn.field] || '')));
+  }, [rows, columns]);
+
+  const renderBadge = (value) => (
+    <span className={`ds-badge ${badgeColors[value] || 'ds-badge-info'}`}>{value}</span>
+  );
 
   return (
     <div className="space-y-6">
@@ -305,37 +356,151 @@ export default function EntityPage({
         </form>
       ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        {loading ? (
-          <div className="ds-card text-[var(--color-text-muted)]">Carregando...</div>
-        ) : rows.length > 0 ? (
-          rows.map((row) => (
+      {loading ? (
+        <div className="ds-card text-[var(--color-text-muted)]">Carregando...</div>
+      ) : rows.length === 0 ? (
+        <div className="ds-card text-[var(--color-text-muted)]">Nenhum registro encontrado.</div>
+      ) : columns ? (
+        <>
+          {/* Desktop/tablet: tabela de verdade. */}
+          <div className="hidden overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] md:block">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[var(--color-surface-alt)] text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <tr>
+                  {columns.map((column) => (
+                    <th key={column.field} className={`px-4 py-3 ${column.align === 'right' ? 'text-right' : 'text-left'}`}>
+                      {column.label}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRows.map((row) => (
+                  <tr key={row.id} className="border-t border-[var(--color-border)] transition hover:bg-[var(--color-surface-alt)]">
+                    {columns.map((column) => {
+                      const value = row[column.field];
+                      return (
+                        <td
+                          key={column.field}
+                          className={`px-4 py-3 ${column.align === 'right' ? 'text-right tabular-nums' : ''} ${column.format === 'currency' ? 'font-semibold text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'}`}
+                        >
+                          {column.format === 'badge'
+                            ? (value ? renderBadge(value) : '—')
+                            : (formatFieldValue(row, column, relationOptions) || '—')}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                          <PencilLine className="h-4 w-4" />
+                        </button>
+                        <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Celular: mesma informação, em cartões empilhados com rótulo. */}
+          <div className="space-y-3 md:hidden">
+            {sortedRows.map((row) => (
+              <div key={row.id} className="ds-card">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    {columns.map((column) => {
+                      const value = row[column.field];
+                      if (!value && value !== 0) return null;
+
+                      return (
+                        <p key={column.field} className="text-sm">
+                          <span className="text-[var(--color-text-muted)]">{column.label}: </span>
+                          {column.format === 'badge' ? renderBadge(value) : (
+                            <span className={column.format === 'currency' ? 'font-semibold text-[var(--color-text)]' : 'text-[var(--color-text)]'}>
+                              {formatFieldValue(row, column, relationOptions)}
+                            </span>
+                          )}
+                        </p>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                      <PencilLine className="h-5 w-5" />
+                    </button>
+                    <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-3">
+          {rows.map((row) => (
             <div key={row.id} className="ds-card">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{cardFields.map((field) => row[field]).filter(Boolean).join(' — ') || row.id}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900">{getCardTitle(row)}</p>
                   {badgeField && row[badgeField] ? (
                     <span className={`ds-badge mt-2 ${badgeColors[row[badgeField]] || 'ds-badge-info'}`}>
                       {row[badgeField]}
                     </span>
                   ) : null}
-                  {row.notes ? <p className="mt-2 text-sm text-slate-500">{row.notes}</p> : null}
+                  {detailFields ? (
+                    <div className="mt-2 space-y-1">
+                      {detailFields.map((config) => {
+                        const value = formatFieldValue(row, config, relationOptions);
+                        if (!value) return null;
+                        return (
+                          <p key={config.field} className="text-sm">
+                            <span className="text-[var(--color-text-muted)]">{config.label}: </span>
+                            <span className="text-[var(--color-text)]">{value}</span>
+                          </p>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {row.notes ? (
+                    <p className="mt-2 text-sm text-slate-500">{detailFields ? `Observações: ${row.notes}` : row.notes}</p>
+                  ) : null}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
-                    <PencilLine className="h-5 w-5" />
-                  </button>
-                  <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </div>
+                {headlineField ? (
+                  <p className="flex-shrink-0 text-lg font-bold tabular-nums text-[var(--color-text)]">
+                    {formatFieldValue(row, { field: headlineField, format: headlineFormat }, relationOptions)}
+                  </p>
+                ) : (
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                      <PencilLine className="h-5 w-5" />
+                    </button>
+                    <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
               </div>
+              {headlineField ? (
+                <div className="mt-3 flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-3">
+                  <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-2xl border border-[var(--color-border)] p-2.5 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                    <PencilLine className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-2xl border border-[var(--color-border)] p-2.5 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
             </div>
-          ))
-        ) : (
-          <div className="ds-card text-[var(--color-text-muted)]">Nenhum registro encontrado.</div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {actionItem ? (
         <NotificationActionDialog

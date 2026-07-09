@@ -58,19 +58,19 @@ export default function Dashboard() {
 			<ActionCenter items={data.actionItems} />
 
 			<div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
-				<MetricCard icon={TrendingUp} label="Receita do mês" value={financialService.formatCurrency(data.revenue)} color="bg-emerald-50 text-emerald-600" />
-				<MetricCard icon={TrendingDown} label="Despesas do mês" value={financialService.formatCurrency(data.expenseTotal)} color="bg-red-50 text-red-600" />
-				<MetricCard icon={DollarSign} label="Lucro do mês" value={financialService.formatCurrency(data.profit)} color="bg-blue-50 text-blue-600" />
-				<MetricCard icon={AlertTriangle} label="Aluguéis vencidos" value={data.overdue} color="bg-amber-50 text-amber-600" sub={financialService.formatCurrency(data.overdueValue)} />
-				<MetricCard icon={CalendarClock} label="A vencer" value={data.upcoming} color="bg-violet-50 text-violet-600" />
+				<MetricCard icon={TrendingUp} label="Receita do mês" value={financialService.formatCurrency(data.revenue)} color="bg-emerald-50 text-emerald-600" href="/extrato" />
+				<MetricCard icon={TrendingDown} label="Despesas do mês" value={financialService.formatCurrency(data.expenseTotal)} color="bg-red-50 text-red-600" href="/despesas" />
+				<MetricCard icon={DollarSign} label="Lucro do mês" value={financialService.formatCurrency(data.profit)} color="bg-blue-50 text-blue-600" href="/visao-geral" />
+				<MetricCard icon={AlertTriangle} label="Aluguéis vencidos" value={data.overdue} color="bg-amber-50 text-amber-600" sub={financialService.formatCurrency(data.overdueValue)} href="/recebimentos" />
+				<MetricCard icon={CalendarClock} label="A vencer" value={data.upcoming} color="bg-violet-50 text-violet-600" href="/recebimentos" />
 			</div>
 
 			<div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
-				<MetricCard icon={Building2} label="Ocupadas" value={data.occupied} color="bg-emerald-50 text-emerald-600" sub={`de ${data.totalKitnets} kitnets`} />
-				<MetricCard icon={Building2} label="Vagas" value={data.vacant} color="bg-orange-50 text-orange-600" />
-				<MetricCard icon={FileText} label="Contratos vencendo" value={data.expiringContracts} color="bg-red-50 text-red-600" sub="próximos 30 dias" />
-				<MetricCard icon={HandCoins} label="Receita prevista" value={financialService.formatCurrency(data.receitaPrevista)} color="bg-blue-50 text-blue-600" sub="a receber" />
-				<MetricCard icon={DollarSign} label="Saldo previsto" value={financialService.formatCurrency(data.revenue - data.expenseTotal + data.overdueValue)} color="bg-cyan-50 text-cyan-600" />
+				<MetricCard icon={Building2} label="Ocupadas" value={data.occupied} color="bg-emerald-50 text-emerald-600" sub={`de ${data.totalKitnets} kitnets`} href="/kitnets" />
+				<MetricCard icon={Building2} label="Vagas" value={data.vacant} color="bg-orange-50 text-orange-600" href="/kitnets" />
+				<MetricCard icon={FileText} label="Contratos vencendo" value={data.expiringContracts} color="bg-red-50 text-red-600" sub="próximos 30 dias" href="/contratos" />
+				<MetricCard icon={HandCoins} label="Receita prevista" value={financialService.formatCurrency(data.receitaPrevista)} color="bg-blue-50 text-blue-600" sub="a receber" href="/previsao" />
+				<MetricCard icon={DollarSign} label="Saldo previsto" value={financialService.formatCurrency(data.revenue - data.expenseTotal + data.overdueValue)} color="bg-cyan-50 text-cyan-600" href="/visao-geral" />
 			</div>
 
 			<button

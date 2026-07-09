@@ -18,6 +18,20 @@ const fields = [
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Detalhes do projeto, condições de pagamento...' },
 ];
 
+const STATUS_BADGE_COLORS = {
+  'em andamento': 'ds-badge-info',
+  entregue: 'ds-badge-warning',
+  recebido: 'ds-badge-success',
+};
+
+const columns = [
+  { field: 'client', label: 'Cliente' },
+  { field: 'project_type', label: 'Tipo' },
+  { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
+  { field: 'due_date', label: 'Prazo', format: 'date' },
+  { field: 'status', label: 'Status', format: 'badge' },
+];
+
 export default function ComplementaryProjects() {
   const { id } = useParams();
 
@@ -28,6 +42,8 @@ export default function ComplementaryProjects() {
       entity="ComplementaryProject"
       fields={fields}
       cardFields={['client', 'project_type', 'value', 'status']}
+      columns={columns}
+      badgeColors={STATUS_BADGE_COLORS}
       selectedId={id}
       deepLinkEntity={NOTIFICATION_ENTITY.PROJECT}
       deepLinkBasePath="/projetos"

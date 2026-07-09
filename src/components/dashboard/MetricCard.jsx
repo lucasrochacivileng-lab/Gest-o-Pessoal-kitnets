@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 // Traço de cor da borda esquerda, derivado da mesma cor do ícone (ex.: "text-emerald-600"
 // -> "border-l-emerald-500"). Classes escritas por extenso para o Tailwind JIT encontrá-las.
 const BORDER_ACCENT = {
@@ -15,9 +17,15 @@ function getAccentClass(color) {
   return BORDER_ACCENT[hue] || 'border-l-slate-300';
 }
 
-export function MetricCard({ icon: Icon, label, value, color, sub }) {
+export function MetricCard({ icon: Icon, label, value, color, sub, href }) {
+  const Wrapper = href ? Link : 'div';
+  const wrapperProps = href ? { to: href, 'aria-label': `Ver ${label.toLowerCase()}` } : {};
+
   return (
-    <div className={`rounded-2xl border border-slate-200 border-l-4 ${getAccentClass(color)} bg-white p-4 shadow-sm transition-shadow hover:shadow-md md:p-5`}>
+    <Wrapper
+      {...wrapperProps}
+      className={`block rounded-2xl border border-slate-200 border-l-4 ${getAccentClass(color)} bg-white p-4 shadow-sm transition-all md:p-5 ${href ? 'hover:-translate-y-0.5 hover:shadow-md active:translate-y-0' : 'hover:shadow-md'}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 space-y-1.5">
           <p className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 md:text-[11px] md:tracking-[0.2em]">{label}</p>
@@ -28,6 +36,6 @@ export function MetricCard({ icon: Icon, label, value, color, sub }) {
           <Icon className="h-5 w-5" />
         </div>
       </div>
-    </div>
+    </Wrapper>
   );
 }

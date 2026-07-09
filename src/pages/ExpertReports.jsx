@@ -19,6 +19,21 @@ const fields = [
   { name: 'notes', label: 'Observações', type: 'textarea' },
 ];
 
+const STATUS_BADGE_COLORS = {
+  'em andamento': 'ds-badge-info',
+  entregue: 'ds-badge-warning',
+  recebido: 'ds-badge-success',
+};
+
+const columns = [
+  { field: 'client', label: 'Cliente' },
+  { field: 'process_number', label: 'Processo' },
+  { field: 'report_type', label: 'Tipo' },
+  { field: 'fee_value', label: 'Honorários', format: 'currency', align: 'right' },
+  { field: 'due_date', label: 'Prazo', format: 'date' },
+  { field: 'status', label: 'Status', format: 'badge' },
+];
+
 export default function ExpertReports() {
   const { id } = useParams();
 
@@ -29,6 +44,8 @@ export default function ExpertReports() {
       entity="ExpertReport"
       fields={fields}
       cardFields={['client', 'report_type', 'fee_value', 'status']}
+      columns={columns}
+      badgeColors={STATUS_BADGE_COLORS}
       selectedId={id}
       deepLinkEntity={NOTIFICATION_ENTITY.EXPERT_REPORT}
       deepLinkBasePath="/pericias"

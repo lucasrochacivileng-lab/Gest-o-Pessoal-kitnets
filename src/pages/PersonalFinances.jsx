@@ -40,6 +40,16 @@ const STATUS_BADGE_COLORS = {
   ignorar: 'ds-badge-info',
 };
 
+const columns = [
+  { field: 'date', label: 'Data', format: 'date' },
+  { field: 'description', label: 'Descrição' },
+  { field: 'type', label: 'Tipo' },
+  { field: 'context', label: 'Contexto' },
+  { field: 'category', label: 'Categoria' },
+  { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
+  { field: 'status', label: 'Status', format: 'badge' },
+];
+
 export default function PersonalFinances() {
   return (
     <EntityPage
@@ -48,7 +58,7 @@ export default function PersonalFinances() {
       entity="PersonalIncome"
       fields={fields}
       cardFields={['date', 'description', 'value']}
-      badgeField="status"
+      columns={columns}
       badgeColors={STATUS_BADGE_COLORS}
       checkDuplicate={findPersonalDuplicateOf}
     />

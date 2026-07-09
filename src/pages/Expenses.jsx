@@ -40,6 +40,20 @@ const fields = [
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Ex: comprovante anexo' },
 ];
 
+const columns = [
+  { field: 'date', label: 'Data', format: 'date' },
+  { field: 'description', label: 'Descrição' },
+  { field: 'kitnet_id', label: 'Kitnet', format: 'relation', relation: 'Kitnet' },
+  { field: 'category', label: 'Categoria' },
+  { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
+  { field: 'status', label: 'Status', format: 'badge' },
+];
+
+const STATUS_BADGE_COLORS = {
+  pago: 'ds-badge-success',
+  pendente: 'ds-badge-warning',
+};
+
 export default function Expenses() {
   const { id } = useParams();
   const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
@@ -89,6 +103,8 @@ export default function Expenses() {
         entity="Expense"
         fields={fields}
         cardFields={['date', 'description']}
+        columns={columns}
+        badgeColors={STATUS_BADGE_COLORS}
         relations={[{ key: 'Kitnet', entity: 'Kitnet' }]}
         selectedId={id}
         deepLinkEntity={NOTIFICATION_ENTITY.EXPENSE}
