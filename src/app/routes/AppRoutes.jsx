@@ -15,6 +15,7 @@ import Settings from '../../pages/Settings.jsx';
 import Reports from '../../pages/Reports.jsx';
 import PersonalFinances from '../../pages/PersonalFinances.jsx';
 import Forecast from '../../pages/Forecast.jsx';
+import CategoryReport from '../../pages/CategoryReport.jsx';
 import ComplementaryProjects from '../../pages/ComplementaryProjects.jsx';
 import ExpertReports from '../../pages/ExpertReports.jsx';
 import NotificationsPage from '../../modules/notifications/pages/NotificationsPage.jsx';
@@ -42,6 +43,7 @@ export default function AppRoutes() {
         <Route path="/configuracoes" element={<Settings />} />
         <Route path="/financas-pessoais" element={<PersonalFinances />} />
         <Route path="/previsao" element={<Forecast />} />
+        <Route path="/gastos-categoria" element={<CategoryReport />} />
         <Route path="/pericias" element={<ExpertReports />} />
         <Route path="/pericias/:id" element={<ExpertReports />} />
         <Route path="/projetos" element={<ComplementaryProjects />} />
