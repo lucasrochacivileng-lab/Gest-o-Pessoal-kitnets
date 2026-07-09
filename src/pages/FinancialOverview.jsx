@@ -82,7 +82,11 @@ export default function FinancialOverview() {
         .filter((item) => item.date?.startsWith(monthKey))
         .forEach((item) => addCategory(categoryTotals, item.category, item.value));
       personal
+        // Mesma regra da tela "Gastos por categoria" (categoryReportService):
+        // transação de cartão ainda "a revisar" não entra até ser confirmada —
+        // senão este ranking mostra um total diferente do da tela dedicada.
         .filter((item) => item.status !== 'ignorar' && ['expense', 'card_transaction'].includes(item.type) && item.date?.startsWith(monthKey))
+        .filter((item) => !(item.type === 'card_transaction' && item.status === 'revisar'))
         .forEach((item) => addCategory(categoryTotals, item.category, item.value));
       const categoryRanking = Object.entries(categoryTotals)
         .map(([category, value]) => ({ category, value }))

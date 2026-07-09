@@ -59,7 +59,12 @@ export default function Reports() {
 
   const reportData = useMemo(() => {
     const payments = data.Payment.filter((row) => row.payment_date?.startsWith(year));
-    const expenses = data.Expense.filter((row) => row.date?.startsWith(year));
+    // Demonstrativo de IR do aluguel (carnê-leão) é regime de CAIXA: a receita
+    // já usa só pagamentos recebidos, então a despesa também tem que ser só a
+    // efetivamente paga (status 'pago'), como no cashflowService/Extrato/Caixa
+    // geral. Antes somava toda despesa lançada (paga ou não), misturando caixa
+    // (receita) com competência (despesa) e podendo deduzir conta não paga.
+    const expenses = data.Expense.filter((row) => row.date?.startsWith(year) && row.status === 'pago');
     const receivables = data.Receivable.filter((row) => row.competence?.startsWith(year));
     const revenue = payments.reduce((total, payment) => total + paymentValue(payment), 0);
     const expenseTotal = sum(expenses, 'value');
