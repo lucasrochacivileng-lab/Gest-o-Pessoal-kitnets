@@ -265,8 +265,8 @@ export default function Contracts() {
                 <select value={form.kitnetId} onChange={(event) => selectKitnet(event.target.value)} className={inputClass} required>
                   <option value="">Selecione</option>
                   {availableKitnets.map((kitnet) => (
-                    <option key={kitnet.id} value={kitnet.id}>
-                      {kitnet.name} {kitnet.occupied ? '— ocupada' : '— vaga'}
+                    <option key={kitnet.id} value={kitnet.id} disabled={kitnet.occupied}>
+                      {kitnet.name} {kitnet.occupied ? '— ocupada (encerre o contrato atual antes)' : '— vaga'}
                     </option>
                   ))}
                 </select>

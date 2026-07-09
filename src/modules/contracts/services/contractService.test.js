@@ -95,4 +95,38 @@ describe('contractService', () => {
     const remaining = receivables.filter((row) => row.contract_id === contract.id && row.type !== 'multa_quebra');
     expect(remaining).toHaveLength(7); // janeiro a julho
   });
+
+  it('recusa criar um segundo contrato ativo para uma kitnet já ocupada', async () => {
+    const kitnet = await repository.create('Kitnet', { name: 'Kitnet Teste Dupla Ocupação', status: 'vaga', active: true });
+
+    await contractService.createRental({
+      tenant: { name: 'Primeiro Inquilino' },
+      contract: { kitnet_id: kitnet.id, start_date: '2026-01-01', end_date: '2026-12-31', rent_value: 800, due_day: 10 },
+    });
+
+    await expect(contractService.createRental({
+      tenant: { name: 'Segundo Inquilino' },
+      contract: { kitnet_id: kitnet.id, start_date: '2026-02-01', end_date: '2027-01-31', rent_value: 900, due_day: 5 },
+    })).rejects.toThrow('já tem um contrato ativo');
+
+    // nenhum carnê extra foi lançado pra kitnet por causa da tentativa recusada
+    const receivables = await repository.list('Receivable');
+    expect(receivables.filter((row) => row.kitnet_id === kitnet.id)).toHaveLength(12);
+  });
+
+  it('permite novo contrato na mesma kitnet depois que o anterior foi encerrado', async () => {
+    const kitnet = await repository.create('Kitnet', { name: 'Kitnet Teste Reocupação', status: 'vaga', active: true });
+
+    const { contract } = await contractService.createRental({
+      tenant: { name: 'Inquilino Antigo' },
+      contract: { kitnet_id: kitnet.id, start_date: '2026-01-01', end_date: '2026-12-31', rent_value: 800, due_day: 10 },
+    });
+
+    await contractService.terminateContract(contract, { exitDate: '2026-06-30', launchFine: false });
+
+    await expect(contractService.createRental({
+      tenant: { name: 'Inquilino Novo' },
+      contract: { kitnet_id: kitnet.id, start_date: '2026-07-01', end_date: '2027-06-30', rent_value: 850, due_day: 10 },
+    })).resolves.toMatchObject({ contract: { status: 'ativo' } });
+  });
 });

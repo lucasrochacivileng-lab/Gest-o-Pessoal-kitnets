@@ -92,6 +92,19 @@ export const contractService = {
    * marca a kitnet como ocupada e lança o carnê de recebíveis.
    */
   async createRental({ tenant, tenantId, contract }) {
+    // O <select> da tela lista a kitnet como "ocupada" só de aviso — não
+    // impede escolher. Sem essa checagem aqui, um clique errado cria um
+    // SEGUNDO contrato ativo pra mesma kitnet, e ela ganha dois carnês de
+    // recebíveis rodando ao mesmo tempo (aluguel duplicado no caixa).
+    if (contract.kitnet_id) {
+      const existingContracts = await repository.list('Contract');
+      const alreadyOccupied = existingContracts.some((row) => row.kitnet_id === contract.kitnet_id && row.status === 'ativo');
+
+      if (alreadyOccupied) {
+        throw new Error('Esta kitnet já tem um contrato ativo. Encerre o contrato atual antes de criar um novo.');
+      }
+    }
+
     const savedTenant = tenantId
       ? { id: tenantId }
       : await repository.create('Tenant', { status: 'ativo', ...tenant, active: true });
