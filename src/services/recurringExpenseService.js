@@ -1,6 +1,14 @@
 import { repository } from '../repository/index.js';
 
-const templateKey = (row) => String(row.description || row.category || '').trim().toLowerCase();
+// Inclui a kitnet na chave: duas kitnets com uma despesa recorrente de
+// mesmo nome (ex.: "Água" na Kitnet 01 e "Água" na Kitnet 02) são
+// lançamentos INDEPENDENTES. Sem a kitnet na chave, a segunda "engolia"
+// a primeira — só uma das duas voltava a ser gerada todo mês, e o
+// "já lançado no mês" de uma dava falso positivo pra outra.
+const templateKey = (row) => {
+  const description = String(row.description || row.category || '').trim().toLowerCase();
+  return description ? `${row.kitnet_id || 'sem-kitnet'}|${description}` : '';
+};
 
 const clampDay = (competence, day) => {
   const [year, month] = competence.split('-').map(Number);

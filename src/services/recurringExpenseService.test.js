@@ -57,4 +57,30 @@ describe('buildRecurringExpenses', () => {
 
     expect(result[0].date).toBe('2026-02-28');
   });
+
+  it('trata "Água" de kitnets diferentes como recorrentes independentes (não funde numa só)', () => {
+    const rows = [
+      expense({ id: 'k1-agua', kitnet_id: 'k1', date: '2026-06-05', value: 90 }),
+      expense({ id: 'k2-agua', kitnet_id: 'k2', date: '2026-05-05', value: 150 }),
+    ];
+
+    const result = buildRecurringExpenses(rows, '2026-07');
+
+    expect(result).toHaveLength(2);
+    expect(result.find((row) => row.kitnet_id === 'k1').value).toBe(90);
+    expect(result.find((row) => row.kitnet_id === 'k2').value).toBe(150);
+  });
+
+  it('já ter a água da Kitnet 01 lançada no mês não impede gerar a da Kitnet 02', () => {
+    const rows = [
+      expense({ id: 'k1-agua', kitnet_id: 'k1', date: '2026-06-05', value: 90 }),
+      expense({ id: 'k1-agua-jul', kitnet_id: 'k1', date: '2026-07-05', value: 90, status: 'pendente' }),
+      expense({ id: 'k2-agua', kitnet_id: 'k2', date: '2026-06-05', value: 150 }),
+    ];
+
+    const result = buildRecurringExpenses(rows, '2026-07');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].kitnet_id).toBe('k2');
+  });
 });

@@ -128,7 +128,12 @@ export default function EntityPage({
     const payload = fields.reduce((acc, field) => {
       const fieldName = getFieldName(field);
       let value = form[fieldName];
-      if (field.type === 'number') value = Number(value || 0);
+      // Todo campo numérico deste formulário é valor em R$, dia do mês ou
+      // contagem de parcela — nenhum é legitimamente negativo. Sem esse piso,
+      // um "-" digitado por engano na frente do valor entra direto no banco
+      // e some das somas (uma despesa negativa aumenta o lucro em vez de
+      // reduzi-lo, por exemplo).
+      if (field.type === 'number') value = Math.max(Number(value || 0), 0);
       if (field.type === 'checkbox') value = Boolean(value);
       acc[fieldName] = value;
       return acc;
