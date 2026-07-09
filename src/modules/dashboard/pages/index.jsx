@@ -37,7 +37,7 @@ export default function Dashboard() {
 
 			<ActionCenter items={data.actionItems} />
 
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+			<div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
 				<MetricCard icon={TrendingUp} label="Receita do mês" value={financialService.formatCurrency(data.revenue)} color="bg-emerald-50 text-emerald-600" />
 				<MetricCard icon={TrendingDown} label="Despesas do mês" value={financialService.formatCurrency(data.expenseTotal)} color="bg-red-50 text-red-600" />
 				<MetricCard icon={DollarSign} label="Lucro do mês" value={financialService.formatCurrency(data.profit)} color="bg-blue-50 text-blue-600" />
@@ -45,7 +45,7 @@ export default function Dashboard() {
 				<MetricCard icon={CalendarClock} label="A vencer" value={data.upcoming} color="bg-violet-50 text-violet-600" />
 			</div>
 
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+			<div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
 				<MetricCard icon={Building2} label="Ocupadas" value={data.occupied} color="bg-emerald-50 text-emerald-600" sub={`de ${data.totalKitnets} kitnets`} />
 				<MetricCard icon={Building2} label="Vagas" value={data.vacant} color="bg-orange-50 text-orange-600" />
 				<MetricCard icon={FileText} label="Contratos vencendo" value={data.expiringContracts} color="bg-red-50 text-red-600" sub="próximos 30 dias" />

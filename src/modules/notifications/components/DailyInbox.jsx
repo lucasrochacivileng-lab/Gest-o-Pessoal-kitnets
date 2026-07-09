@@ -52,8 +52,17 @@ export function DailyInbox() {
           && String(notification.scheduled_for || current) <= current
         ));
 
-        if (!cancelled && actionable.length > 0) {
-          setItems(actionable);
+        // Uma pergunta por alvo: descarta notificações repetidas do mesmo item.
+        const seen = new Set();
+        const unique = actionable.filter((notification) => {
+          const key = `${notification.entity}|${notification.entity_id}|${notification.type}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        if (!cancelled && unique.length > 0) {
+          setItems(unique);
           setOpen(true);
           markShownToday();
         }
@@ -79,8 +88,13 @@ export function DailyInbox() {
   };
 
   const isPayable = (item) => (
-    item.entity === NOTIFICATION_ENTITY.RECEIVABLE || item.entity === NOTIFICATION_ENTITY.EXPENSE
+    item.entity === NOTIFICATION_ENTITY.RECEIVABLE
+    || item.entity === NOTIFICATION_ENTITY.EXPENSE
+    || item.entity === NOTIFICATION_ENTITY.PROJECT
+    || item.entity === NOTIFICATION_ENTITY.EXPERT_REPORT
   );
+
+  const confirmLabel = (item) => (item.entity === NOTIFICATION_ENTITY.EXPENSE ? 'Sim, foi pago' : 'Sim, recebi');
 
   const handleConfirm = async (item) => {
     setBusyId(item.id);
@@ -145,7 +159,7 @@ export function DailyInbox() {
                     onClick={() => handleConfirm(item)}
                     className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                   >
-                    <Check className="h-4 w-4" /> Sim, foi pago
+                    <Check className="h-4 w-4" /> {confirmLabel(item)}
                   </button>
                 ) : null}
                 <button

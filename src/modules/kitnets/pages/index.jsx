@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, FileText, History, PencilLine, Plus, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ExternalLink, FileText, History, PencilLine, Plus, Trash2, Upload } from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
 import { formatDateBR } from '../../../services/dateUtils.js';
@@ -123,6 +123,7 @@ export default function Kitnets() {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({});
   const [editingId, setEditingId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -382,6 +383,22 @@ export default function Kitnets() {
                   </div>
                 </div>
 
+                <div className="mt-3 flex items-center justify-between gap-2 text-sm text-slate-600">
+                  <p>
+                    {activeTenant ? `👤 ${activeTenant.name}` : kitnet.status === 'ocupada' ? 'Locatário não vinculado' : 'Disponível para alugar'}
+                    {activeContract?.due_day ? ` · vence dia ${activeContract.due_day}` : ''}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId((current) => (current === kitnet.id ? null : kitnet.id))}
+                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    {expandedId === kitnet.id ? 'Recolher' : 'Detalhes'}
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expandedId === kitnet.id ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                {expandedId === kitnet.id ? (<>
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
                   <p className="font-semibold text-slate-900">Contrato atual</p>
                   {activeContract ? (
@@ -485,6 +502,7 @@ export default function Kitnets() {
                 {kitnet.description ? (
                   <p className="mt-3 text-sm text-slate-500">{kitnet.description}</p>
                 ) : null}
+                </>) : null}
               </div>
             );
           })
