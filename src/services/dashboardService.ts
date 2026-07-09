@@ -108,8 +108,13 @@ export const dashboardService = {
       });
     }
 
+    // monthExpenses (não expenses): esse gráfico fica ao lado de "Despesas do
+    // mês" e dos outros cartões mensais — sem esse filtro ele somava o
+    // histórico INTEIRO (todos os meses desde sempre) num painel que só fala
+    // de "mês", crescendo sem parar e sem nenhuma indicação de que não era
+    // o gasto do mês atual.
     const catMap = {};
-    expenses.forEach((expense) => {
+    monthExpenses.forEach((expense) => {
       const category = expense.category || 'outro';
       catMap[category] = (catMap[category] || 0) + (expense.value || 0);
     });

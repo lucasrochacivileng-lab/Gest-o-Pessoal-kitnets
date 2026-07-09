@@ -27,9 +27,12 @@ const normalizeCategory = (row) => {
   return raw || 'sem_categoria';
 };
 
-// Só o que efetivamente saiu do caixa conta como gasto realizado.
-const isRealizedExpense = (row) =>
-  ['pago', 'recebido'].includes(row.status) || row.recurring === true;
+// Só o que efetivamente saiu do caixa conta como gasto realizado — mesma
+// regra de "pago" do cashflowService. Uma despesa recorrente ainda
+// PENDENTE (gerada pro mês mas não paga) não pode contar aqui só por ser
+// recorrente: isso inflava "Gastos por categoria" acima do que a "Caixa
+// geral do mês" mostrava para os MESMOS lançamentos.
+const isRealizedExpense = (row) => ['pago', 'recebido'].includes(row.status);
 
 // Cruza despesas das kitnets + finanças pessoais (exceto transações de cartão
 // ainda em revisão) e soma por categoria dentro do mês escolhido.

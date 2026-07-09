@@ -38,4 +38,32 @@ describe('dashboardService', () => {
 
     expect(data.revenue).toBe(0);
   });
+
+  it('gráfico de despesas por categoria mostra só o mês atual, não o histórico inteiro', async () => {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // Despesa de anos atrás numa categoria exclusiva, pra detectar se ela
+    // vaza pro gráfico do mês (o gráfico fica ao lado de "Despesas do mês"
+    // — histórico inteiro ali seria enganoso e só cresceria com o tempo).
+    await repository.create('Expense', {
+      date: '2020-01-05',
+      category: 'categoria-antiga-teste',
+      value: 5000,
+      status: 'pago',
+      active: true,
+    });
+    await repository.create('Expense', {
+      date: `${currentMonth}-05`,
+      category: 'agua',
+      value: 110,
+      status: 'pago',
+      active: true,
+    });
+
+    const data = await dashboardService.getDashboardData();
+
+    expect(data.categoryData.some((row) => row.name.toLowerCase().includes('categoria-antiga-teste'))).toBe(false);
+    expect(data.categoryData.some((row) => row.name === 'Água')).toBe(true);
+  });
 });

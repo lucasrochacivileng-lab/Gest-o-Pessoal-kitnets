@@ -24,6 +24,22 @@ describe('buildCategoryReport', () => {
     expect(result.rows.find((r) => r.category === 'salario')).toBeUndefined();
   });
 
+  it('não conta despesa recorrente ainda pendente como gasto realizado (só por ser recorrente)', () => {
+    const result = buildCategoryReport({
+      month: '2026-10',
+      expenses: [
+        { category: 'agua', value: 110, date: '2026-10-05', status: 'pendente', recurring: true },
+        { category: 'internet', value: 100, date: '2026-10-05', status: 'pago', recurring: true },
+      ],
+    });
+
+    // Só a paga entra — a mesma regra usada pela "Caixa geral do mês", que
+    // também so conta despesas com status 'pago'. Antes, a recorrente
+    // pendente também era somada aqui, divergindo dos dois relatórios.
+    expect(result.grandTotal).toBe(100);
+    expect(result.rows.find((r) => r.category === 'agua')).toBeUndefined();
+  });
+
   it('ignora transações de cartão ainda em revisão', () => {
     const result = buildCategoryReport({
       month: '2026-10',
