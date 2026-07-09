@@ -76,6 +76,18 @@ describe('receivableService', () => {
     expect(status).toBe(RECEIVABLE_STATUS.OVERDUE);
   });
 
+  it('getSummary usa net_value no recebido do mes e nao infla um R$ 0,00 perdoado', () => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const summary = receivableService.getSummary([
+      // Pago líquido de R$ 780 (com desconto): deve contar 780, não o esperado.
+      { status: RECEIVABLE_STATUS.PAID, competence: currentMonth, expected_value: 800, paid_value: 800, net_value: 780 },
+      // Mês perdoado (R$ 0,00 de propósito, status pago): não pode virar 800.
+      { status: RECEIVABLE_STATUS.PAID, competence: currentMonth, expected_value: 800, paid_value: 0 },
+    ]);
+
+    expect(summary.receivedThisMonthValue).toBe(780);
+  });
+
   it('registra um pagamento de R$ 0,00 intencional em vez de lançar o valor cheio', async () => {
     const receivable = await repository.create('Receivable', {
       competence: '2026-07',

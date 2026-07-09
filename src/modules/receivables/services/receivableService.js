@@ -174,7 +174,11 @@ export const receivableService = {
       toReceiveToday: todayReceivables.reduce((sum, row) => sum + calculateOutstandingValue(row), 0),
       overdueValue: overdueReceivables.reduce((sum, row) => sum + calculateOutstandingValue(row), 0),
       next7DaysValue: next7Days.reduce((sum, row) => sum + calculateOutstandingValue(row), 0),
-      receivedThisMonthValue: receivedThisMonth.reduce((sum, row) => sum + toMoney(row.paid_value || row.expected_value), 0),
+      // "??" e net_value primeiro, igual a calculateReceivedValue e ao
+      // financialService.netPaymentValue: "||" faria um pagamento de R$ 0,00
+      // intencional (mês perdoado, status pago) cair para o expected_value
+      // cheio, inflando "Recebido no mês" — o card divergia do valor real.
+      receivedThisMonthValue: receivedThisMonth.reduce((sum, row) => sum + toMoney(row.net_value ?? row.paid_value ?? row.expected_value), 0),
     };
   },
 
