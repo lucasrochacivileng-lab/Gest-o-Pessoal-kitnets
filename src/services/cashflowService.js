@@ -1,5 +1,7 @@
+import { financialService } from './financialService';
+
 const toMoney = (value) => Number(value || 0);
-const paymentValue = (payment) => toMoney(payment.net_value || payment.paid_value);
+const paymentValue = financialService.netPaymentValue;
 const isConfirmed = (row) => ['pago', 'recebido'].includes(row.status);
 const inMonth = (date, monthKey) => String(date || '').startsWith(monthKey);
 

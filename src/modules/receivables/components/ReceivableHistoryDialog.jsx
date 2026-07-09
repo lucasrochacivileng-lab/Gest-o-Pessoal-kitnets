@@ -59,7 +59,7 @@ function printReceipt(receivable, payment) {
       <div class="grid">
         <div class="item"><span class="muted">Data</span><br />${paymentDate}</div>
         <div class="item"><span class="muted">Forma</span><br />${paymentMethod}</div>
-        <div class="item"><span class="muted">Valor líquido</span><br />${currency(payment.net_value || payment.paid_value)}</div>
+        <div class="item"><span class="muted">Valor líquido</span><br />${currency(financialService.netPaymentValue(payment))}</div>
         <div class="item"><span class="muted">Conta destino</span><br />${destinationAccount}</div>
       </div>
       <p class="muted">Desconto: ${currency(payment.discount || 0)} · Multa: ${currency(payment.fine || 0)} · Juros: ${currency(payment.interest || 0)}</p>
@@ -108,7 +108,7 @@ export function ReceivableHistoryDialog({ receivable, onClose }) {
                 </div>
                 <div className="space-y-2 text-left text-xs text-slate-500 sm:text-right">
                   <div>
-                    <p>Líquido: {currency(payment.net_value || payment.paid_value)}</p>
+                    <p>Líquido: {currency(financialService.netPaymentValue(payment))}</p>
                     <p>Desconto {currency(payment.discount || 0)} · Multa {currency(payment.fine || 0)} · Juros {currency(payment.interest || 0)}</p>
                   </div>
                   <button type="button" onClick={() => printReceipt(receivable, payment)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">

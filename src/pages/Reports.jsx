@@ -24,9 +24,7 @@ function sum(rows, key) {
   return rows.reduce((total, row) => total + Number(row[key] || 0), 0);
 }
 
-function paymentValue(payment) {
-  return Number(payment.net_value || payment.paid_value || 0);
-}
+const paymentValue = financialService.netPaymentValue;
 
 function escapeHtml(value) {
   return String(value || '')

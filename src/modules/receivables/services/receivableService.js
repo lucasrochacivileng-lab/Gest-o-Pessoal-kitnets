@@ -159,7 +159,7 @@ export const receivableService = {
   calculateReceivedValue(receivables) {
     return receivables
       .filter((row) => row.status === RECEIVABLE_STATUS.PAID)
-      .reduce((sum, row) => sum + toMoney(row.net_value || row.paid_value || row.expected_value), 0);
+      .reduce((sum, row) => sum + toMoney(row.net_value ?? row.paid_value ?? row.expected_value), 0);
   },
 
   getSummary(receivables) {

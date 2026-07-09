@@ -3,8 +3,10 @@
 // origem de cada lançamento legível ("Aluguel — Kitnet 03 · Maria").
 // Usa a MESMA semântica de "realizado" do cashflowService.js (regime de caixa:
 // só pago/recebido entra), para os totais nunca divergirem entre telas.
+import { financialService } from './financialService';
+
 const toMoney = (value) => Number(value || 0);
-const paymentValue = (payment) => toMoney(payment.net_value || payment.paid_value);
+const paymentValue = financialService.netPaymentValue;
 const isConfirmed = (row) => ['pago', 'recebido'].includes(row.status);
 const inMonth = (date, monthKey) => String(date || '').startsWith(monthKey);
 

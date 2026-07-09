@@ -43,6 +43,17 @@ describe('buildCashflow', () => {
     expect(result.investedInBusiness).toBe(2200);
   });
 
+  it('respeita net_value 0 de propósito (desconto integral) em vez de usar o paid_value cheio', () => {
+    const result = buildCashflow({
+      monthKey,
+      payments: [
+        { payment_date: '2026-07-05', paid_value: 800, net_value: 0 },
+      ],
+    });
+
+    expect(result.kitnetsIn).toBe(0);
+  });
+
   it('deixa transações de cartão não revisadas fora do caixa e conta as pendentes', () => {
     const result = buildCashflow({
       monthKey,

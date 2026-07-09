@@ -13,12 +13,13 @@ import {
 } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { buildCashflow } from '../services/cashflowService.js';
+import { financialService } from '../services/financialService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const money = (value = 0) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const moneyValue = (value) => Number(value || 0);
 const outstandingValue = (receivable) => Math.max(moneyValue(receivable.expected_value) - moneyValue(receivable.paid_value), 0);
-const paymentValue = (payment) => moneyValue(payment.net_value || payment.paid_value);
+const paymentValue = financialService.netPaymentValue;
 const addCategory = (map, category, value) => {
   const key = category || 'outros';
   map[key] = (map[key] || 0) + moneyValue(value);

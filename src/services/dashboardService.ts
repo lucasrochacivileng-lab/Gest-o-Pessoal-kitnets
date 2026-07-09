@@ -1,9 +1,12 @@
 import { dashboardRepository } from '../repository/dashboardRepository';
+import { getReceivableStatus } from '../modules/receivables/services/receivableService.js';
+import { RECEIVABLE_STATUS } from '../modules/receivables/types/receivable.types.js';
+import { financialService } from './financialService';
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const moneyValue = (value) => Number(value || 0);
 const outstandingValue = (receivable) => Math.max(moneyValue(receivable.expected_value) - moneyValue(receivable.paid_value), 0);
-const paymentValue = (payment) => moneyValue(payment.net_value || payment.paid_value);
+const paymentValue = financialService.netPaymentValue;
 const getContractAlertDays = () => {
   if (typeof window === 'undefined') return 30;
 
@@ -72,8 +75,12 @@ export const dashboardService = {
     const revenue = monthPayments.reduce((sum, payment) => sum + paymentValue(payment), 0);
     const expenseTotal = monthExpenses.reduce((sum, expense) => sum + (expense.value || 0), 0);
 
-    const overdue = receivables.filter((receivable) => receivable.status === 'vencido' || (receivable.status === 'pendente' && receivable.due_date && receivable.due_date < today));
-    const upcoming = receivables.filter((receivable) => receivable.status === 'pendente' && receivable.due_date && receivable.due_date >= today);
+    // Mesma regra de status usada em Recebimentos (getReceivableStatus): um
+    // recebível "parcial" com vencimento já passado também é vencido — o
+    // filtro anterior só pegava 'vencido'/'pendente', subestimando o valor
+    // em atraso sempre que havia pagamento parcial feito fora do prazo.
+    const overdue = receivables.filter((receivable) => getReceivableStatus(receivable, today) === RECEIVABLE_STATUS.OVERDUE);
+    const upcoming = receivables.filter((receivable) => getReceivableStatus(receivable, today) === RECEIVABLE_STATUS.PENDING && receivable.due_date && receivable.due_date >= today);
     const receitaPrevista = receivables.filter((receivable) => ['pendente', 'vencido', 'parcial'].includes(receivable.status)).reduce((sum, receivable) => sum + outstandingValue(receivable), 0);
 
     const occupied = kitnets.filter((kitnet) => kitnet.status === 'ocupada').length;
