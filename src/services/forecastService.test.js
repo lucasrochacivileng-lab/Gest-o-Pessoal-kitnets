@@ -37,6 +37,17 @@ describe('buildForecast', () => {
     expect(result.incomes[0].value).toBe(550);
   });
 
+  it('mostra o valor pago mesmo quando ele foi zero de propósito (não some para o valor esperado)', () => {
+    const result = buildForecast({
+      ...base,
+      month: '2026-07',
+      contracts: [{ id: 'c1', kitnet_id: 'k1', rent_value: 950, status: 'ativo', start_date: '2026-07-01', end_date: '2027-07-31' }],
+      receivables: [{ contract_id: 'c1', competence: '2026-07', expected_value: 950, paid_value: 0, status: 'pago' }],
+    });
+
+    expect(result.incomes[0].value).toBe(0);
+  });
+
   it('inclui projeto no mês previsto e rola atrasados para o mês atual', () => {
     const projects = [
       { id: 'p1', client: 'Amigo', value: 100000, status: 'entregue', expected_payment_date: '2026-07-10' },

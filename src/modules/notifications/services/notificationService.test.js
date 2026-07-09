@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildDeepLink, getNextAdjustmentDate, notificationService } from './notificationService.js';
 import { NOTIFICATION_ENTITY, NOTIFICATION_TYPE } from '../types/notification.types.js';
 import { repository } from '../../../repository/index.js';
+import { RECEIVABLE_STATUS } from '../../receivables/types/receivable.types.js';
 
 describe('notificationService', () => {
   it('builds deep links for supported notification targets', () => {
@@ -75,5 +76,32 @@ describe('notificationService', () => {
     expect(adjustNotification.due_date).toBe('2026-08-01');
     expect(adjustNotification.message).toContain('1 ano(s) em 01/08/2026');
     expect(adjustNotification.message).toContain('IGP-M ou IPCA');
+  });
+
+  it('confirmar "foi pago?" pela caixa de pendências cria o Pagamento (não só marca o status)', async () => {
+    const receivable = await repository.create('Receivable', {
+      competence: '2026-07',
+      due_date: '2026-07-10',
+      expected_value: 800,
+      paid_value: 0,
+      status: 'pendente',
+      active: true,
+    });
+
+    await notificationService.confirmTarget(NOTIFICATION_ENTITY.RECEIVABLE, receivable.id);
+
+    const receivables = await repository.list('Receivable');
+    const updated = receivables.find((row) => row.id === receivable.id);
+    expect(updated.status).toBe(RECEIVABLE_STATUS.PAID);
+    expect(updated.paid_value).toBe(800);
+
+    // O ponto central do bug: sem isso, o valor nunca aparecia no Extrato/
+    // Visão Geral/Dashboard, que somam receita a partir de Payment, não de
+    // Receivable.status.
+    const payments = await repository.list('Payment');
+    const payment = payments.find((row) => row.receivable_id === receivable.id);
+    expect(payment).toBeTruthy();
+    expect(payment.paid_value).toBe(800);
+    expect(payment.receipt_number).toBeTruthy();
   });
 });

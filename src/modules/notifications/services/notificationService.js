@@ -1,5 +1,6 @@
 import { repository } from '../../../repository/index.js';
 import notificationDeliveryService from './notificationDeliveryService.js';
+import receivableService from '../../receivables/services/receivableService.js';
 import { buildWhatsAppLink } from '../../../services/whatsappService.js';
 import { formatDateBR } from '../../../services/dateUtils.js';
 import {
@@ -275,11 +276,15 @@ const updateTargetAsPaid = async (entity, id) => {
   if (entity === NOTIFICATION_ENTITY.RECEIVABLE) {
     const rows = await repository.list('Receivable');
     const receivable = rows.find((row) => row.id === id);
-    return repository.update('Receivable', id, {
-      status: 'pago',
-      paid_value: Number(receivable?.expected_value || receivable?.paid_value || 0),
-      payment_date: todayString(),
-    });
+    if (!receivable) return null;
+
+    // Precisa passar pelo MESMO caminho do botão "Receber" (registerPayment),
+    // não só marcar o recebível como pago: só assim cria o Pagamento que
+    // Extrato, Visão Geral e Dashboard usam para somar a receita do mês.
+    // Confirmar aqui sem paid_value = recebeu o valor cheio (mesma regra
+    // do "??" em registerPayment).
+    const { receivable: updated } = await receivableService.registerPayment(receivable, {});
+    return updated;
   }
 
   if (entity === NOTIFICATION_ENTITY.PROJECT || entity === NOTIFICATION_ENTITY.EXPERT_REPORT) {

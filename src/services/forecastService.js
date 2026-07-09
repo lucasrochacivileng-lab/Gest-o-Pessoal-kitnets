@@ -60,7 +60,7 @@ export const buildForecast = ({
       if (!receivable) {
         incomes.push({ label, value: toMoney(contract.rent_value), source: 'contrato (carnê a lançar)', date: contractDueDate });
       } else if (receivable.status === 'pago') {
-        incomes.push({ label, value: toMoney(receivable.paid_value || receivable.expected_value), source: 'já recebido', received: true, date: receivable.due_date || contractDueDate });
+        incomes.push({ label, value: toMoney(receivable.paid_value ?? receivable.expected_value), source: 'já recebido', received: true, date: receivable.due_date || contractDueDate });
       } else {
         incomes.push({ label, value: Math.max(toMoney(receivable.expected_value) - toMoney(receivable.paid_value), 0), source: 'aluguel lançado', date: receivable.due_date || contractDueDate });
       }
