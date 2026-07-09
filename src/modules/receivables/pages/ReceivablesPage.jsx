@@ -4,6 +4,7 @@ import { useReceivables } from '../hooks/useReceivables.js';
 import { ReceivableSummary } from '../components/ReceivableSummary.jsx';
 import { ReceivableFilters } from '../components/ReceivableFilters.jsx';
 import { ReceivableCard } from '../components/ReceivableCard.jsx';
+import { ReceivableTable } from '../components/ReceivableTable.jsx';
 import { ReceivePaymentDialog } from '../components/ReceivePaymentDialog.jsx';
 import { ReceivableHistoryDialog } from '../components/ReceivableHistoryDialog.jsx';
 import { MonthChips } from '../../../components/ui/MonthChips.jsx';
@@ -162,9 +163,16 @@ export default function ReceivablesPage() {
         {loading ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Carregando recebíveis...</div>
         ) : null}
-        {!loading && receivables.length > 0 ? receivables.map((row) => (
-          <ReceivableCard key={row.id} receivable={row} onPay={setSelectedReceivable} onEdit={setEditingReceivable} onHistory={setHistoryReceivable} />
-        )) : null}
+        {!loading && receivables.length > 0 ? (
+          <>
+            <ReceivableTable receivables={receivables} onPay={setSelectedReceivable} onEdit={setEditingReceivable} onHistory={setHistoryReceivable} />
+            <div className="space-y-4 md:hidden">
+              {receivables.map((row) => (
+                <ReceivableCard key={row.id} receivable={row} onPay={setSelectedReceivable} onEdit={setEditingReceivable} onHistory={setHistoryReceivable} />
+              ))}
+            </div>
+          </>
+        ) : null}
         {!loading && !receivables.length ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Nenhum recebível encontrado.</div>
         ) : null}

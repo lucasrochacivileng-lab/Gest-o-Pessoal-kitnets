@@ -19,11 +19,13 @@ const cardFields = [
   { field: 'tenant_id', format: 'relation', relation: 'Tenant' },
 ];
 
-const detailFields = [
+const columns = [
+  { field: 'kitnet_id', label: 'Kitnet', format: 'relation', relation: 'Kitnet' },
+  { field: 'tenant_id', label: 'Locatário', format: 'relation', relation: 'Tenant' },
   { field: 'competence', label: 'Competência', format: 'competence' },
-  { field: 'payment_date', label: 'Data do pagamento', format: 'date' },
+  { field: 'payment_date', label: 'Data', format: 'date' },
   { field: 'payment_method', label: 'Forma de pagamento' },
-  { field: 'destination_account', label: 'Conta destino' },
+  { field: 'paid_value', label: 'Valor', format: 'currency', align: 'right' },
 ];
 
 export default function Payments() {
@@ -34,9 +36,7 @@ export default function Payments() {
       entity="Payment"
       fields={fields}
       cardFields={cardFields}
-      detailFields={detailFields}
-      headlineField="paid_value"
-      headlineFormat="currency"
+      columns={columns}
       relations={[
         { key: 'Receivable', entity: 'Receivable' },
         { key: 'Kitnet', entity: 'Kitnet' },
