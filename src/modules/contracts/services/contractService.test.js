@@ -114,6 +114,33 @@ describe('contractService', () => {
     expect(receivables.filter((row) => row.kitnet_id === kitnet.id)).toHaveLength(12);
   });
 
+  it('recusa contrato com término anterior ao início, sem criar inquilino órfão', async () => {
+    const kitnet = await repository.create('Kitnet', { name: 'Kitnet Teste Data Invertida', status: 'vaga', active: true });
+    const tenantsBefore = (await repository.list('Tenant')).length;
+
+    await expect(contractService.createRental({
+      tenant: { name: 'Inquilino Data Ruim' },
+      contract: { kitnet_id: kitnet.id, start_date: '2027-01-01', end_date: '2026-12-31', rent_value: 800, due_day: 10 },
+    })).rejects.toThrow('término não pode ser anterior');
+
+    // nada foi gravado: nem inquilino órfão, nem contrato
+    expect((await repository.list('Tenant')).length).toBe(tenantsBefore);
+    expect((await repository.list('Contract')).some((row) => row.kitnet_id === kitnet.id)).toBe(false);
+  });
+
+  it('floora valor de aluguel negativo em zero (não gera carnê negativo)', async () => {
+    const kitnet = await repository.create('Kitnet', { name: 'Kitnet Teste Valor Negativo', status: 'vaga', active: true });
+
+    const result = await contractService.createRental({
+      tenant: { name: 'Inquilino Valor Negativo' },
+      contract: { kitnet_id: kitnet.id, start_date: '2026-01-01', end_date: '2026-03-31', rent_value: -800, due_day: 10, fine_months: -2 },
+    });
+
+    expect(result.contract.rent_value).toBe(0);
+    expect(result.contract.fine_months).toBe(0);
+    expect(result.receivables.every((row) => row.expected_value === 0)).toBe(true);
+  });
+
   it('permite novo contrato na mesma kitnet depois que o anterior foi encerrado', async () => {
     const kitnet = await repository.create('Kitnet', { name: 'Kitnet Teste Reocupação', status: 'vaga', active: true });
 

@@ -92,6 +92,16 @@ export const contractService = {
    * marca a kitnet como ocupada e lança o carnê de recebíveis.
    */
   async createRental({ tenant, tenantId, contract }) {
+    // Validação de entrada ANTES de gravar qualquer coisa: um erro aqui não
+    // pode deixar um inquilino órfão (criado sem o contrato) no banco.
+    // Término anterior ao início inverte a vigência: listCompetences devolve
+    // [] e o "carnê" nasce vazio silenciosamente, com a kitnet marcada
+    // ocupada mas sem nenhum aluguel a receber.
+    if (contract.start_date && contract.end_date
+      && String(contract.end_date).slice(0, 10) < String(contract.start_date).slice(0, 10)) {
+      throw new Error('A data de término não pode ser anterior à data de início do contrato.');
+    }
+
     // O <select> da tela lista a kitnet como "ocupada" só de aviso — não
     // impede escolher. Sem essa checagem aqui, um clique errado cria um
     // SEGUNDO contrato ativo pra mesma kitnet, e ela ganha dois carnês de
@@ -112,9 +122,13 @@ export const contractService = {
     const savedContract = await repository.create('Contract', {
       ...contract,
       tenant_id: savedTenant.id,
-      rent_value: toMoney(contract.rent_value),
-      due_day: Number(contract.due_day) || 10,
-      fine_months: Number(contract.fine_months) || DEFAULT_FINE_MONTHS,
+      // Piso de zero (como o EntityPage já faz nos cadastros genéricos): este
+      // formulário customizado de "Novo aluguel" não passa pelo EntityPage,
+      // então um "-" digitado por engano no valor entraria e geraria um carnê
+      // inteiro de recebíveis NEGATIVOS, subtraindo da receita em todo o app.
+      rent_value: Math.max(toMoney(contract.rent_value), 0),
+      due_day: Math.min(Math.max(Number(contract.due_day) || 10, 1), 31),
+      fine_months: Math.max(Number(contract.fine_months) || DEFAULT_FINE_MONTHS, 0),
       status: 'ativo',
       active: true,
       created_at: new Date().toISOString(),

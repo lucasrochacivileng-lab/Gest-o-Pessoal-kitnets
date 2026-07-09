@@ -221,10 +221,13 @@ export const receivableService = {
     // "??" (não "||"): um pagamento de R$ 0,00 intencional (ex.: mês
     // perdoado) é um valor válido e não pode virar "não informado" só
     // porque 0 é falsy — isso silenciosamente lançaria o valor cheio.
-    const paidValue = toMoney(paymentPayload.paid_value ?? receivable.expected_value);
-    const discount = toMoney(paymentPayload.discount);
-    const fine = toMoney(paymentPayload.fine);
-    const interest = toMoney(paymentPayload.interest);
+    // Piso de zero: valor pago, desconto, multa e juros nunca são negativos.
+    // Este diálogo de pagamento não passa pelo EntityPage (que já floora),
+    // então um "-" digitado por engano distorceria o líquido e o total pago.
+    const paidValue = Math.max(toMoney(paymentPayload.paid_value ?? receivable.expected_value), 0);
+    const discount = Math.max(toMoney(paymentPayload.discount), 0);
+    const fine = Math.max(toMoney(paymentPayload.fine), 0);
+    const interest = Math.max(toMoney(paymentPayload.interest), 0);
     const netValue = calculatePaymentNetValue({ paid_value: paidValue, discount, fine, interest });
     const totalPaid = paidValue + toMoney(receivable.paid_value);
     const status = totalPaid >= toMoney(receivable.expected_value) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
