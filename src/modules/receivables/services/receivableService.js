@@ -214,7 +214,10 @@ export const receivableService = {
   },
 
   async registerPayment(receivable, paymentPayload) {
-    const paidValue = toMoney(paymentPayload.paid_value || receivable.expected_value);
+    // "??" (não "||"): um pagamento de R$ 0,00 intencional (ex.: mês
+    // perdoado) é um valor válido e não pode virar "não informado" só
+    // porque 0 é falsy — isso silenciosamente lançaria o valor cheio.
+    const paidValue = toMoney(paymentPayload.paid_value ?? receivable.expected_value);
     const discount = toMoney(paymentPayload.discount);
     const fine = toMoney(paymentPayload.fine);
     const interest = toMoney(paymentPayload.interest);

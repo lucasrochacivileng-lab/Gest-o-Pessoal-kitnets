@@ -6,6 +6,7 @@ import {
   receivableService,
 } from './receivableService.js';
 import { RECEIVABLE_FILTERS, RECEIVABLE_STATUS } from '../types/receivable.types.js';
+import { repository } from '../../../repository/index.js';
 
 describe('receivableService', () => {
   it('marks pending receivables as overdue when due date has passed', () => {
@@ -73,5 +74,37 @@ describe('receivableService', () => {
     );
 
     expect(status).toBe(RECEIVABLE_STATUS.OVERDUE);
+  });
+
+  it('registra um pagamento de R$ 0,00 intencional em vez de lançar o valor cheio', async () => {
+    const receivable = await repository.create('Receivable', {
+      competence: '2026-07',
+      expected_value: 800,
+      due_date: '2026-07-10',
+      status: 'pendente',
+      paid_value: 0,
+      active: true,
+    });
+
+    const result = await receivableService.registerPayment(receivable, { paid_value: 0 });
+
+    expect(result.receivable.paid_value).toBe(0);
+    expect(result.status).toBe(RECEIVABLE_STATUS.PARTIAL);
+  });
+
+  it('usa o valor esperado quando paid_value realmente não foi informado', async () => {
+    const receivable = await repository.create('Receivable', {
+      competence: '2026-07',
+      expected_value: 800,
+      due_date: '2026-07-10',
+      status: 'pendente',
+      paid_value: 0,
+      active: true,
+    });
+
+    const result = await receivableService.registerPayment(receivable, {});
+
+    expect(result.receivable.paid_value).toBe(800);
+    expect(result.status).toBe(RECEIVABLE_STATUS.PAID);
   });
 });

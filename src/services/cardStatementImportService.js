@@ -41,13 +41,24 @@ const getField = (row, headers, key) => {
   return field ? row[field] : '';
 };
 
+// O separador decimal é sempre o ÚLTIMO ponto/vírgula da string (padrão
+// BR "1.234.567,89" ou US "1,234,567.89"); tudo antes dele é separador de
+// milhar e é descartado. A versão anterior só removia o ponto de milhar
+// quando seguido de exatamente 3 dígitos + vírgula/fim — falhava (e
+// devolvia 0 em silêncio) para qualquer valor com dois separadores de
+// milhar, ex.: "1.234.567,89" (valores >= R$ 1 milhão).
 export const parseMoney = (value) => {
   if (typeof value === 'number') return Math.abs(value);
-  const text = String(value || '')
-    .replace(/[^\d,.-]/g, '')
-    .replace(/\.(?=\d{3}(,|$))/g, '')
-    .replace(',', '.');
-  const parsed = Number(text);
+
+  const text = String(value || '').replace(/[^\d,.-]/g, '');
+  if (!text) return 0;
+
+  const lastSeparator = Math.max(text.lastIndexOf(','), text.lastIndexOf('.'));
+  const normalized = lastSeparator === -1
+    ? text
+    : `${text.slice(0, lastSeparator).replace(/[.,]/g, '')}.${text.slice(lastSeparator + 1).replace(/[.,]/g, '')}`;
+
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? Math.abs(parsed) : 0;
 };
 
@@ -96,9 +107,15 @@ const parseInstallment = ({ installment, currentInstallment, totalInstallments, 
   const current = Number(currentInstallment || match?.[1] || 1);
   const total = Number(totalInstallments || match?.[2] || current || 1);
 
+  const safeCurrent = Number.isFinite(current) && current > 0 ? current : 1;
+  const safeTotal = Number.isFinite(total) && total > 0 ? total : 1;
+
   return {
-    current: Number.isFinite(current) && current > 0 ? current : 1,
-    total: Number.isFinite(total) && total > 0 ? total : 1,
+    current: safeCurrent,
+    // Nunca menor que a parcela atual: um total malformado ("5/3" na fatura)
+    // faria o laço de buildInstallmentPreview não rodar nenhuma vez,
+    // descartando a compra inteira da importação sem nenhum aviso.
+    total: Math.max(safeTotal, safeCurrent),
   };
 };
 
@@ -122,14 +139,18 @@ const buildDueDate = (monthKey, dueDay) => `${monthKey}-${String(Math.min(Math.m
 const matchKitnetId = (description, kitnets = []) => {
   const text = normalize(description);
   const numberMatch = text.match(/\bkit(?:net)?\s*0?(\d{1,2})\b/);
+  if (!numberMatch) return '';
 
-  if (numberMatch) {
-    const number = Number(numberMatch[1]);
-    const kitnet = kitnets.find((item) => normalize(item.name).includes(`0${number}`) || normalize(item.name).includes(` ${number}`));
-    if (kitnet) return kitnet.id;
-  }
+  const number = Number(numberMatch[1]);
+  // Compara o número EXTRAÍDO do nome da kitnet, não um "includes" de texto:
+  // procurar "Kit 1" com includes(' 1') casava "Kitnet 15" (contém " 1" antes
+  // do "5"), atribuindo a transação à kitnet errada.
+  const kitnet = kitnets.find((item) => {
+    const kitnetNumber = normalize(item.name).match(/(\d{1,2})/);
+    return kitnetNumber && Number(kitnetNumber[1]) === number;
+  });
 
-  return '';
+  return kitnet?.id || '';
 };
 
 export const buildOriginHash = ({ card_name, purchase_date, description, value, installment }) => [

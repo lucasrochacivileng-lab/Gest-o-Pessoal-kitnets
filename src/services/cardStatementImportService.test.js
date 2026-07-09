@@ -3,6 +3,7 @@ import {
   buildInstallmentPreview,
   classifyTransaction,
   parseDate,
+  parseMoney,
   parseStatementRows,
   summarizeByCategory,
 } from './cardStatementImportService.js';
@@ -111,6 +112,59 @@ describe('cardStatementImportService', () => {
     });
 
     expect(preview[0].duplicate).toBe(true);
+  });
+
+  it('interpreta valores acima de R$ 1 milhão (dois separadores de milhar)', () => {
+    expect(parseMoney('1.234.567,89')).toBeCloseTo(1234567.89);
+    expect(parseMoney('12.345,67')).toBeCloseTo(12345.67);
+    expect(parseMoney('R$ 1.000.000,00')).toBeCloseTo(1000000);
+  });
+
+  it('interpreta valores no formato americano (vírgula de milhar, ponto decimal)', () => {
+    expect(parseMoney('1,234,567.89')).toBeCloseTo(1234567.89);
+  });
+
+  it('nao confunde Kit 01 com Kitnet 15 (mesmo prefixo " 1")', () => {
+    const preview = buildInstallmentPreview({
+      statementMonth: '2026-07',
+      dueDay: 10,
+      transactions: [
+        {
+          purchase_date: '2026-07-08',
+          description: 'Loja Kit 01 Materiais',
+          value: 100,
+          card_name: 'Nubank',
+          installment_current: 1,
+          installment_total: 1,
+        },
+      ],
+      kitnets: [
+        { id: 'k15', name: 'Kitnet 15' },
+        { id: 'k1', name: 'Kitnet 01' },
+      ],
+    });
+
+    expect(preview[0].kitnet_id).toBe('k1');
+  });
+
+  it('nao descarta a compra quando a parcela total vem menor que a atual (dado malformado)', () => {
+    const preview = buildInstallmentPreview({
+      statementMonth: '2026-07',
+      dueDay: 10,
+      transactions: [
+        {
+          purchase_date: '2026-07-08',
+          description: 'Compra com parcela malformada',
+          value: 300,
+          card_name: 'Nubank',
+          installment_current: 5,
+          installment_total: 3,
+        },
+      ],
+    });
+
+    expect(preview.length).toBeGreaterThan(0);
+    expect(preview[0].installment).toBe('5/5');
   });
 
   it('classifica gastos conhecidos e soma por categoria', () => {
