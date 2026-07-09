@@ -134,8 +134,9 @@ export default function FinancialOverview() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Caixa geral do mês</h2>
-          <p className="text-xs text-slate-500">Regime de caixa: só entra o que foi efetivamente pago ou recebido</p>
+          <Link to="/extrato" className="text-sm font-semibold text-blue-700 hover:underline">Ver extrato completo</Link>
         </div>
+        <p className="text-xs text-slate-500">Regime de caixa: só entra o que foi efetivamente pago ou recebido</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card label="Resultado das kitnets" value={money(data.cashflow.kitnetsResult)} icon={Building2} tone="bg-emerald-50 text-emerald-600" sub={`${money(data.cashflow.kitnetsIn)} recebidos − ${money(data.cashflow.kitnetsOut)} pagos`} />
           <Card label="Resultado pessoal" value={money(data.cashflow.personalResult)} icon={User} tone="bg-violet-50 text-violet-600" sub={`${money(data.cashflow.personalIn)} − ${money(data.cashflow.personalOut)}`} />

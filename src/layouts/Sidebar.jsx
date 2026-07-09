@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings, Bell, LogOut, CalendarRange, PieChart } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings, Bell, LogOut, CalendarRange, PieChart, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '../app/providers/AuthProvider.jsx';
 
 const menuSections = [
   { title: 'Geral', items: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { label: 'Visão Geral', icon: BarChart3, path: '/visao-geral' },
+    { label: 'Extrato', icon: ArrowLeftRight, path: '/extrato' },
     { label: 'Previsão', icon: CalendarRange, path: '/previsao' },
     { label: 'Gastos por categoria', icon: PieChart, path: '/gastos-categoria' }
   ]},
