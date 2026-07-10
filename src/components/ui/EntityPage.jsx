@@ -56,7 +56,10 @@ function formatFieldValue(row, config, relationOptions) {
       if (raw === 'geral') return 'Geral';
       const list = (relationOptions[config.relation] || []);
       const match = list.find((item) => item.id === raw);
-      return match?.name || match?.title || String(raw);
+      // Sem match, o id não aponta mais pra nada (registro apagado ou
+      // referência quebrada) — mostrar o uuid cru confunde mais do que
+      // ajuda, então cai no mesmo "—" de campo vazio.
+      return match?.name || match?.title || '';
     }
     default:
       return String(raw);
@@ -89,6 +92,11 @@ export default function EntityPage({
   // mesma lista/instante da tabela — em vez de buscar a entidade de novo e
   // ficar defasado logo após um Novo/Editar/Excluir feito aqui dentro.
   onRowsChange,
+  // Preenche campos que faltam num registro antigo a partir de uma relação
+  // já carregada (ex.: Pagamento sem kitnet_id/tenant_id próprios, mas com
+  // receivable_id — resolve pelo Recebível). Roda só na exibição, não grava
+  // nada no banco. Recebe (row, relationOptions) e devolve a linha completa.
+  enrichRow,
 }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -262,9 +270,13 @@ export default function EntityPage({
     .filter(Boolean)
     .join(' — ') || row.id;
 
+  const enrichedRows = useMemo(() => (
+    typeof enrichRow === 'function' ? rows.map((row) => enrichRow(row, relationOptions)) : rows
+  ), [rows, enrichRow, relationOptions]);
+
   const visibleRows = useMemo(() => (
-    typeof filterRows === 'function' ? filterRows(rows) : rows
-  ), [filterRows, rows]);
+    typeof filterRows === 'function' ? filterRows(enrichedRows) : enrichedRows
+  ), [filterRows, enrichedRows]);
 
   // Modo tabela: mais recente primeiro, usando a primeira coluna de data.
   const sortedRows = useMemo(() => {

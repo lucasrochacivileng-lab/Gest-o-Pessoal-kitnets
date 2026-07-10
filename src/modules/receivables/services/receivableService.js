@@ -237,6 +237,13 @@ export const receivableService = {
     const payload = {
       ...paymentPayload,
       receivable_id: receivable.id,
+      // Copia do recebível: o registro de Payment não guarda a cadeia
+      // Contract/Kitnet/Tenant, só o receivable_id — sem isso, a tela de
+      // Pagamentos (que lê kitnet_id/tenant_id/competence direto da linha)
+      // mostra "—" em todo pagamento confirmado por aqui.
+      kitnet_id: receivable.kitnet_id,
+      tenant_id: receivable.tenant_id,
+      competence: receivable.competence,
       receipt_number: receiptNumber,
       paid_value: paidValue,
       net_value: netValue,

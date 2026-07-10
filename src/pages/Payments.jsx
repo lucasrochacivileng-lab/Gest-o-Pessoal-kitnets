@@ -28,6 +28,24 @@ const columns = [
   { field: 'paid_value', label: 'Valor', format: 'currency', align: 'right' },
 ];
 
+// Pagamentos lançados antes da correção de receivableService.registerPayment
+// não têm kitnet_id/tenant_id/competence próprios (só receivable_id) — sem
+// isso, a linha aparece com "—" em tudo mesmo tendo um recebível vinculado.
+// Só roda na exibição; some assim que o registro é editado e salvo de novo.
+export const enrichPaymentRow = (row = {}, relationOptions = {}) => {
+  if (row.kitnet_id && row.tenant_id && row.competence) return row;
+
+  const receivable = (relationOptions.Receivable || []).find((item) => item.id === row.receivable_id);
+  if (!receivable) return row;
+
+  return {
+    ...row,
+    kitnet_id: row.kitnet_id || receivable.kitnet_id,
+    tenant_id: row.tenant_id || receivable.tenant_id,
+    competence: row.competence || receivable.competence,
+  };
+};
+
 export default function Payments() {
   return (
     <EntityPage
@@ -42,6 +60,7 @@ export default function Payments() {
         { key: 'Kitnet', entity: 'Kitnet' },
         { key: 'Tenant', entity: 'Tenant' },
       ]}
+      enrichRow={enrichPaymentRow}
     />
   );
 }

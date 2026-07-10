@@ -102,6 +102,29 @@ describe('receivableService', () => {
     expect(summary.overdueValue).toBe(800);
   });
 
+  it('copia kitnet_id/tenant_id/competence do recebivel para o Pagamento', async () => {
+    // Regressao: a tela de Pagamentos le kitnet_id/tenant_id/competence
+    // direto da linha do Payment (nao percorre receivable_id -> Receivable).
+    // Sem essa copia, todo aluguel confirmado por "Receber" aparecia com
+    // "—" em Kitnet/Locatario/Competencia mesmo tendo um recebivel vinculado.
+    const receivable = await repository.create('Receivable', {
+      competence: '2026-08',
+      kitnet_id: 'k-teste',
+      tenant_id: 't-teste',
+      expected_value: 800,
+      due_date: '2026-08-10',
+      status: 'pendente',
+      paid_value: 0,
+      active: true,
+    });
+
+    const result = await receivableService.registerPayment(receivable, { paid_value: 800 });
+
+    expect(result.payment.kitnet_id).toBe('k-teste');
+    expect(result.payment.tenant_id).toBe('t-teste');
+    expect(result.payment.competence).toBe('2026-08');
+  });
+
   it('registra um pagamento de R$ 0,00 intencional em vez de lançar o valor cheio', async () => {
     const receivable = await repository.create('Receivable', {
       competence: '2026-07',
