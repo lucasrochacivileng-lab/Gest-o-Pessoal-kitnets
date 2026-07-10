@@ -97,6 +97,10 @@ export default function EntityPage({
   // receivable_id — resolve pelo Recebível). Roda só na exibição, não grava
   // nada no banco. Recebe (row, relationOptions) e devolve a linha completa.
   enrichRow,
+  // Campos fixos gravados junto do formulário, mas que o usuário não edita
+  // (ex.: `type: 'card_transaction'` para o lançamento entrar nos mesmos
+  // relatórios de quem importa fatura). Só se aplica ao CRIAR, não ao editar.
+  defaultValues = {},
 }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -182,7 +186,7 @@ export default function EntityPage({
       if (editingId) {
         await repository.update(entity, editingId, payload);
       } else {
-        await repository.create(entity, { ...payload, active: true });
+        await repository.create(entity, { ...defaultValues, ...payload, active: true });
       }
 
       setForm({});

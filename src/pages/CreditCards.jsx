@@ -8,42 +8,10 @@ import {
   summarizeByCategory,
 } from '../services/cardStatementImportService.js';
 
-const fields = [
-  { name: 'card_name', label: 'Nome do cartão', placeholder: 'Visa Platinum' },
-  { name: 'bank', label: 'Banco', placeholder: 'Itaú, Nubank' },
-  { name: 'purchase_date', label: 'Data da compra', type: 'date' },
-  { name: 'description', label: 'Descrição', placeholder: 'Compra de material' },
-  { name: 'category', label: 'Categoria', type: 'select', options: [
-    { value: 'aluguel', label: 'Aluguel' },
-    { value: 'obra', label: 'Obra' },
-    { value: 'pessoal', label: 'Pessoal' },
-    { value: 'outro', label: 'Outro' },
-  ] },
-  { name: 'value', label: 'Valor', type: 'number', placeholder: '1200' },
-  { name: 'total_installments', label: 'Parcelas totais', type: 'number', placeholder: '6' },
-  { name: 'current_installment', label: 'Parcela atual', type: 'number', placeholder: '1' },
-  { name: 'due_date', label: 'Vencimento', type: 'date' },
-  { name: 'status', label: 'Status', type: 'select', options: [
-    { value: 'pendente', label: 'Pendente' },
-    { value: 'pago', label: 'Pago' },
-  ] },
-  { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Detalhes do cartão' },
-];
-
 const STATUS_BADGE_COLORS = {
   pago: 'ds-badge-success',
   pendente: 'ds-badge-warning',
 };
-
-const manualColumns = [
-  { field: 'purchase_date', label: 'Data', format: 'date' },
-  { field: 'description', label: 'Descrição' },
-  { field: 'card_name', label: 'Cartão' },
-  { field: 'category', label: 'Categoria' },
-  { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
-  { field: 'due_date', label: 'Vencimento', format: 'date' },
-  { field: 'status', label: 'Status', format: 'badge' },
-];
 
 const cardOptions = ['Nubank', 'Santander', 'Itaú', 'Amazon Brasil', 'Mercado Pago Pai'];
 const categoryOptions = [
@@ -69,6 +37,36 @@ const contextOptions = [
   { value: 'obra', label: 'Obra / investimento' },
 ];
 
+// Mesmo formato que uma linha importada de fatura (cardStatementImportService
+// buildInstallmentPreview): "date" é o vencimento usado por cardInvoiceService
+// para agrupar por mês, e "type: card_transaction" (via defaultValues abaixo)
+// é o que faz o lançamento entrar nas faturas de Despesas e nos relatórios.
+const fields = [
+  { name: 'date', label: 'Vencimento', type: 'date' },
+  { name: 'card_name', label: 'Nome do cartão', placeholder: 'Nubank, Santander...' },
+  { name: 'description', label: 'Descrição', placeholder: 'Compra de material' },
+  { name: 'category', label: 'Categoria', type: 'select', options: categoryOptions },
+  { name: 'context', label: 'Contexto', type: 'select', options: contextOptions },
+  { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet' },
+  { name: 'value', label: 'Valor', type: 'number', placeholder: '1200' },
+  { name: 'installment', label: 'Parcela', placeholder: '1/1' },
+  { name: 'status', label: 'Status', type: 'select', options: [
+    { value: 'pendente', label: 'Pendente' },
+    { value: 'pago', label: 'Pago' },
+  ] },
+  { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Detalhes da compra' },
+];
+
+const manualColumns = [
+  { field: 'date', label: 'Vencimento', format: 'date' },
+  { field: 'description', label: 'Descrição' },
+  { field: 'card_name', label: 'Cartão' },
+  { field: 'category', label: 'Categoria' },
+  { field: 'context', label: 'Contexto' },
+  { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
+  { field: 'status', label: 'Status', format: 'badge' },
+];
+
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const currentMonth = () => {
   const now = new Date();
@@ -79,6 +77,11 @@ function pickRow(row) {
   const { preview_id, duplicate, selected, ...payload } = row;
   return payload;
 }
+
+// PersonalIncome também guarda receita/despesa pessoal comum (Finanças
+// Pessoais) — sem esse filtro, o formulário desta página listaria e deixaria
+// editar registros que não são de cartão nenhum.
+export const filterCardTransactions = (rows = []) => rows.filter((row) => row.type === 'card_transaction');
 
 export default function CreditCards() {
   const [defaultCardName, setDefaultCardName] = useState('Nubank');
@@ -328,10 +331,12 @@ export default function CreditCards() {
 
       <EntityPage
         title="Lançamentos manuais de cartão"
-        subtitle="Use esta área para cadastrar ou editar uma compra avulsa sem importar fatura."
-        entity="CreditCard"
+        subtitle="Use esta área para cadastrar ou editar uma compra avulsa sem importar fatura. Aparece nas faturas de Despesas junto com o que vem de importação."
+        entity="PersonalIncome"
+        defaultValues={{ type: 'card_transaction' }}
+        filterRows={filterCardTransactions}
         fields={fields}
-        cardFields={['card_name', 'bank']}
+        cardFields={['card_name', 'description']}
         columns={manualColumns}
         badgeColors={STATUS_BADGE_COLORS}
       />
