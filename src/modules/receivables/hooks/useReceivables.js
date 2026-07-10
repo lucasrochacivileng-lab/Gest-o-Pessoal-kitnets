@@ -57,6 +57,12 @@ export function useReceivables() {
   );
 
   const visibleReceivables = useMemo(() => receivableService.filterReceivables(receivables, filters), [filters, receivables]);
+  const displayedSummary = useMemo(() => {
+    if (!filters.competenceFilter) return summary;
+
+    const monthReceivables = receivables.filter((row) => row.competence === filters.competenceFilter);
+    return receivableService.getSummary(monthReceivables, { month: filters.competenceFilter });
+  }, [filters.competenceFilter, receivables, summary]);
 
   const updateFilter = useCallback((key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -98,7 +104,7 @@ export function useReceivables() {
     allReceivables: receivables,
     loading,
     error,
-    summary,
+    summary: displayedSummary,
     filters,
     contracts,
     kitnets,
