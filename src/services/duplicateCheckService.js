@@ -32,38 +32,42 @@ const groupBy = (items, keyFn) => {
 
 const sameItems = (a, b) => a.length === b.length && a.every((item) => b.includes(item));
 
-// bucket = identificador do "grupo" onde duplicidade faz sentido comparar
-// (kitnet_id para despesas, category para lançamentos pessoais).
-const matchesSameValue = (row, candidate, bucket) => (
+// bucketFields = campos que identificam o "grupo" onde duplicidade faz
+// sentido comparar (kitnet_id para despesas; category+context para
+// lançamentos pessoais — "Manutenção" pessoal e "Manutenção" da obra no
+// mesmo valor/mês são contas DIFERENTES, não uma duplicata).
+const bucketKey = (row, bucketFields) => bucketFields.map((field) => row[field] || '').join('|');
+
+const matchesSameValue = (row, candidate, bucketFields) => (
   monthOf(row.date) === monthOf(candidate.date)
   && Boolean(candidate.value)
   && round2(row.value) === round2(candidate.value)
-  && (row[bucket] || '') === (candidate[bucket] || '')
+  && bucketKey(row, bucketFields) === bucketKey(candidate, bucketFields)
 );
 
-const matchesSameDescription = (row, candidate, bucket) => {
+const matchesSameDescription = (row, candidate, bucketFields) => {
   const text = normalizeText(candidate.description || candidate.category);
   return Boolean(text)
     && monthOf(row.date) === monthOf(candidate.date)
     && normalizeText(row.description || row.category) === text
-    && (row[bucket] || '') === (candidate[bucket] || '');
+    && bucketKey(row, bucketFields) === bucketKey(candidate, bucketFields);
 };
 
-const findGroups = (rows, bucket, reasonValue, reasonDescription) => {
+const findGroups = (rows, bucketFields, reasonValue, reasonDescription) => {
   const groups = [];
 
   groupBy(rows, (row) => (row.value && row.date
-    ? `${monthOf(row.date)}|${row[bucket] || `sem-${bucket}`}|${round2(row.value)}`
+    ? `${monthOf(row.date)}|${bucketKey(row, bucketFields)}|${round2(row.value)}`
     : null))
     .forEach((items) => {
       if (items.length > 1) groups.push({ reason: reasonValue, items });
     });
 
-  // O bucket entra na chave: "Internet SPNET" em duas kitnets/categorias
+  // O bucket entra na chave: "Internet SPNET" em duas kitnets/contextos
   // diferentes no mesmo mês são contas legítimas, não uma duplicidade.
   groupBy(rows, (row) => {
     const text = normalizeText(row.description || row.category);
-    return text && row.date ? `${monthOf(row.date)}|${row[bucket] || `sem-${bucket}`}|${text}` : null;
+    return text && row.date ? `${monthOf(row.date)}|${bucketKey(row, bucketFields)}|${text}` : null;
   })
     .forEach((items) => {
       if (items.length > 1 && !groups.some((group) => sameItems(group.items, items))) {
@@ -77,7 +81,7 @@ const findGroups = (rows, bucket, reasonValue, reasonDescription) => {
 /** Duplicidades entre despesas das kitnets (entidade Expense). */
 export const findDuplicateExpenses = (expenses = []) => findGroups(
   expenses.filter((row) => row.active !== false),
-  'kitnet_id',
+  ['kitnet_id'],
   'Mesmo valor, mesma kitnet e mesmo mês',
   'Mesma descrição no mesmo mês',
 );
@@ -85,7 +89,7 @@ export const findDuplicateExpenses = (expenses = []) => findGroups(
 /** Duplicidades entre lançamentos pessoais (entidade PersonalIncome, exceto receitas). */
 export const findDuplicatePersonalEntries = (personal = []) => findGroups(
   personal.filter((row) => row.active !== false && row.type !== 'income'),
-  'category',
+  ['category', 'context'],
   'Mesmo valor, mesma categoria e mesmo mês',
   'Mesma descrição no mesmo mês',
 );
@@ -104,7 +108,7 @@ export const findAllDuplicates = ({ expenses = [], personal = [] }) => [
 export const findExpenseDuplicateOf = (candidate, existingExpenses = []) => (
   existingExpenses.find((row) => (
     row.active !== false
-    && (matchesSameValue(row, candidate, 'kitnet_id') || matchesSameDescription(row, candidate, 'kitnet_id'))
+    && (matchesSameValue(row, candidate, ['kitnet_id']) || matchesSameDescription(row, candidate, ['kitnet_id']))
   )) || null
 );
 
@@ -115,7 +119,7 @@ export const findPersonalDuplicateOf = (candidate, existingPersonal = []) => {
   return existingPersonal.find((row) => (
     row.active !== false
     && row.type !== 'income'
-    && (matchesSameValue(row, candidate, 'category') || matchesSameDescription(row, candidate, 'category'))
+    && (matchesSameValue(row, candidate, ['category', 'context']) || matchesSameDescription(row, candidate, ['category', 'context']))
   )) || null;
 };
 

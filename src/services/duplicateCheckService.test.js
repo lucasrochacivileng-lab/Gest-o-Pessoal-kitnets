@@ -64,6 +64,15 @@ describe('duplicateCheckService', () => {
     expect(groups[0].items.map((item) => item.id)).toEqual(['pi1', 'pi2']);
   });
 
+  it('não confunde "Manutenção" pessoal com "Manutenção" da obra no mesmo valor/mês', () => {
+    const personal = [
+      { id: 'pi1', date: '2026-07-05', category: 'manutencao', context: 'pessoal', value: 500, type: 'expense', active: true },
+      { id: 'pi2', date: '2026-07-06', category: 'manutencao', context: 'obra', value: 500, type: 'expense', active: true },
+    ];
+
+    expect(findDuplicatePersonalEntries(personal)).toHaveLength(0);
+  });
+
   it('combina os dois grupos com a origem marcada', () => {
     const expenses = [
       { id: 'e1', date: '2026-07-10', description: 'SPNET', value: 129.9, kitnet_id: 'k1', active: true },
