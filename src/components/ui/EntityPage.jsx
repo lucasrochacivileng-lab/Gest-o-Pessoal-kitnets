@@ -73,6 +73,7 @@ export default function EntityPage({
   badgeField = '',
   badgeColors = {},
   checkDuplicate,
+  filterRows,
   // Modo tabela (desktop: <table>; celular: cartões empilhados com rótulo).
   columns,
   // Modo cartão avançado: linhas "Rótulo: valor" + um valor em destaque.
@@ -251,13 +252,17 @@ export default function EntityPage({
     .filter(Boolean)
     .join(' — ') || row.id;
 
+  const visibleRows = useMemo(() => (
+    typeof filterRows === 'function' ? filterRows(rows) : rows
+  ), [filterRows, rows]);
+
   // Modo tabela: mais recente primeiro, usando a primeira coluna de data.
   const sortedRows = useMemo(() => {
-    if (!columns) return rows;
+    if (!columns) return visibleRows;
     const dateColumn = columns.find((column) => column.format === 'date');
-    if (!dateColumn) return rows;
-    return [...rows].sort((a, b) => String(b[dateColumn.field] || '').localeCompare(String(a[dateColumn.field] || '')));
-  }, [rows, columns]);
+    if (!dateColumn) return visibleRows;
+    return [...visibleRows].sort((a, b) => String(b[dateColumn.field] || '').localeCompare(String(a[dateColumn.field] || '')));
+  }, [visibleRows, columns]);
 
   const renderBadge = (value) => (
     <span className={`ds-badge ${badgeColors[value] || 'ds-badge-info'}`}>{value}</span>
@@ -363,7 +368,7 @@ export default function EntityPage({
 
       {loading ? (
         <div className="ds-card text-[var(--color-text-muted)]">Carregando...</div>
-      ) : rows.length === 0 ? (
+      ) : visibleRows.length === 0 ? (
         <div className="ds-card text-[var(--color-text-muted)]">Nenhum registro encontrado.</div>
       ) : columns ? (
         <>
@@ -449,7 +454,7 @@ export default function EntityPage({
         </>
       ) : (
         <div className="grid gap-4 xl:grid-cols-3">
-          {rows.map((row) => (
+          {visibleRows.map((row) => (
             <div key={row.id} className="ds-card">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { NOTIFICATION_ENTITY } from '../modules/notifications/types/notification.types.js';
@@ -54,12 +54,20 @@ const STATUS_BADGE_COLORS = {
   pendente: 'ds-badge-warning',
 };
 
+export const filterExpensesByCompetence = (rows = [], competence = '') => (
+  rows.filter((row) => String(row.date || '').startsWith(competence))
+);
+
 export default function Expenses() {
   const { id } = useParams();
   const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
   const [message, setMessage] = useState('');
   const [generating, setGenerating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const filterBySelectedMonth = useCallback(
+    (rows) => filterExpensesByCompetence(rows, competence),
+    [competence],
+  );
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -111,6 +119,7 @@ export default function Expenses() {
         deepLinkBasePath="/despesas"
         getDeepLinkLabel={(item) => item.description || item.category || item.id}
         checkDuplicate={findExpenseDuplicateOf}
+        filterRows={filterBySelectedMonth}
       />
     </div>
   );
