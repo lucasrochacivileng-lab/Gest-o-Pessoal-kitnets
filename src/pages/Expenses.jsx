@@ -98,16 +98,8 @@ function SummaryCard({ label, value, sub }) {
   );
 }
 
-function CardInvoicesPanel({ invoices, summary, selectedCard, onSelectCard }) {
+function CardInvoicesPanel({ invoices, summary, selectedCard, onSelectCard, paymentMethodSummary }) {
   const selectedInvoice = invoices.find((invoice) => invoice.cardName === selectedCard) || invoices[0] || null;
-
-  if (!invoices.length) {
-    return (
-      <section className="ds-card text-sm text-slate-500">
-        Nenhuma fatura de cartão encontrada para este mês.
-      </section>
-    );
-  }
 
   return (
     <section className="space-y-4">
@@ -118,6 +110,12 @@ function CardInvoicesPanel({ invoices, summary, selectedCard, onSelectCard }) {
         <SummaryCard label="Investimento/financiamento" value={summary.investmentTotal} sub={`${summary.reviewCount} item(ns) a revisar`} />
       </div>
 
+      {!invoices.length ? (
+        <p className="ds-card text-sm text-slate-500">Nenhuma fatura de cartão encontrada para este mês.</p>
+      ) : null}
+
+      {/* Boleto/Pix das despesas diretas ficam no mesmo grid das faturas de
+          cartão, ocupando o espaço vazio ao lado em vez de um bloco à parte. */}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {invoices.map((invoice) => {
           const active = invoice.cardName === selectedInvoice?.cardName;
@@ -144,6 +142,9 @@ function CardInvoicesPanel({ invoices, summary, selectedCard, onSelectCard }) {
             </button>
           );
         })}
+        <SummaryCard label="Boleto" value={paymentMethodSummary.boleto} sub="água, energia, internet, mútua..." />
+        <SummaryCard label="Pix" value={paymentMethodSummary.pix} sub="esquadrias, móveis..." />
+        <SummaryCard label="Outros" value={paymentMethodSummary.outros} sub="sem boleto/Pix identificado" />
       </div>
 
       {selectedInvoice ? (
@@ -181,16 +182,6 @@ function CardInvoicesPanel({ invoices, summary, selectedCard, onSelectCard }) {
         </div>
       ) : null}
     </section>
-  );
-}
-
-function PaymentMethodPanel({ summary }) {
-  return (
-    <div className="grid gap-3 md:grid-cols-3">
-      <SummaryCard label="Boleto" value={summary.boleto} sub="água, energia, internet, mútua..." />
-      <SummaryCard label="Pix" value={summary.pix} sub="esquadrias, móveis..." />
-      <SummaryCard label="Outros" value={summary.outros} sub="sem boleto/Pix identificado" />
-    </div>
   );
 }
 
@@ -276,9 +267,8 @@ export default function Expenses() {
         summary={cardSummary}
         selectedCard={selectedCard}
         onSelectCard={setSelectedCard}
+        paymentMethodSummary={paymentMethodSummary}
       />
-
-      <PaymentMethodPanel summary={paymentMethodSummary} />
 
       <EntityPage
         key={reloadKey}
