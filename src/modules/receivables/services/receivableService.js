@@ -145,7 +145,11 @@ export const receivableService = {
       if (statusFilter === RECEIVABLE_FILTERS.UPCOMING) return status === RECEIVABLE_STATUS.PENDING && row.due_date && row.due_date >= currentDate;
       if (statusFilter === RECEIVABLE_FILTERS.PAID) return status === RECEIVABLE_STATUS.PAID;
       if (statusFilter === RECEIVABLE_FILTERS.PARTIAL) return status === RECEIVABLE_STATUS.PARTIAL;
-      if (statusFilter === RECEIVABLE_FILTERS.THIS_MONTH) return row.competence?.startsWith(currentMonth);
+      // Usa o mes em foco (chips), nao sempre o mes-calendario real: a tela
+      // de Recebimentos ja mantem competenceFilter ligado ao mes selecionado,
+      // entao ver maio e clicar "Este mes" nao pode comparar contra julho e
+      // sempre voltar vazio so porque hoje e julho.
+      if (statusFilter === RECEIVABLE_FILTERS.THIS_MONTH) return row.competence?.startsWith(competenceFilter || currentMonth);
       return true;
     }).filter((row) => !search || matchesSearch(row, search));
   },

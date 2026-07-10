@@ -47,6 +47,22 @@ describe('receivableService', () => {
     expect(result).toHaveLength(1);
   });
 
+  it('filtro "Este mes" usa o mes selecionado nos chips, nao sempre o mes-calendario real', () => {
+    // Regressao: a tela sempre manda competenceFilter junto (preso ao mes dos
+    // chips). Ver maio e clicar "Este mes" nao pode comparar contra o mes
+    // real do sistema e sempre voltar vazio.
+    const receivables = [
+      { id: 'r-mai', status: RECEIVABLE_STATUS.PENDING, due_date: '2026-05-10', competence: '2026-05' },
+    ];
+
+    const result = receivableService.filterReceivables(receivables, {
+      statusFilter: RECEIVABLE_FILTERS.THIS_MONTH,
+      competenceFilter: '2026-05',
+    });
+
+    expect(result).toHaveLength(1);
+  });
+
   it('keeps payment history attached to each receivable when filtering', () => {
     const receivables = [
       {
