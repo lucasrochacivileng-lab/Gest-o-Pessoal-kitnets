@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { NOTIFICATION_ENTITY } from '../modules/notifications/types/notification.types.js';
 import { recurringExpenseService } from '../services/recurringExpenseService.js';
 import { findExpenseDuplicateOf } from '../services/duplicateCheckService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
+import { repository } from '../repository/index.js';
+import { useEntitySync } from '../hooks/useEntitySync.js';
+import { buildCardInvoices, buildCardInvoiceSummary } from '../services/cardInvoiceService.js';
+import { financialService } from '../services/financialService';
+import { formatDateBR } from '../services/dateUtils.js';
 
 const fields = [
   { name: 'date', label: 'Data', type: 'date' },
@@ -54,12 +59,153 @@ const STATUS_BADGE_COLORS = {
   pendente: 'ds-badge-warning',
 };
 
+const ORIGIN_LABELS = {
+  kitnets: 'Kitnets',
+  pessoal: 'Pessoal',
+};
+
+const COST_TYPE_LABELS = {
+  custeio: 'Custeio',
+  investimento: 'Investimento',
+  financiamento: 'Financiamento',
+};
+
+export const filterExpensesByCompetence = (rows = [], competence = '') => (
+  rows.filter((row) => String(row.date || '').startsWith(competence))
+);
+
+function SummaryCard({ label, value, sub }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-2 text-xl font-semibold text-slate-900">{financialService.formatCurrency(value)}</p>
+      {sub ? <p className="mt-1 text-xs text-slate-500">{sub}</p> : null}
+    </div>
+  );
+}
+
+function CardInvoicesPanel({ invoices, summary, selectedCard, onSelectCard }) {
+  const selectedInvoice = invoices.find((invoice) => invoice.cardName === selectedCard) || invoices[0] || null;
+
+  if (!invoices.length) {
+    return (
+      <section className="ds-card text-sm text-slate-500">
+        Nenhuma fatura de cartão encontrada para este mês.
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard label="Faturas do mês" value={summary.invoiceTotal} sub={`${invoices.length} cartão(ões)`} />
+        <SummaryCard label="Cartão pessoal" value={summary.personalTotal} sub="origem pessoal" />
+        <SummaryCard label="Cartão nas kitnets" value={summary.kitnetsTotal} sub="inclui obra/investimento" />
+        <SummaryCard label="Investimento/financiamento" value={summary.investmentTotal} sub={`${summary.reviewCount} item(ns) a revisar`} />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {invoices.map((invoice) => {
+          const active = invoice.cardName === selectedInvoice?.cardName;
+          return (
+            <button
+              key={invoice.cardName}
+              type="button"
+              onClick={() => onSelectCard(invoice.cardName)}
+              className={`rounded-2xl border p-4 text-left shadow-sm transition ${
+                active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-900">{invoice.cardName}</p>
+                  <p className="mt-1 text-xs text-slate-500">Vencimento {formatDateBR(invoice.dueDate)}</p>
+                </div>
+                {invoice.reviewCount ? <span className="ds-badge ds-badge-warning">{invoice.reviewCount} revisar</span> : <span className="ds-badge ds-badge-success">ok</span>}
+              </div>
+              <p className="mt-3 text-xl font-semibold text-slate-900">{financialService.formatCurrency(invoice.total)}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Kitnets {financialService.formatCurrency(invoice.kitnetsTotal)} · Pessoal {financialService.formatCurrency(invoice.personalTotal)}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedInvoice ? (
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="min-w-[980px] w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Data</th>
+                <th className="px-4 py-3">Descrição</th>
+                <th className="px-4 py-3">Origem</th>
+                <th className="px-4 py-3">Classificação</th>
+                <th className="px-4 py-3">Tipo</th>
+                <th className="px-4 py-3">Parcela</th>
+                <th className="px-4 py-3 text-right">Valor</th>
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selectedInvoice.items.map((item) => (
+                <tr key={item.id || item.origin_hash} className="border-t border-slate-100">
+                  <td className="px-4 py-3 text-slate-600">{formatDateBR(item.date)}</td>
+                  <td className="px-4 py-3 text-slate-900">{item.description || item.category || 'Compra no cartão'}</td>
+                  <td className="px-4 py-3 text-slate-600">{ORIGIN_LABELS[item.origin] || item.origin}</td>
+                  <td className="px-4 py-3 text-slate-600">{item.category || 'sem categoria'}</td>
+                  <td className="px-4 py-3 text-slate-600">{COST_TYPE_LABELS[item.costType] || item.costType}</td>
+                  <td className="px-4 py-3 text-slate-600">{item.installment || '—'}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-900">{financialService.formatCurrency(item.value)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`ds-badge ${item.status === 'pago' ? 'ds-badge-success' : 'ds-badge-warning'}`}>{item.status || 'revisar'}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default function Expenses() {
   const { id } = useParams();
   const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
   const [message, setMessage] = useState('');
   const [generating, setGenerating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [personalRows, setPersonalRows] = useState([]);
+  const [selectedCard, setSelectedCard] = useState('');
+  const filterBySelectedMonth = useCallback(
+    (rows) => filterExpensesByCompetence(rows, competence),
+    [competence],
+  );
+  const cardInvoices = useMemo(() => buildCardInvoices({ personal: personalRows, month: competence }), [personalRows, competence]);
+  const cardSummary = useMemo(() => buildCardInvoiceSummary(cardInvoices), [cardInvoices]);
+
+  const loadCardTransactions = useCallback(async () => {
+    const rows = await repository.list('PersonalIncome');
+    setPersonalRows(rows);
+  }, []);
+
+  useEffect(() => {
+    loadCardTransactions();
+  }, [loadCardTransactions]);
+
+  useEntitySync(['PersonalIncome'], loadCardTransactions);
+
+  useEffect(() => {
+    if (!cardInvoices.length) {
+      setSelectedCard('');
+      return;
+    }
+
+    if (!cardInvoices.some((invoice) => invoice.cardName === selectedCard)) {
+      setSelectedCard(cardInvoices[0].cardName);
+    }
+  }, [cardInvoices, selectedCard]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -96,10 +242,17 @@ export default function Expenses() {
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{message}</div>
       ) : null}
 
+      <CardInvoicesPanel
+        invoices={cardInvoices}
+        summary={cardSummary}
+        selectedCard={selectedCard}
+        onSelectCard={setSelectedCard}
+      />
+
       <EntityPage
         key={reloadKey}
-        title="Despesas"
-        subtitle="Registro de despesas por kitnet, categoria e conta"
+        title="Despesas diretas"
+        subtitle="Boletos, Pix e contas lançadas diretamente. Faturas de cartão aparecem acima para não contar duas vezes."
         entity="Expense"
         fields={fields}
         cardFields={['date', 'description']}
@@ -111,6 +264,7 @@ export default function Expenses() {
         deepLinkBasePath="/despesas"
         getDeepLinkLabel={(item) => item.description || item.category || item.id}
         checkDuplicate={findExpenseDuplicateOf}
+        filterRows={filterBySelectedMonth}
       />
     </div>
   );

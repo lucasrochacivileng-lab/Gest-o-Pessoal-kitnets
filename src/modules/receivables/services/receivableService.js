@@ -162,13 +162,14 @@ export const receivableService = {
       .reduce((sum, row) => sum + toMoney(row.net_value ?? row.paid_value ?? row.expected_value), 0);
   },
 
-  getSummary(receivables) {
+  getSummary(receivables, options = {}) {
     const currentDate = today();
+    const referenceMonth = options.month || currentDate.slice(0, 7);
     const next7Limit = new Date(new Date(currentDate).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const todayReceivables = receivables.filter((row) => row.due_date === currentDate && row.status !== RECEIVABLE_STATUS.PAID);
     const overdueReceivables = receivables.filter((row) => row.status === RECEIVABLE_STATUS.OVERDUE);
     const next7Days = receivables.filter((row) => row.status === RECEIVABLE_STATUS.PENDING && row.due_date && row.due_date >= currentDate && row.due_date <= next7Limit);
-    const receivedThisMonth = receivables.filter((row) => row.status === RECEIVABLE_STATUS.PAID && row.competence?.startsWith(currentDate.slice(0, 7)));
+    const receivedThisMonth = receivables.filter((row) => row.status === RECEIVABLE_STATUS.PAID && row.competence?.startsWith(referenceMonth));
 
     return {
       toReceiveToday: todayReceivables.reduce((sum, row) => sum + calculateOutstandingValue(row), 0),
