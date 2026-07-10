@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterExpensesByCompetence, groupExpensesByPaymentMethod } from './Expenses.jsx';
+import { filterExpensesByCompetence, groupExpensesByPaymentMethod, normalizePaymentMethod } from './Expenses.jsx';
 
 describe('filterExpensesByCompetence', () => {
   it('mostra apenas despesas do mes selecionado', () => {
@@ -34,5 +34,14 @@ describe('groupExpensesByPaymentMethod', () => {
   it('nao inflar quando payment_method esta ausente e value e zero', () => {
     const summary = groupExpensesByPaymentMethod([{ payment_method: 'Pix', value: 0 }]);
     expect(summary.pix).toBe(0);
+  });
+});
+
+describe('normalizePaymentMethod', () => {
+  it('classifica boleto, pix e cai em outros no resto, usada tanto no resumo quanto no clique-pra-filtrar', () => {
+    expect(normalizePaymentMethod('Boleto bancário')).toBe('boleto');
+    expect(normalizePaymentMethod('pix')).toBe('pix');
+    expect(normalizePaymentMethod('Dinheiro')).toBe('outros');
+    expect(normalizePaymentMethod('')).toBe('outros');
   });
 });

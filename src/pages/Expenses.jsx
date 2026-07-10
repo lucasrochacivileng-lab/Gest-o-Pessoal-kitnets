@@ -72,6 +72,12 @@ const COST_TYPE_LABELS = {
   financiamento: 'Financiamento',
 };
 
+const PAYMENT_METHOD_LABELS = {
+  boleto: 'Boleto',
+  pix: 'Pix',
+  outros: 'Outros',
+};
+
 export const filterExpensesByCompetence = (rows = [], competence = '') => (
   rows.filter((row) => String(row.date || '').startsWith(competence))
 );
@@ -79,10 +85,16 @@ export const filterExpensesByCompetence = (rows = [], competence = '') => (
 // Água, luz, internet e mútua costumam ir de boleto; esquadria/móveis, de
 // Pix — o campo "forma de pagamento" é texto livre, então a comparação é
 // por trecho (case-insensitive) para aceitar "Boleto", "boleto bancário" etc.
+export const normalizePaymentMethod = (value = '') => {
+  const text = String(value || '').toLowerCase();
+  if (text.includes('boleto')) return 'boleto';
+  if (text.includes('pix')) return 'pix';
+  return 'outros';
+};
+
 export const groupExpensesByPaymentMethod = (rows = []) => (
   rows.reduce((acc, row) => {
-    const method = String(row.payment_method || '').toLowerCase();
-    const key = method.includes('boleto') ? 'boleto' : method.includes('pix') ? 'pix' : 'outros';
+    const key = normalizePaymentMethod(row.payment_method);
     acc[key] += Number(row.value ?? 0);
     return acc;
   }, { boleto: 0, pix: 0, outros: 0 })
@@ -98,7 +110,27 @@ function SummaryCard({ label, value, sub }) {
   );
 }
 
-function CardInvoicesPanel({ invoices, summary, selectedCard, onSelectCard, paymentMethodSummary }) {
+// Igual ao SummaryCard, mas clicável: filtra "Despesas diretas" abaixo pela
+// forma de pagamento (clicar de novo no já ativo limpa o filtro).
+function PaymentMethodCard({ label, value, sub, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border p-4 text-left shadow-sm transition ${
+        active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+      }`}
+    >
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-2 text-xl font-semibold text-slate-900">{financialService.formatCurrency(value)}</p>
+      {sub ? <p className="mt-1 text-xs text-slate-500">{sub}</p> : null}
+    </button>
+  );
+}
+
+function CardInvoicesPanel({
+  invoices, summary, selectedCard, onSelectCard, paymentMethodSummary, selectedPaymentMethod, onSelectPaymentMethod,
+}) {
   const selectedInvoice = invoices.find((invoice) => invoice.cardName === selectedCard) || invoices[0] || null;
 
   return (
@@ -142,9 +174,27 @@ function CardInvoicesPanel({ invoices, summary, selectedCard, onSelectCard, paym
             </button>
           );
         })}
-        <SummaryCard label="Boleto" value={paymentMethodSummary.boleto} sub="água, energia, internet, mútua..." />
-        <SummaryCard label="Pix" value={paymentMethodSummary.pix} sub="esquadrias, móveis..." />
-        <SummaryCard label="Outros" value={paymentMethodSummary.outros} sub="sem boleto/Pix identificado" />
+        <PaymentMethodCard
+          label="Boleto"
+          value={paymentMethodSummary.boleto}
+          sub="água, energia, internet, mútua..."
+          active={selectedPaymentMethod === 'boleto'}
+          onClick={() => onSelectPaymentMethod(selectedPaymentMethod === 'boleto' ? '' : 'boleto')}
+        />
+        <PaymentMethodCard
+          label="Pix"
+          value={paymentMethodSummary.pix}
+          sub="esquadrias, móveis..."
+          active={selectedPaymentMethod === 'pix'}
+          onClick={() => onSelectPaymentMethod(selectedPaymentMethod === 'pix' ? '' : 'pix')}
+        />
+        <PaymentMethodCard
+          label="Outros"
+          value={paymentMethodSummary.outros}
+          sub="sem boleto/Pix identificado"
+          active={selectedPaymentMethod === 'outros'}
+          onClick={() => onSelectPaymentMethod(selectedPaymentMethod === 'outros' ? '' : 'outros')}
+        />
       </div>
 
       {selectedInvoice ? (
@@ -194,9 +244,14 @@ export default function Expenses() {
   const [personalRows, setPersonalRows] = useState([]);
   const [expenseRows, setExpenseRows] = useState([]);
   const [selectedCard, setSelectedCard] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const filterBySelectedMonth = useCallback(
-    (rows) => filterExpensesByCompetence(rows, competence),
-    [competence],
+    (rows) => {
+      const monthRows = filterExpensesByCompetence(rows, competence);
+      if (!selectedPaymentMethod) return monthRows;
+      return monthRows.filter((row) => normalizePaymentMethod(row.payment_method) === selectedPaymentMethod);
+    },
+    [competence, selectedPaymentMethod],
   );
   const cardInvoices = useMemo(() => buildCardInvoices({ personal: personalRows, month: competence }), [personalRows, competence]);
   const cardSummary = useMemo(() => buildCardInvoiceSummary(cardInvoices), [cardInvoices]);
@@ -268,12 +323,16 @@ export default function Expenses() {
         selectedCard={selectedCard}
         onSelectCard={setSelectedCard}
         paymentMethodSummary={paymentMethodSummary}
+        selectedPaymentMethod={selectedPaymentMethod}
+        onSelectPaymentMethod={setSelectedPaymentMethod}
       />
 
       <EntityPage
         key={reloadKey}
         title="Despesas diretas"
-        subtitle="Boletos, Pix e contas lançadas diretamente. Faturas de cartão aparecem acima para não contar duas vezes."
+        subtitle={selectedPaymentMethod
+          ? `Filtrado por ${PAYMENT_METHOD_LABELS[selectedPaymentMethod]} — clique de novo no cartão para limpar.`
+          : 'Boletos, Pix e contas lançadas diretamente. Faturas de cartão aparecem acima para não contar duas vezes.'}
         entity="Expense"
         fields={fields}
         cardFields={['date', 'description']}
