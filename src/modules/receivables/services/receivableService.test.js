@@ -88,6 +88,20 @@ describe('receivableService', () => {
     expect(summary.receivedThisMonthValue).toBe(780);
   });
 
+  it('getSummary com options.month nao pode esconder atrasados de outras competencias', () => {
+    // Regressao: a tela de Recebimentos sempre passa um competenceFilter (o mes
+    // selecionado nos chips). Um aluguel de maio ainda em atraso em julho tem
+    // competence '2026-05', diferente do mes selecionado '2026-07' — o card
+    // "Em atraso" deve continuar somando esse valor, nao zera-lo so porque o
+    // usuario esta olhando o mes corrente.
+    const summary = receivableService.getSummary([
+      { status: RECEIVABLE_STATUS.OVERDUE, competence: '2026-05', expected_value: 800, paid_value: 0 },
+      { status: RECEIVABLE_STATUS.PENDING, competence: '2026-07', due_date: '2026-07-10', expected_value: 800, paid_value: 0 },
+    ], { month: '2026-07' });
+
+    expect(summary.overdueValue).toBe(800);
+  });
+
   it('registra um pagamento de R$ 0,00 intencional em vez de lançar o valor cheio', async () => {
     const receivable = await repository.create('Receivable', {
       competence: '2026-07',

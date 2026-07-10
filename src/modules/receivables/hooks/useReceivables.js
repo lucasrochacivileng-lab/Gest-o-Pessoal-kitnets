@@ -60,8 +60,13 @@ export function useReceivables() {
   const displayedSummary = useMemo(() => {
     if (!filters.competenceFilter) return summary;
 
-    const monthReceivables = receivables.filter((row) => row.competence === filters.competenceFilter);
-    return receivableService.getSummary(monthReceivables, { month: filters.competenceFilter });
+    // Passa a lista inteira (nao so a do mes selecionado): "Em atraso",
+    // "A receber hoje" e "Proximos 7 dias" sao indicadores por due_date,
+    // nao por competencia — um aluguel de maio ainda em atraso em julho
+    // precisa continuar aparecendo mesmo com julho selecionado nos chips.
+    // So "Recebido no mes" deve ser restrito ao mes, e o options.month ja
+    // faz isso dentro do proprio getSummary.
+    return receivableService.getSummary(receivables, { month: filters.competenceFilter });
   }, [filters.competenceFilter, receivables, summary]);
 
   const updateFilter = useCallback((key, value) => {
