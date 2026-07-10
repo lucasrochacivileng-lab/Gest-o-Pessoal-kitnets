@@ -32,7 +32,9 @@ const fields = [
     { value: 'fixa', label: 'Fixa' },
     { value: 'variavel', label: 'Variável' },
   ] },
-  { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet' },
+  { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet', extraOptions: [
+    { value: 'geral', label: 'Geral (todas as kitnets)' },
+  ] },
   { name: 'description', label: 'Descrição', type: 'textarea', placeholder: 'Descrição da despesa' },
   { name: 'value', label: 'Valor', type: 'number', placeholder: '1200' },
   { name: 'payment_method', label: 'Forma de pagamento', placeholder: 'Pix, dinheiro, transferência' },
@@ -72,6 +74,18 @@ const COST_TYPE_LABELS = {
 
 export const filterExpensesByCompetence = (rows = [], competence = '') => (
   rows.filter((row) => String(row.date || '').startsWith(competence))
+);
+
+// Água, luz, internet e mútua costumam ir de boleto; esquadria/móveis, de
+// Pix — o campo "forma de pagamento" é texto livre, então a comparação é
+// por trecho (case-insensitive) para aceitar "Boleto", "boleto bancário" etc.
+export const groupExpensesByPaymentMethod = (rows = []) => (
+  rows.reduce((acc, row) => {
+    const method = String(row.payment_method || '').toLowerCase();
+    const key = method.includes('boleto') ? 'boleto' : method.includes('pix') ? 'pix' : 'outros';
+    acc[key] += Number(row.value ?? 0);
+    return acc;
+  }, { boleto: 0, pix: 0, outros: 0 })
 );
 
 function SummaryCard({ label, value, sub }) {
@@ -170,6 +184,16 @@ function CardInvoicesPanel({ invoices, summary, selectedCard, onSelectCard }) {
   );
 }
 
+function PaymentMethodPanel({ summary }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      <SummaryCard label="Boleto" value={summary.boleto} sub="água, energia, internet, mútua..." />
+      <SummaryCard label="Pix" value={summary.pix} sub="esquadrias, móveis..." />
+      <SummaryCard label="Outros" value={summary.outros} sub="sem boleto/Pix identificado" />
+    </div>
+  );
+}
+
 export default function Expenses() {
   const { id } = useParams();
   const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
@@ -177,6 +201,7 @@ export default function Expenses() {
   const [generating, setGenerating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [personalRows, setPersonalRows] = useState([]);
+  const [expenseRows, setExpenseRows] = useState([]);
   const [selectedCard, setSelectedCard] = useState('');
   const filterBySelectedMonth = useCallback(
     (rows) => filterExpensesByCompetence(rows, competence),
@@ -184,6 +209,10 @@ export default function Expenses() {
   );
   const cardInvoices = useMemo(() => buildCardInvoices({ personal: personalRows, month: competence }), [personalRows, competence]);
   const cardSummary = useMemo(() => buildCardInvoiceSummary(cardInvoices), [cardInvoices]);
+  const paymentMethodSummary = useMemo(
+    () => groupExpensesByPaymentMethod(filterExpensesByCompetence(expenseRows, competence)),
+    [expenseRows, competence],
+  );
 
   const loadCardTransactions = useCallback(async () => {
     const rows = await repository.list('PersonalIncome');
@@ -249,6 +278,8 @@ export default function Expenses() {
         onSelectCard={setSelectedCard}
       />
 
+      <PaymentMethodPanel summary={paymentMethodSummary} />
+
       <EntityPage
         key={reloadKey}
         title="Despesas diretas"
@@ -265,6 +296,7 @@ export default function Expenses() {
         getDeepLinkLabel={(item) => item.description || item.category || item.id}
         checkDuplicate={findExpenseDuplicateOf}
         filterRows={filterBySelectedMonth}
+        onRowsChange={setExpenseRows}
       />
     </div>
   );

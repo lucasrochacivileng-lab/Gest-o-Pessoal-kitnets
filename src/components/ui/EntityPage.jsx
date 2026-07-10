@@ -50,6 +50,10 @@ function formatFieldValue(row, config, relationOptions) {
     case 'boolean':
       return raw ? 'Sim' : 'Não';
     case 'relation': {
+      // 'geral' é um sentinela reservado (não é id de nenhuma relação real)
+      // para lançamentos que não pertencem a um item específico — ex.: conta
+      // de água/energia que cobre todas as kitnets do imóvel.
+      if (raw === 'geral') return 'Geral';
       const list = (relationOptions[config.relation] || []);
       const match = list.find((item) => item.id === raw);
       return match?.name || match?.title || String(raw);
@@ -80,6 +84,11 @@ export default function EntityPage({
   detailFields,
   headlineField,
   headlineFormat = 'currency',
+  // Avisa a página-mãe sempre que os registros são recarregados, para um
+  // painel de resumo ao lado (ex.: divisão por forma de pagamento) usar a
+  // mesma lista/instante da tabela — em vez de buscar a entidade de novo e
+  // ficar defasado logo após um Novo/Editar/Excluir feito aqui dentro.
+  onRowsChange,
 }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -103,6 +112,7 @@ export default function EntityPage({
       relations.forEach((relation) => promises.push(repository.list(relation.entity)));
       const results = await Promise.all(promises);
       setRows(results[0]);
+      onRowsChange?.(results[0]);
       const relationState = relations.reduce((acc, relation, index) => {
         acc[relation.key] = results[index + 1];
         return acc;
@@ -326,6 +336,11 @@ export default function EntityPage({
                       className={inputClass}
                     >
                       <option value="">Selecione</option>
+                      {(field.extraOptions || []).map((option, optionIndex) => (
+                        <option key={`${fieldName}-extra-${getOptionValue(option) || optionIndex}`} value={getOptionValue(option)}>
+                          {getOptionLabel(option)}
+                        </option>
+                      ))}
                       {(field.options || relationList || []).map((option, optionIndex) => (
                         <option key={`${fieldName}-${getOptionValue(option) || optionIndex}`} value={getOptionValue(option)}>
                           {getOptionLabel(option)}
