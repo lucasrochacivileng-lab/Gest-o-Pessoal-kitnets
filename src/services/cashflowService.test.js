@@ -68,4 +68,20 @@ describe('buildCashflow', () => {
     expect(result.finalResult).toBe(0);
     expect(result.pendingCardReview).toBe(2);
   });
+
+  it('conta a compra de cartao revisada e paga como despesa realizada no caixa', () => {
+    const result = buildCashflow({
+      monthKey,
+      personal: [
+        { type: 'income', date: '2026-07-01', value: 2000, status: 'recebido' },
+        { type: 'card_transaction', date: '2026-07-04', value: 250, status: 'pago', context: 'pessoal' },
+        { type: 'card_transaction', date: '2026-07-05', value: 999, status: 'revisar', context: 'pessoal' },
+      ],
+    });
+
+    // Só a card_transaction 'pago' entra; a 'revisar' fica de fora e vira aviso.
+    expect(result.personalOut).toBe(250);
+    expect(result.personalResult).toBe(1750);
+    expect(result.pendingCardReview).toBe(1);
+  });
 });

@@ -29,8 +29,13 @@ export const buildCashflow = ({ payments = [], expenses = [], personal = [], mon
     .filter((row) => row.type === 'income' && isConfirmed(row) && inMonth(row.date, monthKey))
     .reduce((sum, row) => sum + toMoney(row.value), 0);
 
+  // Inclui compras no cartão pessoal (card_transaction) já confirmadas: a
+  // própria importação de fatura diz que a parcela "fica em revisão antes de
+  // contar no caixa" — depois de revisada e marcada como paga, é gasto
+  // realizado. As em 'revisar'/'sugerido'/'ignorar' não são isConfirmed e
+  // continuam fora (viram só o aviso pendingCardReview).
   const personalOut = personal
-    .filter((row) => row.type === 'expense' && isConfirmed(row) && inMonth(row.date, monthKey))
+    .filter((row) => row.type !== 'income' && isConfirmed(row) && inMonth(row.date, monthKey))
     .reduce((sum, row) => sum + toMoney(row.value), 0);
 
   // Quanto das contas PESSOAIS foi investido nas kitnets/obra (acumulado, todos os meses).
