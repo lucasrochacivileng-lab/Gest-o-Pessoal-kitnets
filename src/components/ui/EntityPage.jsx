@@ -40,6 +40,11 @@ function formatFieldValue(row, config, relationOptions) {
   const raw = row[config.field];
   if (raw === undefined || raw === null || raw === '') return '';
 
+  // Formatador livre por coluna (ex.: traduzir o código de categoria
+  // "energia_solar" para "Energia solar"), sem acoplar este componente
+  // genérico a nenhum domínio específico.
+  if (typeof config.formatValue === 'function') return config.formatValue(raw);
+
   switch (config.format) {
     case 'currency':
       return financialService.formatCurrency(raw);

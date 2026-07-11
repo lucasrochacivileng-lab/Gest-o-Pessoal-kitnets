@@ -7,7 +7,8 @@ import { findExpenseDuplicateOf } from '../services/duplicateCheckService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { repository } from '../repository/index.js';
 import { useEntitySync } from '../hooks/useEntitySync.js';
-import { buildCardInvoices, buildCardInvoiceSummary } from '../services/cardInvoiceService.js';
+import { buildCardInvoices, buildCardInvoiceSummary, selectInvoiceItems } from '../services/cardInvoiceService.js';
+import { categoryLabel } from '../services/categoryReportService.js';
 import { financialService } from '../services/financialService';
 import { formatDateBR } from '../services/dateUtils.js';
 
@@ -51,7 +52,7 @@ const columns = [
   { field: 'date', label: 'Data', format: 'date' },
   { field: 'description', label: 'Descrição' },
   { field: 'kitnet_id', label: 'Kitnet', format: 'relation', relation: 'Kitnet' },
-  { field: 'category', label: 'Categoria' },
+  { field: 'category', label: 'Categoria', formatValue: categoryLabel },
   { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
   { field: 'status', label: 'Status', format: 'badge' },
 ];
@@ -100,13 +101,32 @@ export const groupExpensesByPaymentMethod = (rows = []) => (
   }, { boleto: 0, pix: 0, outros: 0 })
 );
 
-function SummaryCard({ label, value, sub }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+// Card de resumo. Sem onClick é só um bloco informativo; com onClick vira
+// botão que recorta a tabela de detalhe pela mesma dimensão que ele soma
+// (os quatro do topo são clicáveis — antes só Boleto/Pix/Outros eram).
+function SummaryCard({ label, value, sub, active, onClick }) {
+  const body = (
+    <>
       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
       <p className="mt-2 text-xl font-semibold text-slate-900">{financialService.formatCurrency(value)}</p>
       {sub ? <p className="mt-1 text-xs text-slate-500">{sub}</p> : null}
-    </div>
+    </>
+  );
+
+  if (!onClick) {
+    return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">{body}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border p-4 text-left shadow-sm transition ${
+        active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+      }`}
+    >
+      {body}
+    </button>
   );
 }
 
@@ -129,17 +149,48 @@ function PaymentMethodCard({ label, value, sub, active, onClick }) {
 }
 
 function CardInvoicesPanel({
-  invoices, summary, selectedCard, onSelectCard, paymentMethodSummary, selectedPaymentMethod, onSelectPaymentMethod,
+  invoices, summary, selectedCard, onSelectCard, selectedInvoiceView, onSelectInvoiceView,
+  paymentMethodSummary, selectedPaymentMethod, onSelectPaymentMethod,
 }) {
   const selectedInvoice = invoices.find((invoice) => invoice.cardName === selectedCard) || invoices[0] || null;
+  // Uma única seleção "manda" na tabela de detalhe por vez: cartão, recorte
+  // de resumo (view) OU forma de pagamento. Quando uma forma de pagamento
+  // está ativa, o detalhe some — quem manda é a lista "Despesas diretas"
+  // abaixo, já filtrada; assim não fica a fatura de cartão no lugar do boleto.
+  const detailItems = selectInvoiceItems({ invoices, selectedInvoice, view: selectedInvoiceView });
+  const showInvoiceDetail = !selectedPaymentMethod && detailItems.length > 0;
 
   return (
     <section className="space-y-4">
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Faturas do mês" value={summary.invoiceTotal} sub={`${invoices.length} cartão(ões)`} />
-        <SummaryCard label="Cartão pessoal" value={summary.personalTotal} sub="origem pessoal" />
-        <SummaryCard label="Cartão nas kitnets" value={summary.kitnetsTotal} sub="inclui obra/investimento" />
-        <SummaryCard label="Investimento/financiamento" value={summary.investmentTotal} sub={`${summary.reviewCount} item(ns) a revisar`} />
+        <SummaryCard
+          label="Faturas do mês"
+          value={summary.invoiceTotal}
+          sub={`${invoices.length} cartão(ões)`}
+          active={!selectedInvoiceView && !selectedPaymentMethod}
+          onClick={() => onSelectInvoiceView('')}
+        />
+        <SummaryCard
+          label="Cartão pessoal"
+          value={summary.personalTotal}
+          sub="origem pessoal"
+          active={selectedInvoiceView === 'pessoal'}
+          onClick={() => onSelectInvoiceView(selectedInvoiceView === 'pessoal' ? '' : 'pessoal')}
+        />
+        <SummaryCard
+          label="Cartão nas kitnets"
+          value={summary.kitnetsTotal}
+          sub="inclui obra/investimento"
+          active={selectedInvoiceView === 'kitnets'}
+          onClick={() => onSelectInvoiceView(selectedInvoiceView === 'kitnets' ? '' : 'kitnets')}
+        />
+        <SummaryCard
+          label="Investimento/financiamento"
+          value={summary.investmentTotal}
+          sub={`${summary.reviewCount} item(ns) a revisar`}
+          active={selectedInvoiceView === 'investimento'}
+          onClick={() => onSelectInvoiceView(selectedInvoiceView === 'investimento' ? '' : 'investimento')}
+        />
       </div>
 
       {!invoices.length ? (
@@ -150,7 +201,9 @@ function CardInvoicesPanel({
           cartão, ocupando o espaço vazio ao lado em vez de um bloco à parte. */}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {invoices.map((invoice) => {
-          const active = invoice.cardName === selectedInvoice?.cardName;
+          // Só destaca um cartão quando é o cartão que manda no detalhe — não
+          // quando um recorte de resumo ou forma de pagamento está ativo.
+          const active = !selectedInvoiceView && !selectedPaymentMethod && invoice.cardName === selectedInvoice?.cardName;
           return (
             <button
               key={invoice.cardName}
@@ -197,7 +250,7 @@ function CardInvoicesPanel({
         />
       </div>
 
-      {selectedInvoice ? (
+      {showInvoiceDetail ? (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="min-w-[980px] w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -213,7 +266,7 @@ function CardInvoicesPanel({
               </tr>
             </thead>
             <tbody>
-              {selectedInvoice.items.map((item) => (
+              {detailItems.map((item) => (
                 <tr key={item.id || item.origin_hash} className="border-t border-slate-100">
                   <td className="px-4 py-3 text-slate-600">{formatDateBR(item.date)}</td>
                   <td className="px-4 py-3 text-slate-900">{item.description || item.category || 'Compra no cartão'}</td>
@@ -244,7 +297,24 @@ export default function Expenses() {
   const [personalRows, setPersonalRows] = useState([]);
   const [expenseRows, setExpenseRows] = useState([]);
   const [selectedCard, setSelectedCard] = useState('');
+  const [selectedInvoiceView, setSelectedInvoiceView] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  // Cartão, recorte de resumo (view) e forma de pagamento disputam a mesma
+  // tabela de detalhe — escolher um zera os outros, para o destaque e o que
+  // aparece na tela nunca contarem histórias diferentes.
+  const handleSelectCard = useCallback((cardName) => {
+    setSelectedCard(cardName);
+    setSelectedInvoiceView('');
+    setSelectedPaymentMethod('');
+  }, []);
+  const handleSelectInvoiceView = useCallback((view) => {
+    setSelectedInvoiceView(view);
+    setSelectedPaymentMethod('');
+  }, []);
+  const handleSelectPaymentMethod = useCallback((method) => {
+    setSelectedPaymentMethod(method);
+    if (method) setSelectedInvoiceView('');
+  }, []);
   const filterBySelectedMonth = useCallback(
     (rows) => {
       const monthRows = filterExpensesByCompetence(rows, competence);
@@ -321,10 +391,12 @@ export default function Expenses() {
         invoices={cardInvoices}
         summary={cardSummary}
         selectedCard={selectedCard}
-        onSelectCard={setSelectedCard}
+        onSelectCard={handleSelectCard}
+        selectedInvoiceView={selectedInvoiceView}
+        onSelectInvoiceView={handleSelectInvoiceView}
         paymentMethodSummary={paymentMethodSummary}
         selectedPaymentMethod={selectedPaymentMethod}
-        onSelectPaymentMethod={setSelectedPaymentMethod}
+        onSelectPaymentMethod={handleSelectPaymentMethod}
       />
 
       <EntityPage

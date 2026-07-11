@@ -93,4 +93,30 @@ export const buildCardInvoiceSummary = (invoices = []) => ({
   reviewCount: invoices.reduce((sum, invoice) => sum + invoice.reviewCount, 0),
 });
 
+// Recortes que os cards de resumo do topo aplicam à tabela de detalhe. Cada
+// um casa com a mesma dimensão que o card soma (origem pessoal/kitnets ou
+// custo de investimento/financiamento), para clicar no card mostrar
+// exatamente os itens daquele total — e não a fatura de um cartão qualquer.
+export const INVOICE_VIEWS = { pessoal: 'pessoal', kitnets: 'kitnets', investimento: 'investimento' };
+
+export const matchesInvoiceView = (item = {}, view = '') => {
+  if (view === INVOICE_VIEWS.pessoal) return item.origin === 'pessoal';
+  if (view === INVOICE_VIEWS.kitnets) return item.origin === 'kitnets';
+  if (view === INVOICE_VIEWS.investimento) return item.costType === 'investimento' || item.costType === 'financiamento';
+  return true;
+};
+
+// Fonte da tabela de detalhe: um recorte por dimensão (view) atravessa TODAS
+// as faturas; sem view, mostra os itens do cartão selecionado. Assim o que
+// aparece na tabela sempre corresponde ao card destacado logo acima.
+export const selectInvoiceItems = ({ invoices = [], selectedInvoice = null, view = '' }) => {
+  if (view) {
+    return invoices
+      .flatMap((invoice) => invoice.items || [])
+      .filter((item) => matchesInvoiceView(item, view))
+      .sort(byDateThenDescription);
+  }
+  return selectedInvoice ? selectedInvoice.items : [];
+};
+
 export default buildCardInvoices;
