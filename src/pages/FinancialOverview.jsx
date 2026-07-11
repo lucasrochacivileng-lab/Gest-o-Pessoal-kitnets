@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { buildCashflow } from '../services/cashflowService.js';
+import { getReceivableStatus } from '../modules/receivables/services/receivableService.js';
+import { RECEIVABLE_STATUS } from '../modules/receivables/types/receivable.types.js';
 import { financialService } from '../services/financialService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -62,8 +64,11 @@ export default function FinancialOverview() {
 
       const monthRevenue = payments.filter((item) => item.payment_date?.startsWith(monthKey)).reduce((sum, item) => sum + paymentValue(item), 0);
       const monthExpenses = expenses.filter((item) => item.date?.startsWith(monthKey)).reduce((sum, item) => sum + (item.value || 0), 0);
-      const overdueReceivables = receivables.filter((item) => item.status === 'vencido' || (item.status === 'pendente' && item.due_date && item.due_date < today));
-      const upcomingReceivables = receivables.filter((item) => item.status === 'pendente' && item.due_date && item.due_date >= today);
+      // Mesma regra de Recebimentos/dashboard (getReceivableStatus): um recebível
+      // 'parcial' com vencimento passado também é vencido — o filtro manual
+      // antigo só via 'vencido'/'pendente' e subestimava os atrasos.
+      const overdueReceivables = receivables.filter((item) => getReceivableStatus(item, today) === RECEIVABLE_STATUS.OVERDUE);
+      const upcomingReceivables = receivables.filter((item) => getReceivableStatus(item, today) === RECEIVABLE_STATUS.PENDING && item.due_date && item.due_date >= today);
       const pendingValue = receivables.filter((item) => ['pendente', 'vencido', 'parcial'].includes(item.status)).reduce((sum, item) => sum + outstandingValue(item), 0);
       const overdueValue = overdueReceivables.reduce((sum, item) => sum + outstandingValue(item), 0);
 

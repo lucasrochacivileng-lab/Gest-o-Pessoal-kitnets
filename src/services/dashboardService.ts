@@ -1,6 +1,7 @@
 import { dashboardRepository } from '../repository/dashboardRepository';
 import { getReceivableStatus } from '../modules/receivables/services/receivableService.js';
 import { RECEIVABLE_STATUS } from '../modules/receivables/types/receivable.types.js';
+import { categoryLabel } from './categoryReportService.js';
 import { financialService } from './financialService';
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -119,22 +120,10 @@ export const dashboardService = {
       catMap[category] = (catMap[category] || 0) + (expense.value || 0);
     });
 
-    const catLabels = {
-      manutencao: 'Manutenção',
-      agua: 'Água',
-      luz: 'Luz',
-      internet: 'Internet',
-      iptu: 'IPTU',
-      seguro: 'Seguro',
-      limpeza: 'Limpeza',
-      material: 'Material',
-      pessoal: 'Pessoal',
-      obra: 'Obra',
-      outro: 'Outro',
-    };
-
+    // Rótulos vêm do categoryReportService (fonte única), senão categorias
+    // novas como "energia_solar"/"moveis" apareciam com o código cru no gráfico.
     const categoryData = Object.entries(catMap).map(([key, value]) => ({
-      name: catLabels[key] || key,
+      name: categoryLabel(key),
       value,
     }));
 
