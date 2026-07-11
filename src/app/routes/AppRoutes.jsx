@@ -6,6 +6,7 @@ import Kitnets from '../../modules/kitnets/pages/index.jsx';
 import Contratos from '../../modules/contracts/pages/index.jsx';
 import Tenants from '../../modules/tenants/pages/index.jsx';
 import FinancialOverview from '../../pages/FinancialOverview.jsx';
+import Consolidated from '../../pages/Consolidated.jsx';
 import Statement from '../../pages/Statement.jsx';
 import Payments from '../../pages/Payments.jsx';
 import Expenses from '../../pages/Expenses.jsx';
@@ -27,6 +28,7 @@ export default function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/visao-geral" element={<FinancialOverview />} />
+        <Route path="/consolidado" element={<Consolidated />} />
         <Route path="/extrato" element={<Statement />} />
         <Route path="/kitnets" element={<Kitnets />} />
         <Route path="/locatarios" element={<Tenants />} />
