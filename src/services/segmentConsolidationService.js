@@ -54,11 +54,14 @@ export const buildSegmentConsolidation = ({
       acc[key].income += toMoney(row.value);
     });
 
-  // Despesa pessoal confirmada: gasto de conta pessoal marcado como kitnets/obra
-  // conta como despesa das kitnets (dinheiro investido no negócio); o resto,
-  // como despesa pessoal.
+  // Despesa pessoal confirmada — inclui as compras no cartão pessoal
+  // ('card_transaction'), porque é comum pagar custo de kitnet no cartão
+  // pessoal. O que manda é o CONTEXTO, não o cartão: gasto marcado como
+  // kitnets/obra conta como despesa das kitnets (dinheiro investido no
+  // negócio); o resto, como despesa pessoal. Transações de cartão ainda em
+  // 'revisar'/'sugerido'/'ignorar' não são confirmadas e ficam de fora.
   personal
-    .filter((row) => row.type === 'expense' && isConfirmed(row) && inMonth(row.date, monthKey))
+    .filter((row) => row.type !== 'income' && isConfirmed(row) && inMonth(row.date, monthKey))
     .forEach((row) => {
       const key = ['kitnets', 'obra'].includes(row.context) ? 'kitnets' : 'pessoal';
       acc[key].expense += toMoney(row.value);

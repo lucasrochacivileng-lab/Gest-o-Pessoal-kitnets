@@ -27,24 +27,31 @@ describe('buildSegmentConsolidation', () => {
       { type: 'income', context: 'trabalho', value: 9000, status: 'previsto', date: '2026-07-31' }, // previsto não conta
       { type: 'expense', context: 'pessoal', value: 400, status: 'pago', date: '2026-07-03' },
       { type: 'expense', context: 'obra', value: 700, status: 'pago', date: '2026-07-04' }, // vira despesa das kitnets
+      // Compras no cartão PESSOAL: custo de kitnet no cartão conta como despesa
+      // das kitnets; compra pessoal, como despesa pessoal; 'revisar' fica de fora.
+      { type: 'card_transaction', context: 'kitnets', value: 250, status: 'pago', date: '2026-07-08' },
+      { type: 'card_transaction', context: 'pessoal', value: 120, status: 'pago', date: '2026-07-09' },
+      { type: 'card_transaction', context: 'kitnets', value: 999, status: 'revisar', date: '2026-07-09' },
     ],
   };
 
   it('separa entradas e saidas por segmento', () => {
     const result = buildSegmentConsolidation(base);
 
-    expect(bySegment(result, 'kitnets')).toMatchObject({ income: 1200, expense: 1000, result: 200 });
+    // kitnets: despesa direta 300 + obra pessoal 700 + cartao kitnet 250 = 1250.
+    expect(bySegment(result, 'kitnets')).toMatchObject({ income: 1200, expense: 1250, result: -50 });
     expect(bySegment(result, 'projetos')).toMatchObject({ income: 5000, expense: 0, result: 5000 });
     expect(bySegment(result, 'pericias')).toMatchObject({ income: 2000, expense: 0, result: 2000 });
     expect(bySegment(result, 'trabalho')).toMatchObject({ income: 9000, expense: 0, result: 9000 });
-    expect(bySegment(result, 'pessoal')).toMatchObject({ income: 500, expense: 400, result: 100 });
+    // pessoal: despesa 400 + cartao pessoal 120 = 520.
+    expect(bySegment(result, 'pessoal')).toMatchObject({ income: 500, expense: 520, result: -20 });
   });
 
   it('consolida o global somando todos os segmentos', () => {
     const { global } = buildSegmentConsolidation(base);
 
     expect(global.income).toBe(1200 + 5000 + 2000 + 9000 + 500);
-    expect(global.expense).toBe(1000 + 400);
+    expect(global.expense).toBe(1250 + 520);
     expect(global.result).toBe(global.income - global.expense);
   });
 
