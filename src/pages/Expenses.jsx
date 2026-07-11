@@ -101,6 +101,20 @@ export const groupExpensesByPaymentMethod = (rows = []) => (
   }, { boleto: 0, pix: 0, outros: 0 })
 );
 
+// Totais por categoria (para os chips de filtro estilo "tag"): só as
+// categorias que aparecem no mês, ordenadas do maior gasto para o menor.
+export const groupExpensesByCategory = (rows = []) => {
+  const totals = rows.reduce((acc, row) => {
+    const key = row.category || 'outro';
+    if (!acc[key]) acc[key] = { category: key, total: 0, count: 0 };
+    acc[key].total += Number(row.value ?? 0);
+    acc[key].count += 1;
+    return acc;
+  }, {});
+
+  return Object.values(totals).sort((a, b) => b.total - a.total);
+};
+
 // Card de resumo. Sem onClick é só um bloco informativo; com onClick vira
 // botão que recorta a tabela de detalhe pela mesma dimensão que ele soma
 // (os quatro do topo são clicáveis — antes só Boleto/Pix/Outros eram).
@@ -288,6 +302,37 @@ function CardInvoicesPanel({
   );
 }
 
+// Filtro por categoria estilo "tag" (inspirado no filtro por tags do Nubank):
+// cada categoria presente no mês vira um chip clicável com o total; clicar
+// filtra a lista "Despesas diretas", clicar de novo no ativo limpa.
+function CategoryFilter({ categories, selected, onSelect }) {
+  if (!categories.length) return null;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Filtrar por categoria</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {categories.map(({ category, total }) => {
+          const active = selected === category;
+          return (
+            <button
+              key={category}
+              type="button"
+              onClick={() => onSelect(active ? '' : category)}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition ${
+                active ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <span className="font-medium">{categoryLabel(category)}</span>
+              <span className="text-xs text-slate-500">{financialService.formatCurrency(total)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Expenses() {
   const { id } = useParams();
   const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
@@ -299,6 +344,7 @@ export default function Expenses() {
   const [selectedCard, setSelectedCard] = useState('');
   const [selectedInvoiceView, setSelectedInvoiceView] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   // Cartão, recorte de resumo (view) e forma de pagamento disputam a mesma
   // tabela de detalhe — escolher um zera os outros, para o destaque e o que
   // aparece na tela nunca contarem histórias diferentes.
@@ -317,16 +363,25 @@ export default function Expenses() {
   }, []);
   const filterBySelectedMonth = useCallback(
     (rows) => {
-      const monthRows = filterExpensesByCompetence(rows, competence);
-      if (!selectedPaymentMethod) return monthRows;
-      return monthRows.filter((row) => normalizePaymentMethod(row.payment_method) === selectedPaymentMethod);
+      let monthRows = filterExpensesByCompetence(rows, competence);
+      if (selectedPaymentMethod) {
+        monthRows = monthRows.filter((row) => normalizePaymentMethod(row.payment_method) === selectedPaymentMethod);
+      }
+      if (selectedCategory) {
+        monthRows = monthRows.filter((row) => (row.category || 'outro') === selectedCategory);
+      }
+      return monthRows;
     },
-    [competence, selectedPaymentMethod],
+    [competence, selectedPaymentMethod, selectedCategory],
   );
   const cardInvoices = useMemo(() => buildCardInvoices({ personal: personalRows, month: competence }), [personalRows, competence]);
   const cardSummary = useMemo(() => buildCardInvoiceSummary(cardInvoices), [cardInvoices]);
   const paymentMethodSummary = useMemo(
     () => groupExpensesByPaymentMethod(filterExpensesByCompetence(expenseRows, competence)),
+    [expenseRows, competence],
+  );
+  const categorySummary = useMemo(
+    () => groupExpensesByCategory(filterExpensesByCompetence(expenseRows, competence)),
     [expenseRows, competence],
   );
 
@@ -352,6 +407,14 @@ export default function Expenses() {
     }
   }, [cardInvoices, selectedCard]);
 
+  // Trocou de mês e a categoria filtrada não existe mais nele: limpa, para não
+  // deixar a lista presa num filtro que resultaria sempre vazio.
+  useEffect(() => {
+    if (selectedCategory && !categorySummary.some((item) => item.category === selectedCategory)) {
+      setSelectedCategory('');
+    }
+  }, [categorySummary, selectedCategory]);
+
   const handleGenerate = async () => {
     setGenerating(true);
     setMessage('');
@@ -368,6 +431,11 @@ export default function Expenses() {
       setGenerating(false);
     }
   };
+
+  const activeFilters = [
+    selectedPaymentMethod ? PAYMENT_METHOD_LABELS[selectedPaymentMethod] : null,
+    selectedCategory ? categoryLabel(selectedCategory) : null,
+  ].filter(Boolean);
 
   return (
     <div className="space-y-4">
@@ -399,11 +467,13 @@ export default function Expenses() {
         onSelectPaymentMethod={handleSelectPaymentMethod}
       />
 
+      <CategoryFilter categories={categorySummary} selected={selectedCategory} onSelect={setSelectedCategory} />
+
       <EntityPage
         key={reloadKey}
         title="Despesas diretas"
-        subtitle={selectedPaymentMethod
-          ? `Filtrado por ${PAYMENT_METHOD_LABELS[selectedPaymentMethod]} — clique de novo no cartão para limpar.`
+        subtitle={activeFilters.length
+          ? `Filtrado por ${activeFilters.join(' · ')} — clique de novo no filtro ativo para limpar.`
           : 'Boletos, Pix e contas lançadas diretamente. Faturas de cartão aparecem acima para não contar duas vezes.'}
         entity="Expense"
         fields={fields}

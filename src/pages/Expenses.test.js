@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterExpensesByCompetence, groupExpensesByPaymentMethod, normalizePaymentMethod } from './Expenses.jsx';
+import { filterExpensesByCompetence, groupExpensesByCategory, groupExpensesByPaymentMethod, normalizePaymentMethod } from './Expenses.jsx';
 
 describe('filterExpensesByCompetence', () => {
   it('mostra apenas despesas do mes selecionado', () => {
@@ -34,6 +34,23 @@ describe('groupExpensesByPaymentMethod', () => {
   it('nao inflar quando payment_method esta ausente e value e zero', () => {
     const summary = groupExpensesByPaymentMethod([{ payment_method: 'Pix', value: 0 }]);
     expect(summary.pix).toBe(0);
+  });
+});
+
+describe('groupExpensesByCategory', () => {
+  it('soma por categoria e ordena do maior gasto para o menor', () => {
+    const rows = [
+      { category: 'material', value: 300 },
+      { category: 'manutencao', value: 1200 },
+      { category: 'material', value: 200 },
+      { category: '', value: 50 }, // sem categoria cai em "outro"
+    ];
+
+    const result = groupExpensesByCategory(rows);
+
+    expect(result.map((row) => row.category)).toEqual(['manutencao', 'material', 'outro']);
+    expect(result.find((row) => row.category === 'material')).toEqual({ category: 'material', total: 500, count: 2 });
+    expect(result.find((row) => row.category === 'outro')).toEqual({ category: 'outro', total: 50, count: 1 });
   });
 });
 
