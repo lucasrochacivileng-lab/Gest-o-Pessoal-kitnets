@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, RotateCcw, Save, Upload } from 'lucide-react';
+import { Download, RotateCcw, Save, Upload, Wrench } from 'lucide-react';
 import { repository } from '../repository/index.js';
+import { applyPaymentMethodFix } from '../services/paymentMethodFixService.js';
 
 const SETTINGS_KEY = '@kitmanager/settings';
 
@@ -93,6 +94,29 @@ export default function Settings() {
     setMessage('Base local resetada. Recarregue a página para atualizar todos os módulos.');
   };
 
+  const [fixing, setFixing] = useState(false);
+  const fixPaymentMethods = async () => {
+    const confirmed = window.confirm(
+      'Classificar as despesas que estão em "Outros": água/energia/internet viram Boleto e '
+      + 'móveis/esquadrias viram Pix. Só mexe nas que ainda não têm Boleto/Pix. Continuar?',
+    );
+    if (!confirmed) return;
+
+    setFixing(true);
+    setMessage('');
+    try {
+      const result = await applyPaymentMethodFix();
+      setMessage(
+        `Formas de pagamento corrigidas: ${result.boleto} como Boleto e ${result.pix} como Pix `
+        + `(${result.skipped} sem regra ficaram em Outros). Abra Despesas para conferir.`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Não foi possível corrigir as formas de pagamento.');
+    } finally {
+      setFixing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -147,6 +171,23 @@ export default function Settings() {
           </button>
           <input ref={fileInputRef} type="file" accept="application/json" onChange={importBackup} className="hidden" />
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">Manutenção</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Corrige a forma de pagamento das despesas antigas que ficaram sem Boleto/Pix (caindo em
+          "Outros"). Água/energia/internet viram Boleto; móveis/esquadrias viram Pix. É seguro rodar
+          mais de uma vez — só mexe no que ainda está em "Outros".
+        </p>
+        <button
+          type="button"
+          onClick={fixPaymentMethods}
+          disabled={fixing}
+          className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+        >
+          <Wrench className="h-4 w-4" /> {fixing ? 'Corrigindo...' : 'Corrigir formas de pagamento'}
+        </button>
       </section>
     </div>
   );
