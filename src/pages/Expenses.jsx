@@ -38,7 +38,17 @@ const fields = [
   ] },
   { name: 'description', label: 'Descrição', type: 'textarea', placeholder: 'Descrição da despesa' },
   { name: 'value', label: 'Valor', type: 'number', placeholder: '1200' },
-  { name: 'payment_method', label: 'Forma de pagamento', placeholder: 'Pix, dinheiro, transferência' },
+  // Seletor (não texto livre): é ele que decide o card Boleto/Pix/Outros.
+  // Como texto livre, um campo vazio ou "boleto bancário" fazia a despesa
+  // cair em "Outros" sem o usuário perceber.
+  { name: 'payment_method', label: 'Forma de pagamento', type: 'select', options: [
+    { value: 'boleto', label: 'Boleto' },
+    { value: 'pix', label: 'Pix' },
+    { value: 'dinheiro', label: 'Dinheiro' },
+    { value: 'transferencia', label: 'Transferência' },
+    { value: 'cartao', label: 'Cartão' },
+    { value: 'outros', label: 'Outros' },
+  ] },
   { name: 'account', label: 'Conta', placeholder: 'Mercado Pago, Itaú, Nubank' },
   { name: 'status', label: 'Status', type: 'select', options: [
     { value: 'pendente', label: 'Pendente' },
@@ -244,21 +254,21 @@ function CardInvoicesPanel({
         <PaymentMethodCard
           label="Boleto"
           value={paymentMethodSummary.boleto}
-          sub="água, energia, internet, mútua..."
+          sub="forma de pagamento = Boleto"
           active={selectedPaymentMethod === 'boleto'}
           onClick={() => onSelectPaymentMethod(selectedPaymentMethod === 'boleto' ? '' : 'boleto')}
         />
         <PaymentMethodCard
           label="Pix"
           value={paymentMethodSummary.pix}
-          sub="esquadrias, móveis..."
+          sub="forma de pagamento = Pix"
           active={selectedPaymentMethod === 'pix'}
           onClick={() => onSelectPaymentMethod(selectedPaymentMethod === 'pix' ? '' : 'pix')}
         />
         <PaymentMethodCard
           label="Outros"
           value={paymentMethodSummary.outros}
-          sub="sem boleto/Pix identificado"
+          sub="sem Boleto/Pix na forma de pagamento"
           active={selectedPaymentMethod === 'outros'}
           onClick={() => onSelectPaymentMethod(selectedPaymentMethod === 'outros' ? '' : 'outros')}
         />
