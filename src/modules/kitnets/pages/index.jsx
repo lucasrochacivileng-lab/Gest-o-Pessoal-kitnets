@@ -50,6 +50,14 @@ const fields = [
   { key: 'description', label: 'Descrição', type: 'textarea', placeholder: 'Características e observações da unidade' },
 ];
 
+// Sem fallback pro contrato mais recente quando não há um ativo: uma kitnet
+// vaga não tem contrato vigente, e cair pro último contrato ENCERRADO
+// mostraria o ex-locatário como se fosse o atual (e anexaria um novo PDF de
+// contrato/vistoria ao tenant_id/contract_id de quem já saiu).
+export const getActiveContract = (kitnetContracts = []) => (
+  kitnetContracts.find((contract) => contract.status === 'ativo') || null
+);
+
 const DOCUMENT_TYPES = {
   contract: 'contrato_pdf',
   inspection: 'termo_vistoria_pdf',
@@ -350,7 +358,7 @@ export default function Kitnets() {
         ) : kitnets.length > 0 ? (
           kitnets.map((kitnet) => {
             const kitnetContracts = contractsByKitnet[kitnet.id] || [];
-            const activeContract = kitnetContracts.find((contract) => contract.status === 'ativo') || kitnetContracts[0] || null;
+            const activeContract = getActiveContract(kitnetContracts);
             const activeTenant = activeContract ? tenantById[activeContract.tenant_id] : null;
             const kitnetDocuments = documentsByKitnet[kitnet.id] || {};
             const contractDocument = kitnetDocuments[DOCUMENT_TYPES.contract];
