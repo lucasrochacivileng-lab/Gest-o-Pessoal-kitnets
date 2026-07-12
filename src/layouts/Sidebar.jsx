@@ -8,6 +8,7 @@ const menuSections = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { label: 'Visão Geral', icon: BarChart3, path: '/visao-geral' },
     { label: 'Consolidado', icon: Layers, path: '/consolidado' },
+    { label: 'Resultado por kitnet', icon: Building2, path: '/resultado-kitnets' },
     { label: 'Extrato', icon: ArrowLeftRight, path: '/extrato' },
     { label: 'Previsão', icon: CalendarRange, path: '/previsao' },
     { label: 'Gastos por categoria', icon: PieChart, path: '/gastos-categoria' }
