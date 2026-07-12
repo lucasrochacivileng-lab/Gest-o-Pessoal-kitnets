@@ -34,6 +34,20 @@ const normalize = (value) => String(value || '')
   .trim()
   .toLowerCase();
 
+// Alguns bancos emitem cart\u00f5es adicionais (titular + dependente) com n\u00fameros
+// de final diferentes, mas a fatura \u00e9 uma s\u00f3. Sem normalizar, cada final vira
+// um "cart\u00e3o" separado nas faturas de Despesas. Mapeie aqui o nome do cart\u00e3o
+// adicional (como vem no extrato) para o nome do titular. Chave sempre em
+// min\u00fasculas/sem acento (comparada via normalize).
+const CARD_NAME_ALIASES = {
+  'santander 7535': 'Santander 7909',
+};
+
+export const normalizeCardName = (value) => {
+  const trimmed = String(value || '').trim();
+  return CARD_NAME_ALIASES[normalize(trimmed)] || trimmed;
+};
+
 const headerKey = (headers, aliases) => headers.find((header) => aliases.includes(normalize(header)));
 
 const getField = (row, headers, key) => {
@@ -174,7 +188,7 @@ export const parseStatementRows = (rows, { defaultCardName = '' } = {}) => {
     const description = String(getField(row, headers, 'description') || '').trim();
     const rawValue = getField(row, headers, 'value');
     const value = parseMoney(rawValue);
-    const cardName = String(getField(row, headers, 'card') || defaultCardName || '').trim();
+    const cardName = normalizeCardName(getField(row, headers, 'card') || defaultCardName || '');
     const purchaseDate = parseDate(getField(row, headers, 'date'));
     const installment = parseInstallment({
       installment: getField(row, headers, 'installment'),

@@ -31,6 +31,15 @@ describe('cardStatementImportService', () => {
     ]);
   });
 
+  it('normaliza cartao adicional para o titular (Santander 7535 -> 7909)', () => {
+    const rows = parseStatementRows([
+      { Data: '10/07/2026', Descricao: 'CLARO FLEX', Valor: '39,99', Cartao: 'Santander 7535' },
+      { Data: '10/07/2026', Descricao: 'Compra qualquer', Valor: '100,00', Cartao: 'Santander 7909' },
+    ]);
+
+    expect(rows.map((row) => row.card_name)).toEqual(['Santander 7909', 'Santander 7909']);
+  });
+
   it('interpreta CSV do Nubank e ignora pagamentos recebidos', () => {
     const rows = parseStatementRows([
       {
