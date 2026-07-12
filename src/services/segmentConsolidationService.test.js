@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSegmentConsolidation } from './segmentConsolidationService.js';
+import { buildSegmentConsolidation, resolveExpenseSegment } from './segmentConsolidationService.js';
 
 const bySegment = (result, key) => result.segments.find((segment) => segment.key === key);
 
@@ -60,5 +60,40 @@ describe('buildSegmentConsolidation', () => {
     // salario previsto (9000) fora, aluguel de junho fora, projeto 'entregue' fora.
     expect(bySegment(result, 'trabalho').income).toBe(9000);
     expect(bySegment(result, 'projetos').income).toBe(5000);
+  });
+
+  it('roteia a despesa direta pelo segmento escolhido (nao mais tudo em kitnets)', () => {
+    const result = buildSegmentConsolidation({
+      monthKey: '2026-07',
+      expenses: [
+        { date: '2026-07-05', value: 100, status: 'pago', segment: 'pericias' },
+        { date: '2026-07-06', value: 60, status: 'pago', segment: 'pessoal' },
+        { date: '2026-07-07', value: 40, status: 'pago' }, // legado sem segmento -> kitnets
+      ],
+    });
+
+    expect(bySegment(result, 'pericias').expense).toBe(100);
+    expect(bySegment(result, 'pessoal').expense).toBe(60);
+    expect(bySegment(result, 'kitnets').expense).toBe(40);
+  });
+
+  it('compra no cartao pessoal marcada como projeto conta no segmento projetos', () => {
+    const result = buildSegmentConsolidation({
+      monthKey: '2026-07',
+      personal: [
+        { type: 'card_transaction', segment: 'projetos', value: 250, status: 'pago', date: '2026-07-08' },
+      ],
+    });
+
+    expect(bySegment(result, 'projetos').expense).toBe(250);
+    expect(bySegment(result, 'pessoal').expense).toBe(0);
+  });
+
+  it('o segmento explicito tem prioridade sobre o context legado', () => {
+    expect(resolveExpenseSegment({ segment: 'projetos', context: 'kitnets' })).toBe('projetos');
+    expect(resolveExpenseSegment({ context: 'obra' })).toBe('kitnets');
+    expect(resolveExpenseSegment({ context: 'pessoal' })).toBe('pessoal');
+    expect(resolveExpenseSegment({}, 'kitnets')).toBe('kitnets');
+    expect(resolveExpenseSegment({})).toBe('pessoal');
   });
 });

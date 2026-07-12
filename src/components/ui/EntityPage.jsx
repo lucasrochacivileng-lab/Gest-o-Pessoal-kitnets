@@ -155,6 +155,13 @@ export default function EntityPage({
 
     const payload = fields.reduce((acc, field) => {
       const fieldName = getFieldName(field);
+      // Campo condicional escondido (ex.: o vínculo de kitnet quando o segmento
+      // deixa de ser Kitnets): grava vazio para não deixar um vínculo órfão de
+      // um segmento que o usuário trocou depois de preencher.
+      if (field.visibleWhen && !field.visibleWhen(form)) {
+        acc[fieldName] = '';
+        return acc;
+      }
       let value = form[fieldName];
       // Todo campo numérico deste formulário é valor em R$, dia do mês ou
       // contagem de parcela — nenhum é legitimamente negativo. Sem esse piso,
@@ -335,6 +342,10 @@ export default function EntityPage({
           <div className="grid gap-4 lg:grid-cols-2">
             {fields.map((field) => {
               const fieldName = getFieldName(field);
+              // Campo condicional: só entra no formulário quando a condição
+              // (baseada nos valores atuais) é verdadeira — ex.: mostrar o
+              // seletor de perícia apenas quando o segmento é Perícias.
+              if (field.visibleWhen && !field.visibleWhen(form)) return null;
               const relationEntity = getRelationEntity(field);
               const relationList = relationEntity ? relationOptions[relationEntity] || [] : null;
               const isSelect = field.type === 'select' || field.type === 'relation';
@@ -364,7 +375,7 @@ export default function EntityPage({
                       ))}
                       {(field.options || relationList || []).map((option, optionIndex) => (
                         <option key={`${fieldName}-${getOptionValue(option) || optionIndex}`} value={getOptionValue(option)}>
-                          {getOptionLabel(option)}
+                          {field.optionLabel ? field.optionLabel(option) : getOptionLabel(option)}
                         </option>
                       ))}
                     </select>

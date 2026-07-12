@@ -24,18 +24,35 @@ export const SEGMENTS = [
   { key: 'pessoal', label: 'Pessoal' },
 ];
 
+const SEGMENT_KEYS = new Set(SEGMENTS.map((segment) => segment.key));
+
+// Segmento de uma DESPESA. Prioriza o campo novo `segment`; na sua ausência
+// (lançamentos antigos), mantém o comportamento legado: despesa direta
+// (Expense) sem segmento é custo das kitnets, e lançamento pessoal usa o
+// `context` histórico (kitnets/obra → kitnets, trabalho → trabalho, resto →
+// pessoal). `fallback` é o padrão de cada fonte quando não há pista nenhuma.
+export const resolveExpenseSegment = (row = {}, fallback = 'pessoal') => {
+  if (SEGMENT_KEYS.has(row.segment)) return row.segment;
+  if (['kitnets', 'obra'].includes(row.context)) return 'kitnets';
+  if (row.context === 'trabalho') return 'trabalho';
+  if (row.context === 'pessoal') return 'pessoal';
+  return fallback;
+};
+
 export const buildSegmentConsolidation = ({
   payments = [], expenses = [], personal = [], projects = [], expertReports = [], monthKey,
 }) => {
   const acc = Object.fromEntries(SEGMENTS.map((segment) => [segment.key, { ...segment, income: 0, expense: 0 }]));
 
-  // Kitnets: aluguéis recebidos (entram) e despesas diretas pagas (saem).
+  // Kitnets: aluguéis recebidos entram; as despesas diretas pagas saem no
+  // segmento que o lançamento indica (o padrão é Kitnets, para não mudar o
+  // comportamento das despesas antigas que não têm segmento).
   payments
     .filter((row) => inMonth(row.payment_date, monthKey))
     .forEach((row) => { acc.kitnets.income += paymentValue(row); });
   expenses
     .filter((row) => row.status === 'pago' && inMonth(row.date, monthKey))
-    .forEach((row) => { acc.kitnets.expense += toMoney(row.value); });
+    .forEach((row) => { acc[resolveExpenseSegment(row, 'kitnets')].expense += toMoney(row.value); });
 
   // Projetos e perícias: só o que foi efetivamente recebido no mês.
   projects
@@ -63,8 +80,7 @@ export const buildSegmentConsolidation = ({
   personal
     .filter((row) => row.type !== 'income' && isConfirmed(row) && inMonth(row.date, monthKey))
     .forEach((row) => {
-      const key = ['kitnets', 'obra'].includes(row.context) ? 'kitnets' : 'pessoal';
-      acc[key].expense += toMoney(row.value);
+      acc[resolveExpenseSegment(row, 'pessoal')].expense += toMoney(row.value);
     });
 
   const segments = SEGMENTS.map((segment) => {

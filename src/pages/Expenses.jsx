@@ -12,12 +12,40 @@ import { categoryLabel } from '../services/categoryReportService.js';
 import { financialService } from '../services/financialService';
 import { formatDateBR } from '../services/dateUtils.js';
 
+// Segmento (centro de resultado) da despesa — é o que o Consolidado usa para
+// separar o custo por frente. Mesmas chaves do segmentConsolidationService.
+const SEGMENT_OPTIONS = [
+  { value: 'kitnets', label: 'Kitnets' },
+  { value: 'pericias', label: 'Perícias' },
+  { value: 'projetos', label: 'Projetos' },
+  { value: 'pessoal', label: 'Pessoal' },
+  { value: 'trabalho', label: 'Trabalho / Servidor' },
+];
+
+const SEGMENT_LABELS = Object.fromEntries(SEGMENT_OPTIONS.map((s) => [s.value, s.label]));
+// Despesa antiga (sem segmento) é, por definição do consolidado, custo das
+// kitnets — então a coluna mostra "Kitnets" em vez de um traço.
+const segmentLabel = (value) => SEGMENT_LABELS[value] || 'Kitnets';
+
 const fields = [
   { name: 'date', label: 'Data', type: 'date' },
-  { name: 'category', label: 'Categoria', type: 'select', options: [
+  { name: 'segment', label: 'Segmento', type: 'select', options: SEGMENT_OPTIONS },
+  // Vínculo do custo — condicional ao segmento. Kitnets aceita "Geral"
+  // (rateado entre as unidades); Perícias/Projetos apontam para o item; o
+  // vínculo é opcional (dá para lançar um custo genérico do segmento).
+  { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet', extraOptions: [
+    { value: 'geral', label: 'Geral (rateado entre as unidades)' },
+  ], visibleWhen: (form) => !form.segment || form.segment === 'kitnets' },
+  { name: 'expert_report_id', label: 'Perícia', type: 'select', optionsEntity: 'ExpertReport',
+    optionLabel: (o) => [o.client, o.process_number].filter(Boolean).join(' — ') || o.report_type || o.id,
+    visibleWhen: (form) => form.segment === 'pericias' },
+  { name: 'project_id', label: 'Projeto', type: 'select', optionsEntity: 'ComplementaryProject',
+    optionLabel: (o) => [o.client, o.project_type].filter(Boolean).join(' — ') || o.address || o.id,
+    visibleWhen: (form) => form.segment === 'projetos' },
+  { name: 'category', label: 'Tipo de gasto (tag)', type: 'select', options: [
     { value: 'manutencao', label: 'Manutenção' },
     { value: 'agua', label: 'Água' },
-    { value: 'luz', label: 'Luz' },
+    { value: 'luz', label: 'Luz / Energia' },
     { value: 'energia_solar', label: 'Energia solar (parcela)' },
     { value: 'moveis', label: 'Móveis/eletrodomésticos (parcela)' },
     { value: 'internet', label: 'Internet' },
@@ -25,16 +53,11 @@ const fields = [
     { value: 'seguro', label: 'Seguro' },
     { value: 'limpeza', label: 'Limpeza' },
     { value: 'material', label: 'Material' },
-    { value: 'pessoal', label: 'Pessoal' },
-    { value: 'obra', label: 'Obra' },
     { value: 'outro', label: 'Outro' },
   ] },
   { name: 'type', label: 'Tipo', type: 'select', options: [
     { value: 'fixa', label: 'Fixa' },
     { value: 'variavel', label: 'Variável' },
-  ] },
-  { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet', extraOptions: [
-    { value: 'geral', label: 'Geral (todas as kitnets)' },
   ] },
   { name: 'description', label: 'Descrição', type: 'textarea', placeholder: 'Descrição da despesa' },
   { name: 'value', label: 'Valor', type: 'number', placeholder: '1200' },
@@ -61,8 +84,9 @@ const fields = [
 const columns = [
   { field: 'date', label: 'Data', format: 'date' },
   { field: 'description', label: 'Descrição' },
+  { field: 'segment', label: 'Segmento', formatValue: segmentLabel },
   { field: 'kitnet_id', label: 'Kitnet', format: 'relation', relation: 'Kitnet' },
-  { field: 'category', label: 'Categoria', formatValue: categoryLabel },
+  { field: 'category', label: 'Tag', formatValue: categoryLabel },
   { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
   { field: 'status', label: 'Status', format: 'badge' },
 ];
@@ -490,7 +514,6 @@ export default function Expenses() {
         cardFields={['date', 'description']}
         columns={columns}
         badgeColors={STATUS_BADGE_COLORS}
-        relations={[{ key: 'Kitnet', entity: 'Kitnet' }]}
         selectedId={id}
         deepLinkEntity={NOTIFICATION_ENTITY.EXPENSE}
         deepLinkBasePath="/despesas"
@@ -498,6 +521,11 @@ export default function Expenses() {
         checkDuplicate={findExpenseDuplicateOf}
         filterRows={filterBySelectedMonth}
         onRowsChange={setExpenseRows}
+        relations={[
+          { key: 'Kitnet', entity: 'Kitnet' },
+          { key: 'ExpertReport', entity: 'ExpertReport' },
+          { key: 'ComplementaryProject', entity: 'ComplementaryProject' },
+        ]}
       />
     </div>
   );
