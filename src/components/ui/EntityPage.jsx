@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { repository } from '../../repository/index.js';
 import { PencilLine, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -117,10 +117,27 @@ export default function EntityPage({
   const [errorMessage, setErrorMessage] = useState('');
   const [actionItem, setActionItem] = useState(null);
   const navigate = useNavigate();
+  const formRef = useRef(null);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (!formOpen) return undefined;
+    // Rola até o formulário DEPOIS que o layout assenta. O form abre no topo e
+    // empurra a lista para baixo; o navegador reposiciona a rolagem (scroll
+    // anchoring) logo em seguida, atropelando um scrollIntoView imediato ou em
+    // requestAnimationFrame. O pequeno atraso deixa esse reposicionamento
+    // terminar antes de rolarmos — sem ele, no celular tocar "Editar"/"Novo"
+    // numa linha abaixo da dobra parecia não fazer nada (o form abria fora da
+    // tela, acima). editingId na dependência faz reeditar outra linha com o
+    // formulário já aberto rolar de novo.
+    const timer = setTimeout(() => {
+      formRef.current?.scrollIntoView({ block: 'start' });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [formOpen, editingId]);
 
   const loadData = async ({ silent = false } = {}) => {
     try {
@@ -338,7 +355,7 @@ export default function EntityPage({
       ) : null}
 
       {formOpen ? (
-        <form onSubmit={handleSubmit} className="ds-card">
+        <form ref={formRef} onSubmit={handleSubmit} className="ds-card">
           <div className="grid gap-4 lg:grid-cols-2">
             {fields.map((field) => {
               const fieldName = getFieldName(field);
