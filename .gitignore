@@ -7,3 +7,6 @@ coverage
 !.env.example
 .vercel
 tmp
+
+# Copia local das skills (fonte canonica versionada em .agents/skills/)
+.claude/skills/
