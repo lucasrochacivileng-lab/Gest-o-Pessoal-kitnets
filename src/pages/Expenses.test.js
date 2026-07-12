@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterExpensesByCompetence, groupExpensesByCategory, groupExpensesByPaymentMethod, normalizePaymentMethod } from './Expenses.jsx';
+import { filterExpensesByCompetence, groupExpensesByCategory, groupExpensesByPaymentMethod, groupExpensesBySegment, normalizePaymentMethod } from './Expenses.jsx';
 
 describe('filterExpensesByCompetence', () => {
   it('mostra apenas despesas do mes selecionado', () => {
@@ -11,6 +11,24 @@ describe('filterExpensesByCompetence', () => {
 
     expect(filterExpensesByCompetence(rows, '2026-06').map((row) => row.id)).toEqual(['jun-internet']);
     expect(filterExpensesByCompetence(rows, '2026-07').map((row) => row.id)).toEqual(['jul-internet']);
+  });
+});
+
+describe('groupExpensesBySegment', () => {
+  it('agrupa por segmento e trata despesa antiga sem segmento como kitnets', () => {
+    const groups = groupExpensesBySegment([
+      { value: 100, segment: 'pessoal' },
+      { value: 50, segment: 'pericias' },
+      { value: 30 }, // legado sem segmento -> kitnets
+      { value: 20, segment: 'kitnets' },
+    ]);
+
+    const total = (segment) => groups.find((item) => item.segment === segment)?.total;
+    expect(total('kitnets')).toBe(50); // 30 legado + 20 explicito
+    expect(total('pessoal')).toBe(100);
+    expect(total('pericias')).toBe(50);
+    // ordenado do maior total para o menor
+    expect(groups[0].total).toBe(100);
   });
 });
 

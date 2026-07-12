@@ -8,6 +8,7 @@ import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { repository } from '../repository/index.js';
 import { useEntitySync } from '../hooks/useEntitySync.js';
 import { buildCardInvoices, buildCardInvoiceSummary, selectInvoiceItems } from '../services/cardInvoiceService.js';
+import { resolveExpenseSegment } from '../services/segmentConsolidationService.js';
 import { categoryLabel } from '../services/categoryReportService.js';
 import { financialService } from '../services/financialService';
 import { formatDateBR } from '../services/dateUtils.js';
@@ -142,6 +143,20 @@ export const groupExpensesByCategory = (rows = []) => {
   const totals = rows.reduce((acc, row) => {
     const key = row.category || 'outro';
     if (!acc[key]) acc[key] = { category: key, total: 0, count: 0 };
+    acc[key].total += Number(row.value ?? 0);
+    acc[key].count += 1;
+    return acc;
+  }, {});
+
+  return Object.values(totals).sort((a, b) => b.total - a.total);
+};
+
+// Totais por segmento, para os chips de filtro por segmento (mesma ideia dos de
+// categoria). Despesa antiga sem segmento conta como Kitnets (resolveExpenseSegment).
+export const groupExpensesBySegment = (rows = []) => {
+  const totals = rows.reduce((acc, row) => {
+    const key = resolveExpenseSegment(row, 'kitnets');
+    if (!acc[key]) acc[key] = { segment: key, total: 0, count: 0 };
     acc[key].total += Number(row.value ?? 0);
     acc[key].count += 1;
     return acc;
@@ -368,6 +383,37 @@ function CategoryFilter({ categories, selected, onSelect }) {
   );
 }
 
+// Mesmo padrão do CategoryFilter, mas por SEGMENTO (kitnets/perícias/projetos/
+// pessoal/trabalho). Clicar filtra a lista "Despesas diretas"; clicar de novo
+// no ativo limpa.
+function SegmentFilter({ segments, selected, onSelect }) {
+  if (!segments.length) return null;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Filtrar por segmento</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {segments.map(({ segment, total }) => {
+          const active = selected === segment;
+          return (
+            <button
+              key={segment}
+              type="button"
+              onClick={() => onSelect(active ? '' : segment)}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition ${
+                active ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <span className="font-medium">{segmentLabel(segment)}</span>
+              <span className="text-xs text-slate-500">{financialService.formatCurrency(total)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Expenses() {
   const { id } = useParams();
   const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
@@ -380,6 +426,7 @@ export default function Expenses() {
   const [selectedInvoiceView, setSelectedInvoiceView] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSegment, setSelectedSegment] = useState('');
   // Cartão, recorte de resumo (view) e forma de pagamento disputam a mesma
   // tabela de detalhe — escolher um zera os outros, para o destaque e o que
   // aparece na tela nunca contarem histórias diferentes.
@@ -405,9 +452,12 @@ export default function Expenses() {
       if (selectedCategory) {
         monthRows = monthRows.filter((row) => (row.category || 'outro') === selectedCategory);
       }
+      if (selectedSegment) {
+        monthRows = monthRows.filter((row) => resolveExpenseSegment(row, 'kitnets') === selectedSegment);
+      }
       return monthRows;
     },
-    [competence, selectedPaymentMethod, selectedCategory],
+    [competence, selectedPaymentMethod, selectedCategory, selectedSegment],
   );
   const cardInvoices = useMemo(() => buildCardInvoices({ personal: personalRows, month: competence }), [personalRows, competence]);
   const cardSummary = useMemo(() => buildCardInvoiceSummary(cardInvoices), [cardInvoices]);
@@ -417,6 +467,10 @@ export default function Expenses() {
   );
   const categorySummary = useMemo(
     () => groupExpensesByCategory(filterExpensesByCompetence(expenseRows, competence)),
+    [expenseRows, competence],
+  );
+  const segmentSummary = useMemo(
+    () => groupExpensesBySegment(filterExpensesByCompetence(expenseRows, competence)),
     [expenseRows, competence],
   );
 
@@ -450,6 +504,12 @@ export default function Expenses() {
     }
   }, [categorySummary, selectedCategory]);
 
+  useEffect(() => {
+    if (selectedSegment && !segmentSummary.some((item) => item.segment === selectedSegment)) {
+      setSelectedSegment('');
+    }
+  }, [segmentSummary, selectedSegment]);
+
   const handleGenerate = async () => {
     setGenerating(true);
     setMessage('');
@@ -470,6 +530,7 @@ export default function Expenses() {
   const activeFilters = [
     selectedPaymentMethod ? PAYMENT_METHOD_LABELS[selectedPaymentMethod] : null,
     selectedCategory ? categoryLabel(selectedCategory) : null,
+    selectedSegment ? segmentLabel(selectedSegment) : null,
   ].filter(Boolean);
 
   return (
@@ -501,6 +562,8 @@ export default function Expenses() {
         selectedPaymentMethod={selectedPaymentMethod}
         onSelectPaymentMethod={handleSelectPaymentMethod}
       />
+
+      <SegmentFilter segments={segmentSummary} selected={selectedSegment} onSelect={setSelectedSegment} />
 
       <CategoryFilter categories={categorySummary} selected={selectedCategory} onSelect={setSelectedCategory} />
 
