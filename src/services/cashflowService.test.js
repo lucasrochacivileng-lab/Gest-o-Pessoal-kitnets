@@ -8,8 +8,8 @@ describe('buildCashflow', () => {
     const result = buildCashflow({
       monthKey,
       payments: [
-        { payment_date: '2026-07-05', paid_value: 950 },
-        { payment_date: '2026-06-05', paid_value: 900 },
+        { receivable_id: 'r1', payment_date: '2026-07-05', paid_value: 950 },
+        { receivable_id: 'r2', payment_date: '2026-06-05', paid_value: 900 },
       ],
       expenses: [
         { date: '2026-07-05', value: 110, status: 'pago' },
@@ -47,7 +47,7 @@ describe('buildCashflow', () => {
     const result = buildCashflow({
       monthKey,
       payments: [
-        { payment_date: '2026-07-05', paid_value: 800, net_value: 0 },
+        { receivable_id: 'r1', payment_date: '2026-07-05', paid_value: 800, net_value: 0 },
       ],
     });
 
@@ -83,5 +83,22 @@ describe('buildCashflow', () => {
     expect(result.personalOut).toBe(250);
     expect(result.personalResult).toBe(1750);
     expect(result.pendingCardReview).toBe(1);
+  });
+
+  it('soma projeto recebido e ignora pagamento sem vinculo de aluguel', () => {
+    const result = buildCashflow({
+      monthKey,
+      payments: [
+        { payment_date: '2026-07-05', paid_value: 9000 },
+        { receivable_id: 'r1', payment_date: '2026-07-05', paid_value: 950 },
+      ],
+      projects: [
+        { id: 'p1', client: 'Projeto', value: 2000, status: 'recebido', received_date: '2026-07-08' },
+      ],
+    });
+
+    expect(result.kitnetsIn).toBe(950);
+    expect(result.extraIn).toBe(2000);
+    expect(result.finalResult).toBe(2950);
   });
 });

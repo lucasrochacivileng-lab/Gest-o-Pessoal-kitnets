@@ -16,6 +16,8 @@ import { buildCashflow } from '../services/cashflowService.js';
 import { getReceivableStatus } from '../modules/receivables/services/receivableService.js';
 import { RECEIVABLE_STATUS } from '../modules/receivables/types/receivable.types.js';
 import { financialService } from '../services/financialService';
+import { rentPaymentsOnly } from '../services/paymentClassifier.js';
+import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const money = (value = 0) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -49,20 +51,26 @@ export default function FinancialOverview() {
 
   useEffect(() => {
     const load = async () => {
-      const [kitnets, receivables, payments, expenses, contracts, personal] = await Promise.all([
+      const [kitnets, receivables, payments, expenses, contracts, personal, projects, expertReports] = await Promise.all([
         repository.list('Kitnet'),
         repository.list('Receivable'),
         repository.list('Payment'),
         repository.list('Expense'),
         repository.list('Contract'),
         repository.list('PersonalIncome'),
+        repository.list('ComplementaryProject'),
+        repository.list('ExpertReport'),
       ]);
 
       const now = new Date();
       const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const today = now.toISOString().split('T')[0];
 
-      const monthRevenue = payments.filter((item) => item.payment_date?.startsWith(monthKey)).reduce((sum, item) => sum + paymentValue(item), 0);
+      const rentPayments = rentPaymentsOnly(payments);
+      const monthExtraRevenue = buildExtraIncomeRows({ projects, expertReports, month: monthKey })
+        .filter((row) => row.status === 'recebido')
+        .reduce((sum, row) => sum + moneyValue(row.value), 0);
+      const monthRevenue = rentPayments.filter((item) => item.payment_date?.startsWith(monthKey)).reduce((sum, item) => sum + paymentValue(item), 0) + monthExtraRevenue;
       const monthExpenses = expenses.filter((item) => item.date?.startsWith(monthKey)).reduce((sum, item) => sum + (item.value || 0), 0);
       // Mesma regra de Recebimentos/dashboard (getReceivableStatus): um recebível
       // 'parcial' com vencimento passado também é vencido — o filtro manual
@@ -76,12 +84,15 @@ export default function FinancialOverview() {
       for (let i = 5; i >= 0; i -= 1) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const receipts = payments.filter((item) => item.payment_date?.startsWith(key)).reduce((sum, item) => sum + paymentValue(item), 0);
+        const receipts = rentPayments.filter((item) => item.payment_date?.startsWith(key)).reduce((sum, item) => sum + paymentValue(item), 0);
+        const extraReceipts = buildExtraIncomeRows({ projects, expertReports, month: key })
+          .filter((row) => row.status === 'recebido')
+          .reduce((sum, row) => sum + moneyValue(row.value), 0);
         const expenseValue = expenses.filter((item) => item.date?.startsWith(key)).reduce((sum, item) => sum + (item.value || 0), 0);
-        months.push({ month: date.toLocaleString('pt-BR', { month: 'short' }), receipts, expenses: expenseValue });
+        months.push({ month: date.toLocaleString('pt-BR', { month: 'short' }), receipts: receipts + extraReceipts, expenses: expenseValue });
       }
 
-      const cashflow = buildCashflow({ payments, expenses, personal, monthKey });
+      const cashflow = buildCashflow({ payments, expenses, personal, projects, expertReports, monthKey });
       const categoryTotals = {};
       expenses
         .filter((item) => item.date?.startsWith(monthKey))

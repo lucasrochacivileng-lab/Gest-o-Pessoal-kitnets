@@ -28,6 +28,7 @@ describe('dashboardService', () => {
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     await repository.create('Payment', {
+      receivable_id: 'r-dashboard-net-zero',
       payment_date: `${currentMonth}-05`,
       paid_value: 800,
       net_value: 0,

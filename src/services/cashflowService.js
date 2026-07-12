@@ -1,4 +1,6 @@
 import { financialService } from './financialService';
+import { rentPaymentsOnly } from './paymentClassifier.js';
+import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
 
 const toMoney = (value) => Number(value || 0);
 const paymentValue = financialService.netPaymentValue;
@@ -16,10 +18,14 @@ const isBusinessContext = (row) => [PERSONAL_CONTEXTS.KITNETS, PERSONAL_CONTEXTS
 // Caixa geral (regime de caixa: só entra o que foi efetivamente pago/recebido).
 // Transações de cartão importadas ('card_transaction') ficam fora até serem
 // revisadas e classificadas como despesa confirmada.
-export const buildCashflow = ({ payments = [], expenses = [], personal = [], monthKey }) => {
-  const kitnetsIn = payments
+export const buildCashflow = ({ payments = [], expenses = [], personal = [], projects = [], expertReports = [], monthKey }) => {
+  const kitnetsIn = rentPaymentsOnly(payments)
     .filter((row) => inMonth(row.payment_date, monthKey))
     .reduce((sum, row) => sum + paymentValue(row), 0);
+
+  const extraIn = buildExtraIncomeRows({ projects, expertReports, month: monthKey })
+    .filter((row) => row.status === 'recebido')
+    .reduce((sum, row) => sum + toMoney(row.value), 0);
 
   const kitnetsOut = expenses
     .filter((row) => row.status === 'pago' && inMonth(row.date, monthKey))
@@ -47,12 +53,13 @@ export const buildCashflow = ({ payments = [], expenses = [], personal = [], mon
 
   return {
     kitnetsIn,
+    extraIn,
     kitnetsOut,
     kitnetsResult: kitnetsIn - kitnetsOut,
     personalIn,
     personalOut,
     personalResult: personalIn - personalOut,
-    finalResult: kitnetsIn - kitnetsOut + personalIn - personalOut,
+    finalResult: kitnetsIn + extraIn - kitnetsOut + personalIn - personalOut,
     investedInBusiness,
     pendingCardReview,
   };

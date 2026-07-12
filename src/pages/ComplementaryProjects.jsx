@@ -15,6 +15,7 @@ const fields = [
     { value: 'recebido', label: 'Recebido' },
   ] },
   { name: 'expected_payment_date', label: 'Previsão de recebimento', type: 'date', help: 'No dia previsto o app pergunta se o valor caiu na conta' },
+  { name: 'received_date', label: 'Data em que recebeu', type: 'date', help: 'Use a data real em que o dinheiro caiu na conta' },
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Detalhes do projeto, condições de pagamento...' },
 ];
 
@@ -29,6 +30,7 @@ const columns = [
   { field: 'project_type', label: 'Tipo' },
   { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
   { field: 'due_date', label: 'Prazo', format: 'date' },
+  { field: 'received_date', label: 'Recebido em', format: 'date' },
   { field: 'status', label: 'Status', format: 'badge' },
 ];
 

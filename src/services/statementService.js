@@ -4,6 +4,8 @@
 // Usa a MESMA semântica de "realizado" do cashflowService.js (regime de caixa:
 // só pago/recebido entra), para os totais nunca divergirem entre telas.
 import { financialService } from './financialService';
+import { rentPaymentsOnly } from './paymentClassifier.js';
+import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
 
 const toMoney = (value) => Number(value || 0);
 const paymentValue = financialService.netPaymentValue;
@@ -24,6 +26,8 @@ export const buildStatement = ({
   contracts = [],
   kitnets = [],
   tenants = [],
+  projects = [],
+  expertReports = [],
   monthKey,
 }) => {
   const kitnetById = new Map(kitnets.map((row) => [row.id, row]));
@@ -47,7 +51,7 @@ export const buildStatement = ({
     };
   };
 
-  const rentIncome = payments
+  const rentIncome = rentPaymentsOnly(payments)
     .filter((row) => inMonth(row.payment_date, monthKey))
     .map((row) => {
       const { kitnet, tenant, competence } = resolvePaymentOrigin(row);
@@ -64,6 +68,19 @@ export const buildStatement = ({
         confirmed: true,
       };
     });
+
+  const extraIncome = buildExtraIncomeRows({ projects, expertReports, month: monthKey })
+    .map((row) => ({
+      id: `extra-${row.id}`,
+      date: row.date,
+      kind: 'entrada',
+      origin: 'extras',
+      category: row.kind.toLowerCase(),
+      label: `${row.kind} — ${row.label}`,
+      detail: row.status === 'recebido' ? 'Recebido' : 'Previsto',
+      value: row.value,
+      confirmed: row.status === 'recebido',
+    }));
 
   const kitnetExpenses = expenses
     .filter((row) => inMonth(row.date, monthKey))
@@ -96,7 +113,7 @@ export const buildStatement = ({
       confirmed: isConfirmed(row),
     }));
 
-  const all = [...rentIncome, ...kitnetExpenses, ...personalMovements];
+  const all = [...rentIncome, ...extraIncome, ...kitnetExpenses, ...personalMovements];
   const realized = all.filter((row) => row.confirmed);
   const pending = all
     .filter((row) => !row.confirmed)

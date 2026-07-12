@@ -19,6 +19,46 @@ describe('statementService', () => {
     expect(result.totalIn).toBe(800);
   });
 
+  it('inclui projetos recebidos no mes pela data real de recebimento', () => {
+    const result = buildStatement({
+      projects: [
+        {
+          id: 'p1',
+          client: 'CF Ribeiro',
+          project_type: 'Complementares',
+          value: 2000,
+          status: 'recebido',
+          due_date: '2026-07-12',
+          expected_payment_date: '2026-07-12',
+          received_date: '2026-06-26',
+        },
+      ],
+      monthKey: '2026-06',
+    });
+
+    expect(result.movements).toHaveLength(1);
+    expect(result.movements[0].label).toContain('Projeto');
+    expect(result.movements[0].date).toBe('2026-06-26');
+    expect(result.totalIn).toBe(2000);
+  });
+
+  it('nao trata pagamento sem vinculo como aluguel', () => {
+    const result = buildStatement({
+      payments: [
+        { id: 'orphan', payment_date: '2026-06-30', paid_value: 9000 },
+        { id: 'rent', receivable_id: 'r1', payment_date: '2026-06-30', paid_value: 950 },
+      ],
+      receivables,
+      contracts,
+      kitnets,
+      tenants,
+      monthKey: '2026-06',
+    });
+
+    expect(result.movements).toHaveLength(1);
+    expect(result.totalIn).toBe(950);
+  });
+
   it('só conta despesas pagas como saída realizada; pendentes vão para a lista separada', () => {
     const expenses = [
       { id: 'e1', date: '2026-07-05', description: 'Água', value: 90, status: 'pago', kitnet_id: 'k1' },

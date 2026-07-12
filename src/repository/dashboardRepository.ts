@@ -19,4 +19,10 @@ export const dashboardRepository = {
   getTenants() {
     return repository.list('Tenant');
   },
+  getProjects() {
+    return repository.list('ComplementaryProject');
+  },
+  getExpertReports() {
+    return repository.list('ExpertReport');
+  },
 };

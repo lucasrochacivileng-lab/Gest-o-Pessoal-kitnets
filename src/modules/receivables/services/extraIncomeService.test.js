@@ -34,4 +34,24 @@ describe('extraIncomeService', () => {
       count: 2,
     });
   });
+
+  it('prioriza a data real de recebimento sobre a previsao', () => {
+    const rows = buildExtraIncomeRows({
+      month: '2026-06',
+      projects: [
+        {
+          id: 'p1',
+          client: 'CF Ribeiro',
+          project_type: 'complementares',
+          value: 2000,
+          status: 'recebido',
+          expected_payment_date: '2026-07-12',
+          received_date: '2026-06-26',
+        },
+      ],
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].date).toBe('2026-06-26');
+  });
 });

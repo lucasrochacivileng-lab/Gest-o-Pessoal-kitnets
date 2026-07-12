@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, Printer } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { financialService } from '../services/financialService';
+import { rentPaymentsOnly } from '../services/paymentClassifier.js';
 
 const entities = ['Receivable', 'Payment', 'Expense', 'Contract'];
 
@@ -58,7 +59,7 @@ export default function Reports() {
   }, []);
 
   const reportData = useMemo(() => {
-    const payments = data.Payment.filter((row) => row.payment_date?.startsWith(year));
+    const payments = rentPaymentsOnly(data.Payment).filter((row) => row.payment_date?.startsWith(year));
     // Demonstrativo de IR do aluguel (carnê-leão) é regime de CAIXA: a receita
     // já usa só pagamentos recebidos, então a despesa também tem que ser só a
     // efetivamente paga (status 'pago'), como no cashflowService/Extrato/Caixa

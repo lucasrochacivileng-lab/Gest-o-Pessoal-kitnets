@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Building2, Clock, Search, User } from 'lucide-react';
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Building2, Clock, Search, User } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { buildStatement } from '../services/statementService.js';
 import { findAllDuplicates } from '../services/duplicateCheckService.js';
@@ -14,6 +14,7 @@ const FILTERS = [
   { key: 'entrada', label: 'Entradas' },
   { key: 'saida', label: 'Saídas' },
   { key: 'kitnets', label: 'Kitnets' },
+  { key: 'extras', label: 'Projetos/perícias' },
   { key: 'pessoal', label: 'Pessoal' },
 ];
 
@@ -60,7 +61,7 @@ function DuplicatePanel({ groups }) {
 
 function MovementRow({ movement }) {
   const isIncome = movement.kind === 'entrada';
-  const OriginIcon = movement.origin === 'pessoal' ? User : Building2;
+  const OriginIcon = movement.origin === 'pessoal' ? User : movement.origin === 'extras' ? Briefcase : Building2;
 
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5">
@@ -91,7 +92,7 @@ export default function Statement() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [payments, expenses, personal, receivables, contracts, kitnets, tenants] = await Promise.all([
+      const [payments, expenses, personal, receivables, contracts, kitnets, tenants, projects, expertReports] = await Promise.all([
         repository.list('Payment'),
         repository.list('Expense'),
         repository.list('PersonalIncome'),
@@ -99,8 +100,10 @@ export default function Statement() {
         repository.list('Contract'),
         repository.list('Kitnet'),
         repository.list('Tenant'),
+        repository.list('ComplementaryProject'),
+        repository.list('ExpertReport'),
       ]);
-      setData({ payments, expenses, personal, receivables, contracts, kitnets, tenants });
+      setData({ payments, expenses, personal, receivables, contracts, kitnets, tenants, projects, expertReports });
       setLoading(false);
     };
 
@@ -126,7 +129,8 @@ export default function Statement() {
       if (filter === 'entrada' && movement.kind !== 'entrada') return false;
       if (filter === 'saida' && movement.kind !== 'saida') return false;
       if (filter === 'kitnets' && movement.origin !== 'kitnets') return false;
-      if (filter === 'pessoal' && movement.origin === 'kitnets') return false;
+      if (filter === 'extras' && movement.origin !== 'extras') return false;
+      if (filter === 'pessoal' && movement.origin !== 'pessoal') return false;
 
       if (search) {
         const text = `${movement.label} ${movement.detail} ${movement.category}`.toLowerCase();

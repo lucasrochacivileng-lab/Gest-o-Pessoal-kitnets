@@ -68,7 +68,7 @@ describe('receivableService', () => {
       {
         id: 'r1',
         status: RECEIVABLE_STATUS.PARTIAL,
-        due_date: '2026-07-10',
+        due_date: '2026-07-20',
         competence: '2026-07',
         payments: [
           { id: 'p1', receivable_id: 'r1', paid_value: 300, payment_date: '2026-07-07' },

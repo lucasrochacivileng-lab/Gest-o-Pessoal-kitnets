@@ -3,6 +3,8 @@ import { getReceivableStatus } from '../modules/receivables/services/receivableS
 import { RECEIVABLE_STATUS } from '../modules/receivables/types/receivable.types.js';
 import { categoryLabel } from './categoryReportService.js';
 import { financialService } from './financialService';
+import { rentPaymentsOnly } from './paymentClassifier.js';
+import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const moneyValue = (value) => Number(value || 0);
@@ -58,22 +60,28 @@ const buildActionItems = (receivables, contracts, kitnets, tenants, today) => {
 
 export const dashboardService = {
   async getDashboardData() {
-    const [kitnets, receivables, payments, expenses, contracts, tenants] = await Promise.all([
+    const [kitnets, receivables, payments, expenses, contracts, tenants, projects, expertReports] = await Promise.all([
       dashboardRepository.getKitnets(),
       dashboardRepository.getReceivables(),
       dashboardRepository.getPayments(),
       dashboardRepository.getExpenses(),
       dashboardRepository.getContracts(),
       dashboardRepository.getTenants(),
+      dashboardRepository.getProjects(),
+      dashboardRepository.getExpertReports(),
     ]);
 
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const today = now.toISOString().split('T')[0];
 
-    const monthPayments = payments.filter((payment) => payment.payment_date && payment.payment_date.startsWith(currentMonth));
+    const rentPayments = rentPaymentsOnly(payments);
+    const monthPayments = rentPayments.filter((payment) => payment.payment_date && payment.payment_date.startsWith(currentMonth));
+    const monthExtraIncome = buildExtraIncomeRows({ projects, expertReports, month: currentMonth })
+      .filter((row) => row.status === 'recebido')
+      .reduce((sum, row) => sum + moneyValue(row.value), 0);
     const monthExpenses = expenses.filter((expense) => expense.date && expense.date.startsWith(currentMonth));
-    const revenue = monthPayments.reduce((sum, payment) => sum + paymentValue(payment), 0);
+    const revenue = monthPayments.reduce((sum, payment) => sum + paymentValue(payment), 0) + monthExtraIncome;
     const expenseTotal = monthExpenses.reduce((sum, expense) => sum + (expense.value || 0), 0);
 
     // Mesma regra de status usada em Recebimentos (getReceivableStatus): um
@@ -96,16 +104,19 @@ export const dashboardService = {
     for (let index = 5; index >= 0; index -= 1) {
       const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const monthPaymentsForKey = payments.filter((payment) => payment.payment_date && payment.payment_date.startsWith(key));
+      const monthPaymentsForKey = rentPayments.filter((payment) => payment.payment_date && payment.payment_date.startsWith(key));
       const monthExpensesForKey = expenses.filter((expense) => expense.date && expense.date.startsWith(key));
       const receipts = monthPaymentsForKey.reduce((sum, payment) => sum + paymentValue(payment), 0);
+      const extraReceipts = buildExtraIncomeRows({ projects, expertReports, month: key })
+        .filter((row) => row.status === 'recebido')
+        .reduce((sum, row) => sum + moneyValue(row.value), 0);
       const expensesValue = monthExpensesForKey.reduce((sum, expense) => sum + (expense.value || 0), 0);
 
       monthlyData.push({
         month: MONTH_NAMES[date.getMonth()],
-        receitas: receipts,
+        receitas: receipts + extraReceipts,
         despesas: expensesValue,
-        lucro: receipts - expensesValue,
+        lucro: receipts + extraReceipts - expensesValue,
       });
     }
 

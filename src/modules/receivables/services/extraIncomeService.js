@@ -1,9 +1,9 @@
 const toMoney = (value) => Number(value || 0);
 const monthOf = (date) => String(date || '').slice(0, 7);
 
-const incomeDate = (row = {}) => (
-  row.received_at
-  || row.received_date
+export const incomeDate = (row = {}) => (
+  row.received_date
+  || row.received_at
   || row.expected_payment_date
   || row.due_date
   || ''
