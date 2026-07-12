@@ -94,9 +94,29 @@ describe('cardStatementImportService', () => {
       installment: '20/21',
       category: 'investimento kitnets',
       context: 'obra',
+      segment: 'kitnets', // gasto de obra começa como investimento nas kitnets
       kitnet_id: 'k8',
     });
     expect(preview[1]).toMatchObject({ date: '2026-08-10', installment: '21/21' });
+  });
+
+  it('compra sem classificacao de obra comeca no segmento pessoal', () => {
+    const preview = buildInstallmentPreview({
+      statementMonth: '2026-07',
+      dueDay: 10,
+      transactions: [
+        {
+          purchase_date: '2026-07-08',
+          description: 'Padaria do bairro',
+          value: 30,
+          card_name: 'Nubank',
+          installment_current: 1,
+          installment_total: 1,
+        },
+      ],
+    });
+
+    expect(preview[0].segment).toBe('pessoal');
   });
 
   it('marca duplicidade por data, descricao, valor, cartao e parcela', () => {

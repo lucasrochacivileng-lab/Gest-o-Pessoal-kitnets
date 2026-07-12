@@ -11,6 +11,11 @@ export const isCardTransaction = (row = {}) => (
 );
 
 export const getEconomicOrigin = (row = {}) => {
+  // O segmento novo manda quando existe; senão, cai no `context` histórico.
+  // Só custo de kitnet aparece como "kitnets" na divisão da fatura; perícias,
+  // projetos, trabalho e pessoal entram todos como gasto pessoal do cartão.
+  if (row.segment === 'kitnets') return 'kitnets';
+  if (row.segment) return 'pessoal';
   if (['kitnets', 'obra'].includes(row.context)) return 'kitnets';
   return 'pessoal';
 };

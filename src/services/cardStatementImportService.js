@@ -245,13 +245,20 @@ export const buildInstallmentPreview = ({
         description: transaction.description,
         value: transaction.value,
         context: classification.context,
+        // Segmento (centro de resultado) sugerido pela classificação — gasto de
+        // obra é investimento nas kitnets; o resto começa como pessoal. Fica
+        // editável na prévia para o usuário mandar a compra para Perícias/
+        // Projetos etc. antes de salvar.
+        segment: classification.context === 'obra' ? 'kitnets' : 'pessoal',
         category: classification.category,
         card_name: cardName,
         installment: installmentLabel,
         status: 'revisar',
         recurring: false,
         kitnet_id: matchKitnetId(transaction.description, kitnets),
-        notes: 'Importado de fatura de cartao. Revisar categoria/contexto antes de confirmar no caixa.',
+        expert_report_id: '',
+        project_id: '',
+        notes: 'Importado de fatura de cartao. Revisar segmento/categoria antes de confirmar no caixa.',
       };
 
       item.origin_hash = buildOriginHash(item);

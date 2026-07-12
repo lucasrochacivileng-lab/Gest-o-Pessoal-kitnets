@@ -7,6 +7,19 @@ import {
   parseStatementFile,
   summarizeByCategory,
 } from '../services/cardStatementImportService.js';
+import { SEGMENTS } from '../services/segmentConsolidationService.js';
+
+const segmentOptions = SEGMENTS.map((segment) => ({ value: segment.key, label: segment.label }));
+const expertReportLabel = (report) => [report.client, report.process_number].filter(Boolean).join(' — ') || report.report_type || report.id;
+const projectLabel = (project) => [project.client, project.project_type].filter(Boolean).join(' — ') || project.address || project.id;
+// Ao salvar, o `context` (usado pela divisão Pessoal/Kitnets das faturas)
+// segue o segmento: só o segmento Kitnets é custo do imóvel — mantém 'obra'
+// quando a classificação marcou investimento, para o card de investimento
+// continuar somando certo; os demais segmentos entram como pessoal.
+const contextForSegment = (row) => {
+  if (row.segment === 'kitnets') return row.context === 'obra' ? 'obra' : 'kitnets';
+  return 'pessoal';
+};
 
 const STATUS_BADGE_COLORS = {
   pago: 'ds-badge-success',
@@ -31,11 +44,6 @@ const categoryOptions = [
   'tarifas bancarias',
   'outros',
 ];
-const contextOptions = [
-  { value: 'pessoal', label: 'Pessoal' },
-  { value: 'kitnets', label: 'Kitnets' },
-  { value: 'obra', label: 'Obra / investimento' },
-];
 
 // Mesmo formato que uma linha importada de fatura (cardStatementImportService
 // buildInstallmentPreview): "date" é o vencimento usado por cardInvoiceService
@@ -46,8 +54,13 @@ const fields = [
   { name: 'card_name', label: 'Nome do cartão', placeholder: 'Nubank, Santander...' },
   { name: 'description', label: 'Descrição', placeholder: 'Compra de material' },
   { name: 'category', label: 'Categoria', type: 'select', options: categoryOptions },
-  { name: 'context', label: 'Contexto', type: 'select', options: contextOptions },
-  { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet' },
+  { name: 'segment', label: 'Segmento', type: 'select', options: segmentOptions },
+  // Vínculo condicional ao segmento (mesma lógica da tela de Despesas).
+  { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet', extraOptions: [
+    { value: 'geral', label: 'Geral (rateado entre as unidades)' },
+  ], visibleWhen: (form) => form.segment === 'kitnets' },
+  { name: 'expert_report_id', label: 'Perícia', type: 'select', optionsEntity: 'ExpertReport', optionLabel: expertReportLabel, visibleWhen: (form) => form.segment === 'pericias' },
+  { name: 'project_id', label: 'Projeto', type: 'select', optionsEntity: 'ComplementaryProject', optionLabel: projectLabel, visibleWhen: (form) => form.segment === 'projetos' },
   { name: 'value', label: 'Valor', type: 'number', placeholder: '1200' },
   { name: 'installment', label: 'Parcela', placeholder: '1/1' },
   { name: 'status', label: 'Status', type: 'select', options: [
@@ -57,12 +70,15 @@ const fields = [
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Detalhes da compra' },
 ];
 
+const segmentLabelMap = Object.fromEntries(segmentOptions.map((segment) => [segment.value, segment.label]));
+const cardSegmentLabel = (value) => segmentLabelMap[value] || '';
+
 const manualColumns = [
   { field: 'date', label: 'Vencimento', format: 'date' },
   { field: 'description', label: 'Descrição' },
   { field: 'card_name', label: 'Cartão' },
   { field: 'category', label: 'Categoria' },
-  { field: 'context', label: 'Contexto' },
+  { field: 'segment', label: 'Segmento', formatValue: cardSegmentLabel },
   { field: 'value', label: 'Valor', format: 'currency', align: 'right' },
   { field: 'status', label: 'Status', format: 'badge' },
 ];
@@ -89,18 +105,24 @@ export default function CreditCards() {
   const [dueDay, setDueDay] = useState(10);
   const [previewRows, setPreviewRows] = useState([]);
   const [kitnets, setKitnets] = useState([]);
+  const [expertReports, setExpertReports] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [existingTransactions, setExistingTransactions] = useState([]);
   const [fileName, setFileName] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
   const loadReferenceData = async () => {
-    const [kitnetRows, personalRows] = await Promise.all([
+    const [kitnetRows, personalRows, expertReportRows, projectRows] = await Promise.all([
       repository.list('Kitnet'),
       repository.list('PersonalIncome'),
+      repository.list('ExpertReport'),
+      repository.list('ComplementaryProject'),
     ]);
 
     setKitnets(kitnetRows);
+    setExpertReports(expertReportRows);
+    setProjects(projectRows);
     setExistingTransactions(personalRows.filter((row) => row.type === 'card_transaction'));
   };
 
@@ -177,6 +199,7 @@ export default function CreditCards() {
 
       await Promise.all(selectedRows.map((row) => repository.create('PersonalIncome', {
         ...pickRow(row),
+        context: contextForSegment(row),
         imported_batch_id: batch.id,
       })));
 
@@ -265,8 +288,8 @@ export default function CreditCards() {
                   <th className="px-2 py-2">Cartão</th>
                   <th className="px-2 py-2">Parcela</th>
                   <th className="px-2 py-2">Categoria</th>
-                  <th className="px-2 py-2">Contexto</th>
-                  <th className="px-2 py-2">Kitnet</th>
+                  <th className="px-2 py-2">Segmento</th>
+                  <th className="px-2 py-2">Vínculo</th>
                 </tr>
               </thead>
               <tbody>
@@ -301,15 +324,30 @@ export default function CreditCards() {
                       </select>
                     </td>
                     <td className="px-2 py-2">
-                      <select value={row.context || 'pessoal'} onChange={(event) => updatePreviewRow(row.preview_id, { context: event.target.value })} className="ds-input min-w-44">
-                        {contextOptions.map((context) => <option key={context.value} value={context.value}>{context.label}</option>)}
+                      <select value={row.segment || 'pessoal'} onChange={(event) => updatePreviewRow(row.preview_id, { segment: event.target.value })} className="ds-input min-w-44">
+                        {segmentOptions.map((segment) => <option key={segment.value} value={segment.value}>{segment.label}</option>)}
                       </select>
                     </td>
                     <td className="px-2 py-2">
-                      <select value={row.kitnet_id || ''} onChange={(event) => updatePreviewRow(row.preview_id, { kitnet_id: event.target.value })} className="ds-input min-w-40">
-                        <option value="">Sem vínculo</option>
-                        {kitnets.map((kitnet) => <option key={kitnet.id} value={kitnet.id}>{kitnet.name}</option>)}
-                      </select>
+                      {row.segment === 'kitnets' ? (
+                        <select value={row.kitnet_id || ''} onChange={(event) => updatePreviewRow(row.preview_id, { kitnet_id: event.target.value })} className="ds-input min-w-40">
+                          <option value="">Sem vínculo</option>
+                          <option value="geral">Geral (rateado)</option>
+                          {kitnets.map((kitnet) => <option key={kitnet.id} value={kitnet.id}>{kitnet.name}</option>)}
+                        </select>
+                      ) : row.segment === 'pericias' ? (
+                        <select value={row.expert_report_id || ''} onChange={(event) => updatePreviewRow(row.preview_id, { expert_report_id: event.target.value })} className="ds-input min-w-40">
+                          <option value="">Sem vínculo</option>
+                          {expertReports.map((report) => <option key={report.id} value={report.id}>{expertReportLabel(report)}</option>)}
+                        </select>
+                      ) : row.segment === 'projetos' ? (
+                        <select value={row.project_id || ''} onChange={(event) => updatePreviewRow(row.preview_id, { project_id: event.target.value })} className="ds-input min-w-40">
+                          <option value="">Sem vínculo</option>
+                          {projects.map((project) => <option key={project.id} value={project.id}>{projectLabel(project)}</option>)}
+                        </select>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -339,6 +377,11 @@ export default function CreditCards() {
         cardFields={['card_name', 'description']}
         columns={manualColumns}
         badgeColors={STATUS_BADGE_COLORS}
+        relations={[
+          { key: 'Kitnet', entity: 'Kitnet' },
+          { key: 'ExpertReport', entity: 'ExpertReport' },
+          { key: 'ComplementaryProject', entity: 'ComplementaryProject' },
+        ]}
       />
     </div>
   );

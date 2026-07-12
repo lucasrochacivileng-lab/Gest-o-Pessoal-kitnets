@@ -43,6 +43,14 @@ describe('cardInvoiceService', () => {
     expect(getEconomicOrigin({ context: 'pessoal' })).toBe('pessoal');
   });
 
+  it('usa o segmento quando presente: so kitnets e custo do imovel, o resto e pessoal', () => {
+    expect(getEconomicOrigin({ segment: 'kitnets' })).toBe('kitnets');
+    expect(getEconomicOrigin({ segment: 'pericias' })).toBe('pessoal');
+    expect(getEconomicOrigin({ segment: 'projetos' })).toBe('pessoal');
+    // Segmento tem prioridade sobre o context legado.
+    expect(getEconomicOrigin({ segment: 'pericias', context: 'kitnets' })).toBe('pessoal');
+  });
+
   it('classifica investimento e financiamento sem depender da conta usada', () => {
     expect(getCostType({ context: 'obra', category: 'outros' })).toBe('investimento');
     expect(getCostType({ category: 'investimento kitnets' })).toBe('investimento');
