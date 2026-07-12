@@ -28,6 +28,25 @@ describe('buildRecurringExpenses', () => {
     });
   });
 
+  it('carrega o segmento e o vinculo ao regenerar (despesa pessoal nao vira kitnets)', () => {
+    const result = buildRecurringExpenses(
+      [expense({ segment: 'pessoal', kitnet_id: '', description: 'Energia da casa' })],
+      '2026-07',
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ segment: 'pessoal', description: 'Energia da casa' });
+  });
+
+  it('carrega o vinculo de pericia ao regenerar', () => {
+    const result = buildRecurringExpenses(
+      [expense({ segment: 'pericias', kitnet_id: '', expert_report_id: 'p1', description: 'Custo laudo' })],
+      '2026-07',
+    );
+
+    expect(result[0]).toMatchObject({ segment: 'pericias', expert_report_id: 'p1' });
+  });
+
   it('não duplica se a despesa já foi lançada no mês', () => {
     const rows = [
       expense(),

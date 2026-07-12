@@ -21,6 +21,15 @@ const contextForSegment = (row) => {
   return 'pessoal';
 };
 
+// Ao salvar, mantém só o vínculo do segmento escolhido — se o usuário trocou
+// de segmento na prévia depois do auto-preenchimento, os outros vínculos não
+// vão como "órfãos" no registro.
+const linksForSegment = (row) => ({
+  kitnet_id: row.segment === 'kitnets' ? (row.kitnet_id || '') : '',
+  expert_report_id: row.segment === 'pericias' ? (row.expert_report_id || '') : '',
+  project_id: row.segment === 'projetos' ? (row.project_id || '') : '',
+});
+
 const STATUS_BADGE_COLORS = {
   pago: 'ds-badge-success',
   pendente: 'ds-badge-warning',
@@ -58,7 +67,10 @@ const fields = [
   // Vínculo condicional ao segmento (mesma lógica da tela de Despesas).
   { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet', extraOptions: [
     { value: 'geral', label: 'Geral (rateado entre as unidades)' },
-  ], visibleWhen: (form) => form.segment === 'kitnets' },
+    // `!form.segment` mantém o campo visível ao editar um lançamento antigo
+    // (sem segmento) que já tinha kitnet — senão o EntityPage limparia o
+    // kitnet_id ao salvar, apagando o vínculo existente.
+  ], visibleWhen: (form) => !form.segment || form.segment === 'kitnets' },
   { name: 'expert_report_id', label: 'Perícia', type: 'select', optionsEntity: 'ExpertReport', optionLabel: expertReportLabel, visibleWhen: (form) => form.segment === 'pericias' },
   { name: 'project_id', label: 'Projeto', type: 'select', optionsEntity: 'ComplementaryProject', optionLabel: projectLabel, visibleWhen: (form) => form.segment === 'projetos' },
   { name: 'value', label: 'Valor', type: 'number', placeholder: '1200' },
@@ -200,6 +212,7 @@ export default function CreditCards() {
       await Promise.all(selectedRows.map((row) => repository.create('PersonalIncome', {
         ...pickRow(row),
         context: contextForSegment(row),
+        ...linksForSegment(row),
         imported_batch_id: batch.id,
       })));
 

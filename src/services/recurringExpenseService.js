@@ -48,7 +48,13 @@ export const buildRecurringExpenses = (expenses = [], competence) => {
         date: `${competence}-${String(day).padStart(2, '0')}`,
         category: template.category || 'outro',
         type: template.type || 'fixa',
+        // Segmento e vínculo precisam vir do modelo: sem isso, uma despesa
+        // pessoal/perícia/projeto recorrente seria regerada sem segmento e o
+        // Consolidado a jogaria de volta em Kitnets todo mês.
+        segment: template.segment || '',
         kitnet_id: template.kitnet_id || '',
+        expert_report_id: template.expert_report_id || '',
+        project_id: template.project_id || '',
         description: template.description || '',
         value: Number(template.value || 0),
         payment_method: template.payment_method || '',
