@@ -42,50 +42,74 @@ export const resolveExpenseSegment = (row = {}, fallback = 'pessoal') => {
 export const buildSegmentConsolidation = ({
   payments = [], expenses = [], personal = [], projects = [], expertReports = [], monthKey,
 }) => {
-  const acc = Object.fromEntries(SEGMENTS.map((segment) => [segment.key, { ...segment, income: 0, expense: 0 }]));
+  const acc = Object.fromEntries(SEGMENTS.map((segment) => [segment.key, { ...segment, income: 0, expense: 0, items: [] }]));
+
+  // Cada lançamento que entra num total também é guardado em `items`, para o
+  // Consolidado poder abrir o detalhe do segmento (o que compõe aquele valor).
+  const addIncome = (key, value, item) => {
+    acc[key].income += value;
+    acc[key].items.push({ ...item, kind: 'entrada', value });
+  };
+  const addExpense = (key, value, item) => {
+    acc[key].expense += value;
+    acc[key].items.push({ ...item, kind: 'saida', value });
+  };
 
   // Kitnets: aluguéis recebidos entram; as despesas diretas pagas saem no
   // segmento que o lançamento indica (o padrão é Kitnets, para não mudar o
   // comportamento das despesas antigas que não têm segmento).
   payments
     .filter((row) => inMonth(row.payment_date, monthKey))
-    .forEach((row) => { acc.kitnets.income += paymentValue(row); });
+    .forEach((row) => addIncome('kitnets', paymentValue(row), {
+      date: row.payment_date, description: row.description || 'Aluguel recebido', source: 'Aluguel',
+    }));
   expenses
     .filter((row) => row.status === 'pago' && inMonth(row.date, monthKey))
-    .forEach((row) => { acc[resolveExpenseSegment(row, 'kitnets')].expense += toMoney(row.value); });
+    .forEach((row) => addExpense(resolveExpenseSegment(row, 'kitnets'), toMoney(row.value), {
+      date: row.date, description: row.description || row.category || 'Despesa', source: 'Despesa direta',
+    }));
 
   // Projetos e perícias: só o que foi efetivamente recebido no mês.
   projects
     .filter((row) => row.status === 'recebido' && inMonth(extraIncomeDate(row), monthKey))
-    .forEach((row) => { acc.projetos.income += toMoney(row.value); });
+    .forEach((row) => addIncome('projetos', toMoney(row.value), {
+      date: extraIncomeDate(row), description: [row.client, row.project_type].filter(Boolean).join(' — ') || 'Projeto', source: 'Projeto',
+    }));
   expertReports
     .filter((row) => row.status === 'recebido' && inMonth(extraIncomeDate(row), monthKey))
-    .forEach((row) => { acc.pericias.income += toMoney(row.fee_value); });
+    .forEach((row) => addIncome('pericias', toMoney(row.fee_value), {
+      date: extraIncomeDate(row), description: [row.client, row.process_number].filter(Boolean).join(' — ') || 'Perícia', source: 'Perícia',
+    }));
 
   // Renda pessoal confirmada: salário (contexto 'trabalho') vai pro segmento
   // Trabalho; o resto, pra Pessoal.
   personal
     .filter((row) => row.type === 'income' && isConfirmed(row) && inMonth(row.date, monthKey))
-    .forEach((row) => {
-      const key = row.context === 'trabalho' ? 'trabalho' : 'pessoal';
-      acc[key].income += toMoney(row.value);
-    });
+    .forEach((row) => addIncome(row.context === 'trabalho' ? 'trabalho' : 'pessoal', toMoney(row.value), {
+      date: row.date, description: row.description || row.category || 'Receita', source: 'Pessoal',
+    }));
 
   // Despesa pessoal confirmada — inclui as compras no cartão pessoal
   // ('card_transaction'), porque é comum pagar custo de kitnet no cartão
-  // pessoal. O que manda é o CONTEXTO, não o cartão: gasto marcado como
-  // kitnets/obra conta como despesa das kitnets (dinheiro investido no
-  // negócio); o resto, como despesa pessoal. Transações de cartão ainda em
-  // 'revisar'/'sugerido'/'ignorar' não são confirmadas e ficam de fora.
+  // pessoal. O que manda é o SEGMENTO (com o context como fallback dos
+  // lançamentos antigos): gasto de kitnets/obra conta como despesa das
+  // kitnets; perícia/projeto, na sua frente; o resto, como despesa pessoal.
+  // Transações de cartão em 'revisar'/'sugerido'/'ignorar' ficam de fora.
   personal
     .filter((row) => row.type !== 'income' && isConfirmed(row) && inMonth(row.date, monthKey))
-    .forEach((row) => {
-      acc[resolveExpenseSegment(row, 'pessoal')].expense += toMoney(row.value);
-    });
+    .forEach((row) => addExpense(resolveExpenseSegment(row, 'pessoal'), toMoney(row.value), {
+      date: row.date,
+      description: row.description || row.category || 'Despesa',
+      source: row.type === 'card_transaction' ? 'Cartão' : 'Pessoal',
+    }));
 
   const segments = SEGMENTS.map((segment) => {
     const entry = acc[segment.key];
-    return { ...entry, result: entry.income - entry.expense };
+    return {
+      ...entry,
+      result: entry.income - entry.expense,
+      items: [...entry.items].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))),
+    };
   });
 
   const global = segments.reduce((sum, segment) => ({

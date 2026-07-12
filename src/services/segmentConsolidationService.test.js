@@ -62,6 +62,24 @@ describe('buildSegmentConsolidation', () => {
     expect(bySegment(result, 'projetos').income).toBe(5000);
   });
 
+  it('coleta os itens que compoem cada segmento para o detalhe', () => {
+    const result = buildSegmentConsolidation(base);
+
+    const pericias = bySegment(result, 'pericias');
+    expect(pericias.items).toHaveLength(1);
+    expect(pericias.items[0]).toMatchObject({ kind: 'entrada', value: 2000, source: 'Perícia' });
+
+    // pessoal: 1 entrada (500) + 2 saidas (400 pessoal + 120 cartao pessoal).
+    const pessoal = bySegment(result, 'pessoal');
+    expect(pessoal.items).toHaveLength(3);
+    expect(pessoal.items.filter((item) => item.kind === 'saida')).toHaveLength(2);
+
+    // kitnets: 1 aluguel + 1 despesa direta + obra pessoal + cartao kitnet.
+    expect(bySegment(result, 'kitnets').items).toHaveLength(4);
+    // 'revisar' e lancamentos de outro mes nao entram no detalhe.
+    expect(bySegment(result, 'trabalho').items).toHaveLength(1);
+  });
+
   it('roteia a despesa direta pelo segmento escolhido (nao mais tudo em kitnets)', () => {
     const result = buildSegmentConsolidation({
       monthKey: '2026-07',

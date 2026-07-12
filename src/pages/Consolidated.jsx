@@ -4,6 +4,7 @@ import { useEntitySync } from '../hooks/useEntitySync.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { financialService } from '../services/financialService';
 import { buildSegmentConsolidation } from '../services/segmentConsolidationService.js';
+import { formatDateBR } from '../services/dateUtils.js';
 
 const money = (value) => financialService.formatCurrency(value);
 
@@ -23,6 +24,7 @@ function ResultValue({ value }) {
 export default function Consolidated() {
   const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
   const [data, setData] = useState(null);
+  const [selectedSegment, setSelectedSegment] = useState('');
 
   const load = async () => {
     const [payments, expenses, personal, projects, expertReports] = await Promise.all([
@@ -71,28 +73,92 @@ export default function Consolidated() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {consolidation.segments.map((segment) => (
-              <div key={segment.key} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">{segment.label}</p>
-                  <span className={`ds-badge ${SEGMENT_TONES[segment.key] || 'bg-slate-100 text-slate-700'}`}>
-                    {segment.result < 0 ? 'negativo' : 'resultado'}
-                  </span>
-                </div>
-                <ResultValue value={segment.result} />
-                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-sm">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Entradas</p>
-                    <p className="font-semibold text-emerald-700 tabular-nums">{money(segment.income)}</p>
+            {consolidation.segments.map((segment) => {
+              const active = selectedSegment === segment.key;
+              return (
+                <button
+                  key={segment.key}
+                  type="button"
+                  onClick={() => setSelectedSegment(active ? '' : segment.key)}
+                  className={`rounded-3xl border p-5 text-left shadow-sm transition ${
+                    active ? 'border-blue-500 ring-1 ring-blue-200' : 'border-slate-200 hover:bg-slate-50'
+                  } bg-white`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-900">{segment.label}</p>
+                    <span className={`ds-badge ${SEGMENT_TONES[segment.key] || 'bg-slate-100 text-slate-700'}`}>
+                      {segment.result < 0 ? 'negativo' : 'resultado'}
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Saídas</p>
-                    <p className="font-semibold text-red-600 tabular-nums">{money(segment.expense)}</p>
+                  <ResultValue value={segment.result} />
+                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-sm">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-400">Entradas</p>
+                      <p className="font-semibold text-emerald-700 tabular-nums">{money(segment.income)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">Saídas</p>
+                      <p className="font-semibold text-red-600 tabular-nums">{money(segment.expense)}</p>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
+                  <p className="mt-2 text-xs text-slate-400">
+                    {segment.items.length} lançamento(s) · {active ? 'clique para fechar' : 'clique para detalhar'}
+                  </p>
+                </button>
+              );
+            })}
           </div>
+
+          {selectedSegment ? (() => {
+            const segment = consolidation.segments.find((item) => item.key === selectedSegment);
+            if (!segment) return null;
+
+            return (
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-900">Detalhe — {segment.label}</p>
+                  <button type="button" onClick={() => setSelectedSegment('')} className="text-xs text-slate-500 hover:text-slate-700">
+                    fechar
+                  </button>
+                </div>
+
+                {segment.items.length === 0 ? (
+                  <p className="mt-3 text-sm text-slate-500">Nenhum lançamento neste segmento no mês.</p>
+                ) : (
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="text-xs uppercase tracking-wide text-slate-400">
+                        <tr>
+                          <th className="py-2 pr-4">Data</th>
+                          <th className="py-2 pr-4">Descrição</th>
+                          <th className="py-2 pr-4">Origem</th>
+                          <th className="py-2 pr-4">Tipo</th>
+                          <th className="py-2 text-right">Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {segment.items.map((item, index) => (
+                          <tr key={`${item.date}-${item.description}-${index}`} className="border-t border-slate-100">
+                            <td className="py-2 pr-4 text-slate-600">{formatDateBR(item.date)}</td>
+                            <td className="py-2 pr-4 text-slate-900">{item.description}</td>
+                            <td className="py-2 pr-4 text-slate-500">{item.source}</td>
+                            <td className="py-2 pr-4">
+                              <span className={item.kind === 'entrada' ? 'text-emerald-700' : 'text-red-600'}>
+                                {item.kind === 'entrada' ? 'Entrada' : 'Saída'}
+                              </span>
+                            </td>
+                            <td className={`py-2 text-right font-semibold tabular-nums ${item.kind === 'entrada' ? 'text-emerald-700' : 'text-red-600'}`}>
+                              {money(item.value)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })() : null}
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
             <p className="font-semibold text-slate-600">Como cada segmento é montado</p>
