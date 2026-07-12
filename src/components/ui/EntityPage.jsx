@@ -350,6 +350,19 @@ export default function EntityPage({
               const relationList = relationEntity ? relationOptions[relationEntity] || [] : null;
               const isSelect = field.type === 'select' || field.type === 'relation';
 
+              // Preserva no seletor um valor atual que não está mais entre as
+              // opções (ex.: uma categoria removida do menu depois de já ter
+              // sido usada): sem isso o <select> apareceria vazio ao editar o
+              // registro antigo, e salvar poderia trocar o valor sem querer. Só
+              // para opções estáticas — relações são resolvidas pela lista.
+              const currentValue = fieldValue(form[fieldName], field.type);
+              const knownStaticValues = new Set(
+                [...(field.extraOptions || []), ...(field.options || [])].map((option) => String(getOptionValue(option))),
+              );
+              const orphanValue = field.options && currentValue !== '' && !knownStaticValues.has(String(currentValue))
+                ? currentValue
+                : '';
+
               return (
                 <label key={fieldName} className="ds-form-field">
                   {field.label}
@@ -368,6 +381,7 @@ export default function EntityPage({
                       className={inputClass}
                     >
                       <option value="">Selecione</option>
+                      {orphanValue ? <option value={orphanValue}>{orphanValue}</option> : null}
                       {(field.extraOptions || []).map((option, optionIndex) => (
                         <option key={`${fieldName}-extra-${getOptionValue(option) || optionIndex}`} value={getOptionValue(option)}>
                           {getOptionLabel(option)}

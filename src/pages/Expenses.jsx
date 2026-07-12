@@ -53,6 +53,7 @@ const fields = [
     { value: 'seguro', label: 'Seguro' },
     { value: 'limpeza', label: 'Limpeza' },
     { value: 'material', label: 'Material' },
+    { value: 'obra', label: 'Obra' },
     { value: 'outro', label: 'Outro' },
   ] },
   { name: 'type', label: 'Tipo', type: 'select', options: [
