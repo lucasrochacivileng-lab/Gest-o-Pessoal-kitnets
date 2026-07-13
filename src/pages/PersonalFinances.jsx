@@ -5,7 +5,7 @@ import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { recurringIncomeService } from '../services/recurringIncomeService.js';
 
 const fields = [
-  { name: 'date', label: 'Data', type: 'date' },
+  { name: 'date', label: 'Data', type: 'date', default: 'today' },
   { name: 'type', label: 'Tipo', type: 'select', options: [
     { value: 'income', label: 'Receita' },
     { value: 'expense', label: 'Despesa' },
@@ -84,7 +84,7 @@ export default function PersonalFinances() {
     }
   };
 
-  return (
+  const topContent = (
     <div className="space-y-4">
       <MonthChips value={competence} onChange={setCompetence} />
       <div className="flex justify-end">
@@ -101,20 +101,23 @@ export default function PersonalFinances() {
       {message ? (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{message}</div>
       ) : null}
-
-      <EntityPage
-        key={reloadKey}
-        title="Finanças Pessoais"
-        subtitle="Receitas e despesas pessoais do mês em foco — marque o contexto (ex.: Trabalho/Servidor para o salário) e use 'Recorrente' + 'Gerar rendas' para o que entra todo mês."
-        entity="PersonalIncome"
-        fields={fields}
-        cardFields={['date', 'description', 'value']}
-        columns={columns}
-        badgeColors={STATUS_BADGE_COLORS}
-        checkDuplicate={findPersonalDuplicateOf}
-        filterRows={filterRows}
-        relations={[{ key: 'BankAccount', entity: 'BankAccount' }]}
-      />
     </div>
+  );
+
+  return (
+    <EntityPage
+      key={reloadKey}
+      title="Finanças Pessoais"
+      subtitle="Receitas e despesas pessoais do mês em foco — marque o contexto (ex.: Trabalho/Servidor para o salário) e use 'Recorrente' + 'Gerar rendas' para o que entra todo mês."
+      entity="PersonalIncome"
+      fields={fields}
+      cardFields={['date', 'description', 'value']}
+      columns={columns}
+      badgeColors={STATUS_BADGE_COLORS}
+      checkDuplicate={findPersonalDuplicateOf}
+      filterRows={filterRows}
+      relations={[{ key: 'BankAccount', entity: 'BankAccount' }]}
+      topContent={topContent}
+    />
   );
 }

@@ -29,7 +29,7 @@ const SEGMENT_LABELS = Object.fromEntries(SEGMENT_OPTIONS.map((s) => [s.value, s
 const segmentLabel = (value) => SEGMENT_LABELS[value] || 'Kitnets';
 
 const fields = [
-  { name: 'date', label: 'Data', type: 'date' },
+  { name: 'date', label: 'Data', type: 'date', default: 'today' },
   { name: 'segment', label: 'Segmento', type: 'select', options: SEGMENT_OPTIONS },
   // Vínculo do custo — condicional ao segmento. Kitnets aceita "Geral"
   // (rateado entre as unidades); Perícias/Projetos apontam para o item; o
@@ -533,7 +533,7 @@ export default function Expenses() {
     selectedSegment ? segmentLabel(selectedSegment) : null,
   ].filter(Boolean);
 
-  return (
+  const topContent = (
     <div className="space-y-4">
       <MonthChips value={competence} onChange={setCompetence} />
       <div className="flex justify-end">
@@ -566,10 +566,13 @@ export default function Expenses() {
       <SegmentFilter segments={segmentSummary} selected={selectedSegment} onSelect={setSelectedSegment} />
 
       <CategoryFilter categories={categorySummary} selected={selectedCategory} onSelect={setSelectedCategory} />
+    </div>
+  );
 
-      <EntityPage
-        key={reloadKey}
-        title="Despesas diretas"
+  return (
+    <EntityPage
+      key={reloadKey}
+      title="Despesas diretas"
         subtitle={activeFilters.length
           ? `Filtrado por ${activeFilters.join(' · ')} — clique de novo no filtro ativo para limpar.`
           : 'Boletos, Pix e contas lançadas diretamente. Faturas de cartão aparecem acima para não contar duas vezes.'}
@@ -591,7 +594,7 @@ export default function Expenses() {
           { key: 'ExpertReport', entity: 'ExpertReport' },
           { key: 'ComplementaryProject', entity: 'ComplementaryProject' },
         ]}
+        topContent={topContent}
       />
-    </div>
   );
 }

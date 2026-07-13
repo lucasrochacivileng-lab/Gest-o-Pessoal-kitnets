@@ -2,7 +2,7 @@ import React from 'react';
 import EntityPage from '../components/ui/EntityPage.jsx';
 
 const fields = [
-  { name: 'date', label: 'Data', type: 'date' },
+  { name: 'date', label: 'Data', type: 'date', default: 'today' },
   { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet' },
   { name: 'is_general', label: 'Geral', type: 'checkbox', help: 'Serviço geral sem kitnet específico' },
   { name: 'service', label: 'Serviço', placeholder: 'Reforma, Pintura, Hidráulica' },

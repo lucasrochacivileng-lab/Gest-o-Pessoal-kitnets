@@ -106,6 +106,10 @@ export default function EntityPage({
   // (ex.: `type: 'card_transaction'` para o lançamento entrar nos mesmos
   // relatórios de quem importa fatura). Só se aplica ao CRIAR, não ao editar.
   defaultValues = {},
+  // Conteúdo opcional renderizado LOGO ABAIXO do título e acima da lista
+  // (ex.: seletor de mês + botão "Gerar"): deixa o título no topo da página
+  // em vez de espremido no meio, abaixo dos controles.
+  topContent = null,
 }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -243,6 +247,22 @@ export default function EntityPage({
     setFormOpen(true);
   };
 
+  // Valores iniciais de um cadastro NOVO: campos com `default: 'today'` já
+  // vêm com a data de hoje preenchida (economiza um toque no caso mais comum —
+  // lançar algo que aconteceu hoje). Outros defaults são literais.
+  const computeCreateDefaults = () => fields.reduce((acc, field) => {
+    if (field.default === undefined) return acc;
+    const fieldName = getFieldName(field);
+    acc[fieldName] = field.default === 'today' ? new Date().toISOString().slice(0, 10) : field.default;
+    return acc;
+  }, {});
+
+  const openCreate = () => {
+    setForm(computeCreateDefaults());
+    setEditingId(null);
+    setFormOpen(true);
+  };
+
   const closeForm = () => {
     setForm({});
     setEditingId(null);
@@ -343,13 +363,15 @@ export default function EntityPage({
           </button>
           <button
             type="button"
-            onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
+            onClick={() => (formOpen ? closeForm() : openCreate())}
             className="ds-btn ds-btn-primary"
           >
             <Plus className="h-4 w-4" /> Novo
           </button>
         </div>
       </div>
+
+      {topContent}
 
       {errorMessage ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
