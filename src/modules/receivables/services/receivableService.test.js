@@ -172,4 +172,27 @@ describe('receivableService', () => {
     expect(result.receivable.paid_value).toBe(800);
     expect(result.status).toBe(RECEIVABLE_STATUS.PAID);
   });
+  it('bloqueia pagamento acima do saldo restante antes de persistir', async () => {
+    const receivable = {
+      id: 'recebivel-excedente',
+      expected_value: 800,
+      paid_value: 300,
+      status: RECEIVABLE_STATUS.PARTIAL,
+    };
+
+    await expect(receivableService.registerPayment(receivable, { paid_value: 501 }))
+      .rejects.toThrow('O valor pago nao pode ser maior que o saldo restante.');
+  });
+
+  it('rejeita valores negativos em vez de transforma-los silenciosamente em zero', async () => {
+    const receivable = {
+      id: 'recebivel-negativo',
+      expected_value: 800,
+      paid_value: 0,
+      status: RECEIVABLE_STATUS.PENDING,
+    };
+
+    await expect(receivableService.registerPayment(receivable, { paid_value: -1 }))
+      .rejects.toThrow(/nao podem ser negativos/i);
+  });
 });

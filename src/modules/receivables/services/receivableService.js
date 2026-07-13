@@ -73,8 +73,6 @@ export const buildReceivablesForCompetence = (contracts = [], receivables = [], 
         active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        created_by: 'local-user',
-        updated_by: 'local-user',
       };
     });
 };
@@ -230,15 +228,26 @@ export const receivableService = {
     // Piso de zero: valor pago, desconto, multa e juros nunca são negativos.
     // Este diálogo de pagamento não passa pelo EntityPage (que já floora),
     // então um "-" digitado por engano distorceria o líquido e o total pago.
-    const paidValue = Math.max(toMoney(paymentPayload.paid_value ?? receivable.expected_value), 0);
-    const discount = Math.max(toMoney(paymentPayload.discount), 0);
-    const fine = Math.max(toMoney(paymentPayload.fine), 0);
-    const interest = Math.max(toMoney(paymentPayload.interest), 0);
+    const rawValues = [
+      paymentPayload.paid_value ?? receivable.expected_value,
+      paymentPayload.discount ?? 0,
+      paymentPayload.fine ?? 0,
+      paymentPayload.interest ?? 0,
+    ].map(Number);
+    if (rawValues.some((value) => !Number.isFinite(value))) {
+      throw new Error('Informe valores monetarios validos.');
+    }
+    if (rawValues.some((value) => value < 0)) {
+      throw new Error('Pagamento, desconto, multa e juros nao podem ser negativos.');
+    }
+
+    const [paidValue, discount, fine, interest] = rawValues.map((value) => fromCents(toCents(value)));
+    if (toCents(paidValue) > toCents(calculateOutstandingValue(receivable))) {
+      throw new Error('O valor pago nao pode ser maior que o saldo restante.');
+    }
     const netValue = calculatePaymentNetValue({ paid_value: paidValue, discount, fine, interest });
     const totalPaid = addMoney(paidValue, receivable.paid_value);
     const status = toCents(totalPaid) >= toCents(receivable.expected_value) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
-    const receiptNumber = await receivableRepository.getNextReceiptNumber();
-
     const payload = {
       ...paymentPayload,
       receivable_id: receivable.id,
@@ -249,7 +258,6 @@ export const receivableService = {
       kitnet_id: receivable.kitnet_id,
       tenant_id: receivable.tenant_id,
       competence: receivable.competence,
-      receipt_number: receiptNumber,
       paid_value: paidValue,
       net_value: netValue,
       payment_date: formatDate(paymentPayload.payment_date || today()),
@@ -262,8 +270,6 @@ export const receivableService = {
       active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      created_by: paymentPayload.created_by || 'local-user',
-      updated_by: paymentPayload.updated_by || 'local-user',
       status,
     };
 
@@ -272,7 +278,7 @@ export const receivableService = {
       ...result,
       netValue,
       status: result.receivable?.status || status,
-      receiptNumber: result.receiptNumber || result.payment?.receipt_number || receiptNumber,
+      receiptNumber: result.receiptNumber || result.payment?.receipt_number,
     };
   },
 
@@ -284,7 +290,6 @@ export const receivableService = {
       due_date: formatDate(payload.due_date),
       notes: payload.notes || '',
       updated_at: new Date().toISOString(),
-      updated_by: payload.updated_by || 'local-user',
     });
   },
 };

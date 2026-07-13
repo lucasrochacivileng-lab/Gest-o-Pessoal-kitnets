@@ -90,7 +90,13 @@ export const localClient = {
   async create(entity, payload) {
     await delay();
     const db = readStorage();
-    const value = { id: createId(), active: true, ...payload };
+    const value = {
+      id: createId(),
+      active: true,
+      created_by: 'local-user',
+      updated_by: 'local-user',
+      ...payload,
+    };
     ensureEntity(db, entity).push(value);
     writeStorage(db);
     return clone(value);
@@ -106,7 +112,7 @@ export const localClient = {
       throw new Error(`Registro não encontrado em ${entity}: ${id}`);
     }
 
-    rows[index] = { ...rows[index], ...payload };
+    rows[index] = { ...rows[index], ...payload, updated_by: 'local-user' };
     writeStorage(db);
     return clone(rows[index]);
   },
