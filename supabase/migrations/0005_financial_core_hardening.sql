@@ -16,6 +16,51 @@ create policy "profiles update own or admin"
   using (id = (select auth.uid()) or public.is_admin())
   with check (id = (select auth.uid()) or public.is_admin());
 
+-- RLS limita linhas, mas nao limita colunas. Sem estes grants um usuario
+-- poderia usar a policy de perfil proprio para trocar role/active.
+revoke all on table public.profiles from anon;
+revoke insert, update, delete on table public.profiles from authenticated;
+grant select on table public.profiles to authenticated;
+grant update (name, avatar_url) on table public.profiles to authenticated;
+
+create or replace function public.admin_update_profile_access(
+  p_user_id uuid,
+  p_role public.app_role,
+  p_active boolean
+)
+returns public.profiles
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  updated_profile public.profiles;
+begin
+  if auth.uid() is null or not public.is_admin() then
+    raise exception using message = 'PROFILE_ADMIN_REQUIRED', errcode = '42501';
+  end if;
+  if p_user_id is null or p_role is null or p_active is null then
+    raise exception using message = 'PROFILE_INVALID_ACCESS_DATA', errcode = '22023';
+  end if;
+
+  update public.profiles
+  set role = p_role,
+      active = p_active,
+      updated_by = auth.uid(),
+      updated_at = clock_timestamp()
+  where id = p_user_id and deleted_at is null
+  returning * into updated_profile;
+
+  if not found then
+    raise exception using message = 'PROFILE_NOT_FOUND', errcode = 'P0002';
+  end if;
+  return updated_profile;
+end;
+$$;
+
+revoke execute on function public.admin_update_profile_access(uuid, public.app_role, boolean) from public, anon;
+grant execute on function public.admin_update_profile_access(uuid, public.app_role, boolean) to authenticated;
+
 drop index if exists public.records_receivable_contract_competence_uidx;
 
 create unique index records_receivable_contract_competence_uidx
@@ -70,6 +115,8 @@ set search_path = pg_catalog, public
 as $$
 declare
   actor text := auth.uid()::text;
+  audit_origin text;
+  audit_justification text;
 begin
   if actor is not null then
     if tg_op = 'INSERT' then
@@ -78,24 +125,18 @@ begin
     new.data := jsonb_set(new.data, '{updated_by}', to_jsonb(actor), true);
   end if;
 
-  perform set_config(
-    'app.audit_origin',
-    coalesce(
-      nullif(new.data ->> 'audit_origin', ''),
-      nullif(current_setting('app.audit_origin', true), ''),
-      'data_api'
-    ),
-    true
-  );
-  perform set_config(
-    'app.audit_justification',
-    coalesce(
-      nullif(new.data ->> 'audit_justification', ''),
-      nullif(current_setting('app.audit_justification', true), ''),
-      ''
-    ),
-    true
-  );
+  audit_origin := case current_setting('app.audit_scope', true)
+    when 'register_receivable_payment' then 'register_receivable_payment'
+    else 'data_api'
+  end;
+  audit_justification := left(btrim(coalesce(
+    nullif(current_setting('app.audit_justification_internal', true), ''),
+    new.data ->> 'audit_justification',
+    ''
+  )), 500);
+
+  perform set_config('app.audit_origin', audit_origin, true);
+  perform set_config('app.audit_justification', audit_justification, true);
   new.data := new.data - 'audit_origin' - 'audit_justification';
   return new;
 end;
@@ -179,6 +220,7 @@ set search_path = pg_catalog, public
 as $$
 declare
   receivable_row public.records%rowtype;
+  existing_payment_row public.records%rowtype;
   payment_data jsonb;
   updated_receivable_data jsonb;
   payment_date date;
@@ -195,6 +237,9 @@ declare
   expected_cents bigint;
   outstanding_cents bigint;
   new_status text;
+  destination_account text;
+  payment_method text;
+  bank_account_id text;
 begin
   if auth.uid() is null then
     raise exception using message = 'PAYMENT_AUTH_REQUIRED', errcode = '42501';
@@ -203,6 +248,10 @@ begin
       or jsonb_typeof(p_payment_data) <> 'object' then
     raise exception using message = 'PAYMENT_INVALID_PAYLOAD', errcode = '22023';
   end if;
+
+  -- Serializa retries do mesmo identificador, inclusive quando duas chamadas
+  -- chegam antes de a primeira inserir a linha de Payment.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('payment-id-' || p_payment_id));
 
   select * into receivable_row
   from public.records
@@ -245,8 +294,48 @@ begin
 
   total_paid_cents := current_paid_cents + paid_cents;
   net_cents := paid_cents - discount_cents + fine_cents + interest_cents;
+  if net_cents < 0 then
+    raise exception using message = 'PAYMENT_NEGATIVE_NET_VALUE', errcode = '22023';
+  end if;
   new_status := case when total_paid_cents >= expected_cents then 'pago' else 'parcial' end;
   receipt_year := to_char(payment_date, 'YYYY');
+  destination_account := coalesce(
+    nullif(btrim(p_payment_data ->> 'destination_account'), ''),
+    nullif(btrim(receivable_row.data ->> 'destination_account'), ''),
+    'Mercado Pago'
+  );
+  payment_method := coalesce(nullif(btrim(p_payment_data ->> 'payment_method'), ''), 'pix');
+  bank_account_id := nullif(btrim(p_payment_data ->> 'bank_account_id'), '');
+
+  select * into existing_payment_row
+  from public.records
+  where id = p_payment_id
+  for update;
+
+  if found then
+    if existing_payment_row.entity <> 'Payment'
+        or not existing_payment_row.active
+        or existing_payment_row.data ->> 'receivable_id' <> p_receivable_id
+        or round(coalesce((existing_payment_row.data ->> 'paid_value')::numeric, 0) * 100) <> paid_cents
+        or round(coalesce((existing_payment_row.data ->> 'discount')::numeric, 0) * 100) <> discount_cents
+        or round(coalesce((existing_payment_row.data ->> 'fine')::numeric, 0) * 100) <> fine_cents
+        or round(coalesce((existing_payment_row.data ->> 'interest')::numeric, 0) * 100) <> interest_cents
+        or coalesce(existing_payment_row.data ->> 'payment_date', '') <> payment_date::text
+        or coalesce(existing_payment_row.data ->> 'payment_method', 'pix') <> payment_method
+        or coalesce(existing_payment_row.data ->> 'destination_account', 'Mercado Pago') <> destination_account
+        or coalesce(existing_payment_row.data ->> 'bank_account_id', '') <> coalesce(bank_account_id, '') then
+      raise exception using message = 'PAYMENT_IDEMPOTENCY_CONFLICT', errcode = '23505';
+    end if;
+
+    return jsonb_build_object(
+      'schema_version', 1,
+      'payment', existing_payment_row.data,
+      'receivable', receivable_row.data,
+      'receipt_number', existing_payment_row.data ->> 'receipt_number',
+      'outstanding_value', outstanding_cents::numeric / 100,
+      'idempotent_replay', true
+    );
+  end if;
 
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('payment-receipt-' || receipt_year));
   select coalesce(max((substring(data ->> 'receipt_number' from '^[0-9]{4}-([0-9]+)$'))::integer), 0) + 1
@@ -256,20 +345,36 @@ begin
     and data ->> 'receipt_number' like receipt_year || '-%';
 
   receipt_number := receipt_year || '-' || lpad(receipt_sequence::text, 4, '0');
-  perform set_config('app.audit_origin', 'register_receivable_payment', true);
-  perform set_config('app.audit_justification', coalesce(p_payment_data ->> 'justification', ''), true);
+  perform set_config('app.audit_scope', 'register_receivable_payment', true);
+  perform set_config(
+    'app.audit_justification_internal',
+    left(btrim(coalesce(p_payment_data ->> 'justification', p_payment_data ->> 'audit_justification', '')), 500),
+    true
+  );
 
-  payment_data := (p_payment_data - 'status' - 'receipt_number' - 'created_by' - 'updated_by' - 'net_value')
+  payment_data := (p_payment_data - array[
+      'status', 'receipt_number', 'created_by', 'updated_by', 'net_value',
+      'receivable_id', 'contract_id', 'kitnet_id', 'tenant_id', 'competence',
+      'project_id', 'expert_report_id', 'segment', 'audit_origin',
+      'audit_justification', 'justification'
+    ])
     || jsonb_build_object(
       'id', p_payment_id,
       'active', true,
       'receivable_id', p_receivable_id,
+      'contract_id', receivable_row.data ->> 'contract_id',
+      'kitnet_id', receivable_row.data ->> 'kitnet_id',
+      'tenant_id', receivable_row.data ->> 'tenant_id',
+      'competence', receivable_row.data ->> 'competence',
       'paid_value', paid_cents::numeric / 100,
       'discount', discount_cents::numeric / 100,
       'fine', fine_cents::numeric / 100,
       'interest', interest_cents::numeric / 100,
       'net_value', net_cents::numeric / 100,
       'payment_date', payment_date::text,
+      'payment_method', payment_method,
+      'destination_account', destination_account,
+      'bank_account_id', bank_account_id,
       'receipt_number', receipt_number,
       'status', new_status,
       'created_by', auth.uid()::text,
@@ -291,6 +396,9 @@ begin
   update public.records
   set data = updated_receivable_data, updated_at = clock_timestamp()
   where id = p_receivable_id;
+
+  perform set_config('app.audit_scope', '', true);
+  perform set_config('app.audit_justification_internal', '', true);
 
   return jsonb_build_object(
     'schema_version', 1,

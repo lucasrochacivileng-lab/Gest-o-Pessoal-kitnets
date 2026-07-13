@@ -246,31 +246,25 @@ export const receivableService = {
       throw new Error('O valor pago nao pode ser maior que o saldo restante.');
     }
     const netValue = calculatePaymentNetValue({ paid_value: paidValue, discount, fine, interest });
+    if (toCents(netValue) < 0) {
+      throw new Error('O desconto nao pode tornar o valor liquido do pagamento negativo.');
+    }
     const totalPaid = addMoney(paidValue, receivable.paid_value);
     const status = toCents(totalPaid) >= toCents(receivable.expected_value) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
     const payload = {
-      ...paymentPayload,
-      receivable_id: receivable.id,
-      // Copia do recebível: o registro de Payment não guarda a cadeia
-      // Contract/Kitnet/Tenant, só o receivable_id — sem isso, a tela de
-      // Pagamentos (que lê kitnet_id/tenant_id/competence direto da linha)
-      // mostra "—" em todo pagamento confirmado por aqui.
-      kitnet_id: receivable.kitnet_id,
-      tenant_id: receivable.tenant_id,
-      competence: receivable.competence,
+      // A RPC deriva todos os vinculos estruturais do recebivel bloqueado.
+      payment_id: paymentPayload.payment_id,
       paid_value: paidValue,
-      net_value: netValue,
       payment_date: formatDate(paymentPayload.payment_date || today()),
       payment_method: paymentPayload.payment_method || 'pix',
       destination_account: paymentPayload.destination_account || 'Mercado Pago',
+      bank_account_id: paymentPayload.bank_account_id || '',
+      receipt_url: paymentPayload.receipt_url || '',
       notes: paymentPayload.notes || '',
+      justification: paymentPayload.justification || '',
       discount,
       interest,
       fine,
-      active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      status,
     };
 
     const result = await receivableRepository.pay(receivable, payload);

@@ -21,6 +21,9 @@ const initialValues = {
   net_value: 0,
 };
 
+const createPaymentId = () => globalThis.crypto?.randomUUID?.()
+  || `payment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 const calculateNetValue = (values) => {
   return addMoney(subtractMoney(values.paid_value, values.discount), values.fine, values.interest);
 };
@@ -31,6 +34,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
   const [bankAccountsError, setBankAccountsError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [paymentId, setPaymentId] = useState(createPaymentId);
   const isPaymentMode = mode === 'payment';
 
   useEffect(() => {
@@ -46,6 +50,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
   }, []);
 
   useEffect(() => {
+    setPaymentId(createPaymentId());
     if (!receivable) {
       setValues(initialValues);
       return;
@@ -111,6 +116,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
     try {
       await onSubmit({
         ...values,
+        ...(isPaymentMode ? { payment_id: paymentId } : {}),
         expected_value: fromCents(toCents(values.expected_value)),
         paid_value: fromCents(toCents(values.paid_value)),
         discount: fromCents(toCents(values.discount)),

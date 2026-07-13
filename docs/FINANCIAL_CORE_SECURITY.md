@@ -12,6 +12,15 @@ A transacao original era realmente atomica dentro da RPC e usava `SECURITY INVOK
 
 A migration `0005_financial_core_hardening.sql` corrige esses itens, preserva a assinatura da RPC e mantem pagamento zero por compatibilidade com o fluxo existente de mes perdoado. Recebivel inativo ou cancelado nao pode ser pago. Recebivel cancelado deixa de ocupar a chave unica; inativado ja era excluido pelo predicado `active`.
 
+### Regras adicionais da revisao do PR
+
+- `contract_id`, `kitnet_id`, `tenant_id`, `competence` e `receivable_id` sao sempre derivados do recebivel bloqueado. Valores homonimos enviados pelo cliente sao descartados.
+- A conta de destino enviada continua editavel; quando vazia, herda o padrao do recebivel e, por ultimo, `Mercado Pago`.
+- `p_payment_id` e chave de idempotencia. Retry equivalente retorna pagamento e recibo existentes sem nova baixa; reuso incompativel retorna `PAYMENT_IDEMPOTENCY_CONFLICT`.
+- Valor liquido segue `pago - desconto + multa + juros` e nao pode ser negativo. Desconto integral, com liquido zero, continua valido.
+- `audit_origin` enviado em JSON e ignorado e removido. CRUD comum registra `data_api`; somente a RPC controlada registra `register_receivable_payment`.
+- Justificativa de auditoria e aparada, limitada a 500 caracteres e removida do JSON operacional.
+
 ## Autorizacao e RLS
 
 - A RPC exige `auth.uid()` e roda como `SECURITY INVOKER`.
@@ -20,6 +29,10 @@ A migration `0005_financial_core_hardening.sql` corrige esses itens, preserva a 
 - Usuario autenticado sem perfil ativo nao passa por `is_admin/can_manage_kitnets` e nao enxerga o recebivel.
 - O papel `KITNET_MANAGER` pode operar entidades de kitnet, inclusive recebiveis e pagamentos, conforme regra existente.
 - A policy atual e por papel e entidade, nao por `owner_id`; isso e adequado aos dois papeis operacionais atuais, mas nao suporta isolamento entre varios proprietarios.
+
+### Perfil e papel
+
+A policy anterior permitia atualizar a propria linha inteira de `profiles`, inclusive `role` e `active`. RLS protege linhas, nao colunas, portanto isso permitia autoelevacao. A migration revoga INSERT/UPDATE/DELETE direto de `authenticated` e concede UPDATE somente para `name` e `avatar_url`. Alteracoes de `role` e `active` passam pela RPC `admin_update_profile_access`, que valida `is_admin()` no servidor. `anon` nao possui grants na tabela.
 
 ## SECURITY DEFINER
 
@@ -54,3 +67,7 @@ O formulario agora aguarda a operacao, bloqueia duplo envio e mostra erro de val
 ## Protecao contra senhas vazadas
 
 O Advisor indica que a protecao de senhas comprometidas esta desativada. Isso e configuracao de Auth externa a migrations. Procedimento recomendado: Supabase Dashboard > Authentication > Attack Protection > habilitar leaked password protection, revisar impacto no plano e testar login/troca de senha. Nenhuma configuracao externa foi alterada nesta entrega.
+
+## Integracao continua
+
+`.github/workflows/pull-request.yml` executa `npm ci`, `npm test` e `npm run build` em todo Pull Request para `main`, sem secrets do Supabase. Os testes SQL autenticados permanecem separados porque dependem de PostgreSQL com RLS e claims configurados.

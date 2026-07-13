@@ -31,6 +31,8 @@ const PAYMENT_ERROR_MESSAGES = {
   PAYMENT_EXCEEDS_OUTSTANDING: 'O valor pago nao pode ser maior que o saldo restante.',
   PAYMENT_INVALID_DATE: 'Informe uma data de pagamento valida.',
   PAYMENT_RECEIVABLE_NOT_FOUND: 'O recebivel nao existe, esta inativo ou voce nao tem permissao para acessa-lo.',
+  PAYMENT_IDEMPOTENCY_CONFLICT: 'Este identificador de pagamento ja foi usado com dados diferentes. Atualize a tela e confira o historico.',
+  PAYMENT_NEGATIVE_NET_VALUE: 'O desconto nao pode tornar o valor liquido do pagamento negativo.',
 };
 
 export const validatePaymentRpcResponse = (value) => {
@@ -133,11 +135,12 @@ export const supabaseDataClient = {
   },
 
   async payReceivable(receivable, paymentPayload) {
-    const paymentId = createId();
+    const paymentId = paymentPayload.payment_id || createId();
+    const { payment_id: _paymentId, ...editablePaymentData } = paymentPayload;
     const { data, error } = await supabase.rpc('register_receivable_payment', {
       p_receivable_id: String(receivable.id),
       p_payment_id: String(paymentId),
-      p_payment_data: { id: paymentId, active: true, ...paymentPayload },
+      p_payment_data: editablePaymentData,
     });
 
     throwPaymentError(error);
@@ -147,6 +150,7 @@ export const supabaseDataClient = {
       receivable: result.receivable,
       receiptNumber: result.receipt_number,
       outstandingValue: result.outstanding_value,
+      idempotentReplay: result.idempotent_replay === true,
     };
   },
 
