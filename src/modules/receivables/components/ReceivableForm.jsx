@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { calculateOutstandingValue } from '../services/receivableService.js';
 import { repository } from '../../../repository/index.js';
+import { addMoney, subtractMoney, fromCents, toCents } from '../../../services/money.js';
 
 const initialValues = {
   contract_id: '',
@@ -21,21 +22,27 @@ const initialValues = {
 };
 
 const calculateNetValue = (values) => {
-  const paidValue = Number(values.paid_value || 0);
-  const discount = Number(values.discount || 0);
-  const fine = Number(values.fine || 0);
-  const interest = Number(values.interest || 0);
-
-  return paidValue - discount + fine + interest;
+  return addMoney(subtractMoney(values.paid_value, values.discount), values.fine, values.interest);
 };
 
 export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode = 'payment', onSubmit, onCancel }) {
   const [values, setValues] = useState(initialValues);
   const [bankAccounts, setBankAccounts] = useState([]);
+  const [bankAccountsError, setBankAccountsError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [saving, setSaving] = useState(false);
   const isPaymentMode = mode === 'payment';
 
   useEffect(() => {
-    repository.list('BankAccount').then(setBankAccounts).catch(() => setBankAccounts([]));
+    repository.list('BankAccount')
+      .then((rows) => {
+        setBankAccounts(rows);
+        setBankAccountsError('');
+      })
+      .catch(() => {
+        setBankAccounts([]);
+        setBankAccountsError('Nao foi possivel carregar as contas de destino.');
+      });
   }, []);
 
   useEffect(() => {
@@ -49,7 +56,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
     // Contrato prevê multa de 10% sobre o valor devido em caso de atraso — sugerida
     // automaticamente para recebíveis vencidos (o valor continua editável).
     const suggestedFine = mode === 'payment' && receivable.status === 'vencido'
-      ? Math.round(Number(paidValue || 0) * 0.10 * 100) / 100
+      ? fromCents(Math.round(toCents(paidValue) * 0.10))
       : 0;
 
     setValues({
@@ -63,7 +70,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       payment_date: new Date().toISOString().slice(0, 10),
       paid_value: paidValue,
       fine: suggestedFine,
-      net_value: Number(paidValue || 0) + suggestedFine,
+      net_value: addMoney(paidValue, suggestedFine),
       destination_account: receivable.destination_account || initialValues.destination_account,
     });
   }, [mode, receivable]);
@@ -97,22 +104,35 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
     }
   }, [selectedValue]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    onSubmit({
-      ...values,
-      expected_value: Number(values.expected_value || 0),
-      paid_value: Number(values.paid_value || 0),
-      discount: Number(values.discount || 0),
-      fine: Number(values.fine || 0),
-      interest: Number(values.interest || 0),
-      net_value: Number(values.net_value || 0),
-    });
+    setSaving(true);
+    setSubmitError('');
+    try {
+      await onSubmit({
+        ...values,
+        expected_value: fromCents(toCents(values.expected_value)),
+        paid_value: fromCents(toCents(values.paid_value)),
+        discount: fromCents(toCents(values.discount)),
+        fine: fromCents(toCents(values.fine)),
+        interest: fromCents(toCents(values.interest)),
+        net_value: fromCents(toCents(values.net_value)),
+      });
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Nao foi possivel concluir a operacao.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="space-y-6">
+        {submitError ? (
+          <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {submitError}
+          </div>
+        ) : null}
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Dados do aluguel</h3>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -187,6 +207,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
                 <option value="">Selecione</option>
                 {bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
               </select>
+              {bankAccountsError ? <span className="mt-1 block text-xs text-red-600">{bankAccountsError}</span> : null}
             </label>
             <label className="text-sm text-slate-600">
               Comprovante
@@ -206,8 +227,8 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       </div>
 
       <div className="mt-6 flex gap-3">
-        <button type="submit" className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white">
-          {isPaymentMode ? 'Confirmar pagamento' : 'Salvar alterações'}
+        <button type="submit" disabled={saving} className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
+          {saving ? 'Salvando...' : (isPaymentMode ? 'Confirmar pagamento' : 'Salvar alterações')}
         </button>
         <button type="button" onClick={onCancel} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">Cancelar</button>
       </div>

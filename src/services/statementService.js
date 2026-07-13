@@ -7,8 +7,8 @@ import { financialService } from './financialService';
 import { rentPaymentsOnly } from './paymentClassifier.js';
 import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
 import { isPersonalExpense } from './personalMovementClassifier.js';
+import { fromCents, subtractMoney, sumMoney, toCents } from './money.js';
 
-const toMoney = (value) => Number(value || 0);
 const paymentValue = financialService.netPaymentValue;
 const isConfirmed = (row) => ['pago', 'recebido'].includes(row.status);
 const inMonth = (date, monthKey) => String(date || '').startsWith(monthKey);
@@ -65,7 +65,7 @@ export const buildStatement = ({
         category: 'aluguel',
         label: kitnet?.name ? `Aluguel — ${kitnet.name}` : 'Aluguel',
         detail: [tenant?.name, competence].filter(Boolean).join(' · '),
-        value: paymentValue(row),
+        value: fromCents(toCents(paymentValue(row))),
         confirmed: true,
       };
     });
@@ -79,7 +79,7 @@ export const buildStatement = ({
       category: row.kind.toLowerCase(),
       label: `${row.kind} — ${row.label}`,
       detail: row.status === 'recebido' ? 'Recebido' : 'Previsto',
-      value: row.value,
+      value: fromCents(toCents(row.value)),
       confirmed: row.status === 'recebido',
     }));
 
@@ -95,7 +95,7 @@ export const buildStatement = ({
         category: row.category || 'outro',
         label: row.description || row.category || 'Despesa',
         detail: kitnet?.name || '',
-        value: toMoney(row.value),
+        value: fromCents(toCents(row.value)),
         confirmed: row.status === 'pago',
       };
     });
@@ -110,7 +110,7 @@ export const buildStatement = ({
       category: row.category || PERSONAL_TYPE_LABELS[row.type] || 'outro',
       label: row.description || row.category || PERSONAL_TYPE_LABELS[row.type] || 'Lançamento',
       detail: row.card_name || '',
-      value: toMoney(row.value),
+      value: fromCents(toCents(row.value)),
       confirmed: isConfirmed(row),
     }));
 
@@ -124,15 +124,15 @@ export const buildStatement = ({
     .map((row) => ({ ...row, signedValue: row.kind === 'entrada' ? row.value : -row.value }))
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 
-  const totalIn = movements.filter((row) => row.kind === 'entrada').reduce((sum, row) => sum + row.value, 0);
-  const totalOut = movements.filter((row) => row.kind === 'saida').reduce((sum, row) => sum + row.value, 0);
+  const totalIn = sumMoney(movements.filter((row) => row.kind === 'entrada').map((row) => row.value));
+  const totalOut = sumMoney(movements.filter((row) => row.kind === 'saida').map((row) => row.value));
 
   return {
     movements,
     pending,
     totalIn,
     totalOut,
-    balance: totalIn - totalOut,
+    balance: subtractMoney(totalIn, totalOut),
   };
 };
 

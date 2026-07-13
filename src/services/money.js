@@ -15,6 +15,8 @@ export const fromCents = (value) => Number((Number(value || 0) / 100).toFixed(2)
 
 export const addMoney = (...values) => fromCents(values.reduce((sum, value) => sum + toCents(value), 0));
 
+export const sumMoney = (values = []) => fromCents(values.reduce((sum, value) => sum + toCents(value), 0));
+
 export const subtractMoney = (value, ...values) => {
   const cents = values.reduce((result, item) => result - toCents(item), toCents(value));
   return fromCents(cents);
