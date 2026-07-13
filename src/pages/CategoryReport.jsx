@@ -90,6 +90,26 @@ export default function CategoryReport() {
         )}
       </div>
 
+      {report.excluded.length ? (
+        <details className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-amber-900">
+            Não contabilizados neste mês ({report.excluded.length})
+          </summary>
+          <p className="mt-1 text-xs text-amber-700">Pendências, itens em revisão, transferências e lançamentos sem valor ficam fora do total.</p>
+          <div className="mt-3 divide-y divide-amber-200">
+            {report.excluded.map((row) => (
+              <div key={row.id} className="flex items-start justify-between gap-4 py-2 text-sm">
+                <div>
+                  <p className="font-medium text-slate-800">{row.description}</p>
+                  <p className="text-xs text-amber-700">{row.reason}</p>
+                </div>
+                <span className="flex-shrink-0 font-semibold text-slate-700">{money(row.value)}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
+
       <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <h2 className="text-lg font-semibold text-slate-900">
           Evolução {selectedCategory ? `— ${categoryLabel(selectedCategory)}` : '— total'} (6 meses)

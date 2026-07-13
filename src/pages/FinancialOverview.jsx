@@ -18,16 +18,13 @@ import { RECEIVABLE_STATUS } from '../modules/receivables/types/receivable.types
 import { financialService } from '../services/financialService';
 import { rentPaymentsOnly } from '../services/paymentClassifier.js';
 import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
+import { buildCategoryReport } from '../services/categoryReportService.js';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const money = (value = 0) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const moneyValue = (value) => Number(value || 0);
 const outstandingValue = (receivable) => Math.max(moneyValue(receivable.expected_value) - moneyValue(receivable.paid_value), 0);
 const paymentValue = financialService.netPaymentValue;
-const addCategory = (map, category, value) => {
-  const key = category || 'outros';
-  map[key] = (map[key] || 0) + moneyValue(value);
-};
 
 function Card({ label, value, icon: Icon, tone = 'bg-slate-100 text-slate-600', sub }) {
   return (
@@ -93,20 +90,8 @@ export default function FinancialOverview() {
       }
 
       const cashflow = buildCashflow({ payments, expenses, personal, projects, expertReports, monthKey });
-      const categoryTotals = {};
-      expenses
-        .filter((item) => item.date?.startsWith(monthKey))
-        .forEach((item) => addCategory(categoryTotals, item.category, item.value));
-      personal
-        // Mesma regra da tela "Gastos por categoria" (categoryReportService):
-        // transação de cartão ainda "a revisar" não entra até ser confirmada —
-        // senão este ranking mostra um total diferente do da tela dedicada.
-        .filter((item) => item.status !== 'ignorar' && ['expense', 'card_transaction'].includes(item.type) && item.date?.startsWith(monthKey))
-        .filter((item) => !(item.type === 'card_transaction' && item.status === 'revisar'))
-        .forEach((item) => addCategory(categoryTotals, item.category, item.value));
-      const categoryRanking = Object.entries(categoryTotals)
-        .map(([category, value]) => ({ category, value }))
-        .sort((a, b) => b.value - a.value)
+      const categoryRanking = buildCategoryReport({ expenses, personal, month: monthKey }).rows
+        .map((row) => ({ category: row.label, value: row.total }))
         .slice(0, 8);
 
       setData({

@@ -63,6 +63,22 @@ describe('buildCategoryReport', () => {
 
     expect(result.grandTotal).toBe(100);
     expect(result.rows.find((row) => row.category === 'aplicação cdb')).toBeUndefined();
+    expect(result.excluded[0].reason).toBe('Transferência / ajuste de saldo');
+  });
+
+  it('só soma gasto pessoal pago e unifica categorias equivalentes', () => {
+    const result = buildCategoryReport({
+      month: '2026-07',
+      expenses: [{ type: 'variavel', category: 'Internet', value: 100, date: '2026-07-02', status: 'pago', segment: 'pessoal' }],
+      personal: [
+        { type: 'expense', category: 'Internet pessoal', value: 1099, date: '2026-07-03', status: 'pendente' },
+        { type: 'expense', category: 'Energia pessoal', value: 0, date: '2026-07-04', status: 'aguardando boleto' },
+      ],
+    });
+
+    expect(result.grandTotal).toBe(100);
+    expect(result.rows).toEqual([expect.objectContaining({ category: 'internet', total: 100, origins: ['pessoal'] })]);
+    expect(result.excluded).toHaveLength(2);
   });
 
   it('calcula o percentual de cada categoria', () => {
