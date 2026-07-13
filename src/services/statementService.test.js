@@ -88,6 +88,16 @@ describe('statementService', () => {
     expect(result.totalOut).toBe(300);
   });
 
+  it('não mostra aplicação financeira como saída', () => {
+    const result = buildStatement({
+      personal: [{ id: 't1', type: 'transfer', value: 18000, date: '2026-07-02', status: 'pago' }],
+      monthKey: '2026-07',
+    });
+
+    expect(result.movements).toHaveLength(0);
+    expect(result.totalOut).toBe(0);
+  });
+
   it('calcula o saldo do mês (entradas - saídas)', () => {
     const payments = [{ id: 'p1', receivable_id: 'r1', payment_date: '2026-07-10', paid_value: 800 }];
     const expenses = [{ id: 'e1', date: '2026-07-05', description: 'Água', value: 90, status: 'pago' }];

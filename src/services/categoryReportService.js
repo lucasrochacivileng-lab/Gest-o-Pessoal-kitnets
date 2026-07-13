@@ -1,3 +1,5 @@
+import { isPersonalExpense } from './personalMovementClassifier.js';
+
 const toMoney = (value) => Number(value || 0);
 const monthOf = (date) => String(date || '').slice(0, 7);
 
@@ -52,7 +54,7 @@ export const buildCategoryReport = ({ expenses = [], personal = [], month }) => 
     .forEach((row) => add(row.category, row.value, 'kitnets'));
 
   personal
-    .filter((row) => row.type !== 'income' && row.status !== 'ignorar' && monthOf(row.date) === month)
+    .filter((row) => isPersonalExpense(row) && row.status !== 'ignorar' && monthOf(row.date) === month)
     .filter((row) => row.type !== 'card_transaction' || row.status !== 'revisar')
     .forEach((row) => add(row.category, row.value, 'pessoal'));
 
@@ -78,7 +80,7 @@ export const buildCategoryTrend = ({ expenses = [], personal = [], months = [], 
       .reduce((sum, row) => sum + toMoney(row.value), 0);
 
     const personalTotal = personal
-      .filter((row) => row.type !== 'income' && row.status !== 'ignorar' && monthOf(row.date) === month)
+      .filter((row) => isPersonalExpense(row) && row.status !== 'ignorar' && monthOf(row.date) === month)
       .filter((row) => row.type !== 'card_transaction' || row.status !== 'revisar')
       .filter((row) => matches(row.category))
       .reduce((sum, row) => sum + toMoney(row.value), 0);

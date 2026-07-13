@@ -4,6 +4,16 @@ import { buildCashflow } from './cashflowService.js';
 const monthKey = '2026-07';
 
 describe('buildCashflow', () => {
+  it('não reduz o caixa por transferência para investimento', () => {
+    const result = buildCashflow({
+      monthKey: '2026-07',
+      personal: [{ type: 'transfer', value: 18000, date: '2026-07-02', status: 'pago' }],
+    });
+
+    expect(result.personalOut).toBe(0);
+    expect(result.finalResult).toBe(0);
+  });
+
   it('consolida kitnets + pessoal em regime de caixa', () => {
     const result = buildCashflow({
       monthKey,

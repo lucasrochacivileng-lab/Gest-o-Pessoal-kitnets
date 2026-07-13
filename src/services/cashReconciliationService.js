@@ -1,3 +1,5 @@
+import { isPersonalExpense } from './personalMovementClassifier.js';
+
 const money = (value) => Number(value || 0);
 
 const confirmed = (row) => ['pago', 'recebido'].includes(row.status);
@@ -29,7 +31,10 @@ export const buildCashReconciliation = ({
 
   expenses.filter((row) => row.status === 'pago').forEach((row) => apply(row.bank_account_id, row.date, -money(row.value)));
   payments.forEach((row) => apply(row.bank_account_id, row.payment_date, money(row.net_value ?? row.paid_value)));
-  personal.filter(confirmed).forEach((row) => apply(row.bank_account_id, row.date, row.type === 'income' ? money(row.value) : -money(row.value)));
+  personal.filter(confirmed).forEach((row) => {
+    if (row.type === 'income') apply(row.bank_account_id, row.date, money(row.value));
+    if (isPersonalExpense(row)) apply(row.bank_account_id, row.date, -money(row.value));
+  });
   projects.filter((row) => row.status === 'recebido').forEach((row) => apply(row.bank_account_id, row.received_date || row.expected_payment_date, money(row.value)));
   expertReports.filter((row) => row.status === 'recebido').forEach((row) => apply(row.bank_account_id, row.received_date || row.expected_payment_date, money(row.fee_value)));
 

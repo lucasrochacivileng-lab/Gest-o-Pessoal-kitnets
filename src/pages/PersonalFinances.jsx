@@ -9,6 +9,7 @@ const fields = [
   { name: 'type', label: 'Tipo', type: 'select', options: [
     { value: 'income', label: 'Receita' },
     { value: 'expense', label: 'Despesa' },
+    { value: 'transfer', label: 'Transferência / aplicação (não é gasto)' },
     { value: 'card_transaction', label: 'Transação de cartão (importada)' },
   ] },
   { name: 'description', label: 'Descrição', type: 'text', placeholder: 'Ex: Salário servidor, parcela sistema solar, mercado' },

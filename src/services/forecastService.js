@@ -1,3 +1,5 @@
+import { isPersonalTransfer } from './personalMovementClassifier.js';
+
 const toMoney = (value) => Number(value || 0);
 const monthOf = (date) => String(date || '').slice(0, 7);
 
@@ -112,7 +114,7 @@ export const buildForecast = ({
       });
     });
 
-  const personalActive = personal.filter((row) => row.status !== 'ignorar' && row.type !== 'card_transaction');
+  const personalActive = personal.filter((row) => row.status !== 'ignorar' && row.type !== 'card_transaction' && !isPersonalTransfer(row));
   const personalRecurring = latestRecurring(personalActive, (row) => row.description || row.category);
 
   personalRecurring.forEach((row) => {

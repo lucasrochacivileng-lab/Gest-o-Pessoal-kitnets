@@ -1,6 +1,7 @@
 import { financialService } from './financialService';
 import { rentPaymentsOnly } from './paymentClassifier.js';
 import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
+import { isPersonalExpense } from './personalMovementClassifier.js';
 
 const toMoney = (value) => Number(value || 0);
 const paymentValue = financialService.netPaymentValue;
@@ -41,12 +42,12 @@ export const buildCashflow = ({ payments = [], expenses = [], personal = [], pro
   // realizado. As em 'revisar'/'sugerido'/'ignorar' não são isConfirmed e
   // continuam fora (viram só o aviso pendingCardReview).
   const personalOut = personal
-    .filter((row) => row.type !== 'income' && isConfirmed(row) && inMonth(row.date, monthKey))
+    .filter((row) => isPersonalExpense(row) && isConfirmed(row) && inMonth(row.date, monthKey))
     .reduce((sum, row) => sum + toMoney(row.value), 0);
 
   // Quanto das contas PESSOAIS foi investido nas kitnets/obra (acumulado, todos os meses).
   const investedInBusiness = personal
-    .filter((row) => row.type !== 'income' && isConfirmed(row) && isBusinessContext(row))
+    .filter((row) => isPersonalExpense(row) && isConfirmed(row) && isBusinessContext(row))
     .reduce((sum, row) => sum + toMoney(row.value), 0);
 
   const pendingCardReview = personal.filter((row) => row.type === 'card_transaction' && ['revisar', 'sugerido'].includes(row.status)).length;

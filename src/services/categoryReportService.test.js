@@ -52,6 +52,19 @@ describe('buildCategoryReport', () => {
     expect(result.grandTotal).toBe(200);
   });
 
+  it('não trata transferência para investimento como gasto', () => {
+    const result = buildCategoryReport({
+      month: '2026-07',
+      personal: [
+        { type: 'transfer', category: 'Aplicação CDB', value: 18000, date: '2026-07-02', status: 'pago' },
+        { type: 'expense', category: 'internet', value: 100, date: '2026-07-03', status: 'pago' },
+      ],
+    });
+
+    expect(result.grandTotal).toBe(100);
+    expect(result.rows.find((row) => row.category === 'aplicação cdb')).toBeUndefined();
+  });
+
   it('calcula o percentual de cada categoria', () => {
     const result = buildCategoryReport({
       month: '2026-10',

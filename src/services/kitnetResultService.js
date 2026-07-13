@@ -1,5 +1,6 @@
 import { financialService } from './financialService';
 import { resolveExpenseSegment } from './segmentConsolidationService.js';
+import { isPersonalExpense } from './personalMovementClassifier.js';
 
 // Resultado (P&L) por KITNET no mês: aluguel recebido de cada unidade menos as
 // despesas de kitnets vinculadas àquela unidade. Despesas do segmento Kitnets
@@ -43,7 +44,7 @@ export const buildKitnetResults = ({ kitnets = [], payments = [], expenses = [],
     .forEach((row) => addKitnetExpense(row.kitnet_id, toMoney(row.value)));
 
   personal
-    .filter((row) => row.type !== 'income' && isConfirmed(row) && inMonth(row.date, monthKey) && resolveExpenseSegment(row, 'pessoal') === 'kitnets')
+    .filter((row) => isPersonalExpense(row) && isConfirmed(row) && inMonth(row.date, monthKey) && resolveExpenseSegment(row, 'pessoal') === 'kitnets')
     .forEach((row) => addKitnetExpense(row.kitnet_id, toMoney(row.value)));
 
   const kitnetResults = [...byId.values()]

@@ -6,6 +6,7 @@
 import { financialService } from './financialService';
 import { rentPaymentsOnly } from './paymentClassifier.js';
 import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
+import { isPersonalExpense } from './personalMovementClassifier.js';
 
 const toMoney = (value) => Number(value || 0);
 const paymentValue = financialService.netPaymentValue;
@@ -100,7 +101,7 @@ export const buildStatement = ({
     });
 
   const personalMovements = personal
-    .filter((row) => row.status !== 'ignorar' && row.status !== 'revisar' && inMonth(row.date, monthKey))
+    .filter((row) => (row.type === 'income' || isPersonalExpense(row)) && row.status !== 'ignorar' && row.status !== 'revisar' && inMonth(row.date, monthKey))
     .map((row) => ({
       id: `personal-${row.id}`,
       date: row.date,

@@ -1,3 +1,5 @@
+import { isPersonalExpense } from './personalMovementClassifier.js';
+
 // Verificador de duplicidades: nenhum ponto do app avisa se a mesma conta foi
 // lançada duas vezes (ex.: a mesma fatura de internet cadastrada manualmente
 // por duas pessoas, ou uma vez manual e outra pela geração automática de
@@ -88,7 +90,7 @@ export const findDuplicateExpenses = (expenses = []) => findGroups(
 
 /** Duplicidades entre lançamentos pessoais (entidade PersonalIncome, exceto receitas). */
 export const findDuplicatePersonalEntries = (personal = []) => findGroups(
-  personal.filter((row) => row.active !== false && row.type !== 'income'),
+  personal.filter((row) => row.active !== false && isPersonalExpense(row)),
   ['category', 'context'],
   'Mesmo valor, mesma categoria e mesmo mês',
   'Mesma descrição no mesmo mês',
@@ -114,11 +116,11 @@ export const findExpenseDuplicateOf = (candidate, existingExpenses = []) => (
 
 /** Mesma checagem, para lançamentos pessoais (ignora receitas). */
 export const findPersonalDuplicateOf = (candidate, existingPersonal = []) => {
-  if (candidate.type === 'income') return null;
+  if (!isPersonalExpense(candidate)) return null;
 
   return existingPersonal.find((row) => (
     row.active !== false
-    && row.type !== 'income'
+    && isPersonalExpense(row)
     && (matchesSameValue(row, candidate, ['category', 'context']) || matchesSameDescription(row, candidate, ['category', 'context']))
   )) || null;
 };

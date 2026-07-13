@@ -1,4 +1,5 @@
 import { financialService } from './financialService';
+import { isPersonalExpense } from './personalMovementClassifier.js';
 
 // Consolidação por SEGMENTO (centro de resultado). Normaliza todas as fontes de
 // dinheiro já existentes num mesmo formato — entradas e saídas por segmento —
@@ -96,7 +97,7 @@ export const buildSegmentConsolidation = ({
   // kitnets; perícia/projeto, na sua frente; o resto, como despesa pessoal.
   // Transações de cartão em 'revisar'/'sugerido'/'ignorar' ficam de fora.
   personal
-    .filter((row) => row.type !== 'income' && isConfirmed(row) && inMonth(row.date, monthKey))
+    .filter((row) => isPersonalExpense(row) && isConfirmed(row) && inMonth(row.date, monthKey))
     .forEach((row) => addExpense(resolveExpenseSegment(row, 'pessoal'), toMoney(row.value), {
       date: row.date,
       description: row.description || row.category || 'Despesa',
