@@ -74,7 +74,7 @@ const fields = [
     { value: 'cartao', label: 'Cartão' },
     { value: 'outros', label: 'Outros' },
   ] },
-  { name: 'account', label: 'Conta', placeholder: 'Mercado Pago, Itaú, Nubank' },
+  { name: 'bank_account_id', label: 'Conta de pagamento', type: 'relation', entity: 'BankAccount' },
   { name: 'status', label: 'Status', type: 'select', options: [
     { value: 'pendente', label: 'Pendente' },
     { value: 'pago', label: 'Pago' },
@@ -586,6 +586,7 @@ export default function Expenses() {
         filterRows={filterBySelectedMonth}
         onRowsChange={setExpenseRows}
         relations={[
+          { key: 'BankAccount', entity: 'BankAccount' },
           { key: 'Kitnet', entity: 'Kitnet' },
           { key: 'ExpertReport', entity: 'ExpertReport' },
           { key: 'ComplementaryProject', entity: 'ComplementaryProject' },

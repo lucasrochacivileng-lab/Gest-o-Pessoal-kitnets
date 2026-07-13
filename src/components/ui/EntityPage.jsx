@@ -185,7 +185,10 @@ export default function EntityPage({
       // um "-" digitado por engano na frente do valor entra direto no banco
       // e some das somas (uma despesa negativa aumenta o lucro em vez de
       // reduzi-lo, por exemplo).
-      if (field.type === 'number') value = Math.max(Number(value || 0), 0);
+      if (field.type === 'number') {
+        value = Number(value || 0);
+        if (!field.allowNegative) value = Math.max(value, 0);
+      }
       if (field.type === 'checkbox') value = Boolean(value);
       acc[fieldName] = value;
       return acc;

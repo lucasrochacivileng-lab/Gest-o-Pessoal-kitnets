@@ -21,6 +21,7 @@ const fields = [
   ] },
   { name: 'category', label: 'Categoria', placeholder: 'Ex: salário, energia solar, alimentação' },
   { name: 'card_name', label: 'Cartão / Conta', placeholder: 'Nubank, Santander, Pix Mercado Pago' },
+  { name: 'bank_account_id', label: 'Conta bancária', type: 'relation', entity: 'BankAccount' },
   { name: 'installment', label: 'Parcela', placeholder: 'Ex: 12/24' },
   { name: 'status', label: 'Status', type: 'select', options: [
     { value: 'previsto', label: 'Previsto' },
@@ -111,6 +112,7 @@ export default function PersonalFinances() {
         badgeColors={STATUS_BADGE_COLORS}
         checkDuplicate={findPersonalDuplicateOf}
         filterRows={filterRows}
+        relations={[{ key: 'BankAccount', entity: 'BankAccount' }]}
       />
     </div>
   );

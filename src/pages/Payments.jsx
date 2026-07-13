@@ -10,6 +10,7 @@ const fields = [
   { name: 'payment_date', label: 'Data do pagamento', type: 'date' },
   { name: 'payment_method', label: 'Forma de pagamento', placeholder: 'Pix, Transferência' },
   { name: 'destination_account', label: 'Conta destino', placeholder: 'Itaú' },
+  { name: 'bank_account_id', label: 'Conta que recebeu', type: 'relation', entity: 'BankAccount' },
   { name: 'receipt_url', label: 'Comprovante URL', placeholder: 'https://...' },
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Ex: devolução de caução' },
 ];
@@ -59,6 +60,7 @@ export default function Payments() {
         { key: 'Receivable', entity: 'Receivable' },
         { key: 'Kitnet', entity: 'Kitnet' },
         { key: 'Tenant', entity: 'Tenant' },
+        { key: 'BankAccount', entity: 'BankAccount' },
       ]}
       enrichRow={enrichPaymentRow}
     />

@@ -16,6 +16,7 @@ const fields = [
   ] },
   { name: 'expected_payment_date', label: 'Previsão de recebimento', type: 'date', help: 'No dia previsto o app pergunta se o valor caiu na conta' },
   { name: 'received_date', label: 'Data em que recebeu', type: 'date', help: 'Use a data real em que o dinheiro caiu na conta' },
+  { name: 'bank_account_id', label: 'Conta que recebeu', type: 'relation', entity: 'BankAccount' },
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Detalhes do projeto, condições de pagamento...' },
 ];
 
@@ -46,6 +47,7 @@ export default function ComplementaryProjects() {
       cardFields={['client', 'project_type', 'value', 'status']}
       columns={columns}
       badgeColors={STATUS_BADGE_COLORS}
+      relations={[{ key: 'BankAccount', entity: 'BankAccount' }]}
       selectedId={id}
       deepLinkEntity={NOTIFICATION_ENTITY.PROJECT}
       deepLinkBasePath="/projetos"

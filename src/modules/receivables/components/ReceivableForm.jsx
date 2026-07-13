@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { calculateOutstandingValue } from '../services/receivableService.js';
+import { repository } from '../../../repository/index.js';
 
 const initialValues = {
   contract_id: '',
@@ -11,6 +12,7 @@ const initialValues = {
   payment_date: new Date().toISOString().slice(0, 10),
   payment_method: 'pix',
   destination_account: 'Mercado Pago',
+  bank_account_id: '',
   paid_value: '',
   discount: 0,
   fine: 0,
@@ -29,7 +31,12 @@ const calculateNetValue = (values) => {
 
 export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode = 'payment', onSubmit, onCancel }) {
   const [values, setValues] = useState(initialValues);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const isPaymentMode = mode === 'payment';
+
+  useEffect(() => {
+    repository.list('BankAccount').then(setBankAccounts).catch(() => setBankAccounts([]));
+  }, []);
 
   useEffect(() => {
     if (!receivable) {
@@ -173,6 +180,13 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
             <label className="text-sm text-slate-600">
               Conta destino
               <input name="destination_account" value={values.destination_account} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+            </label>
+            <label className="text-sm text-slate-600">
+              Conta que recebeu
+              <select name="bank_account_id" value={values.bank_account_id} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                <option value="">Selecione</option>
+                {bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              </select>
             </label>
             <label className="text-sm text-slate-600">
               Comprovante

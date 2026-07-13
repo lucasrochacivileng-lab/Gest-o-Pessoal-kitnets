@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings, Bell, LogOut, CalendarRange, PieChart, ArrowLeftRight, Layers } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings, Bell, LogOut, CalendarRange, PieChart, ArrowLeftRight, Layers, Landmark } from 'lucide-react';
 import { useAuth } from '../app/providers/AuthProvider.jsx';
 
 const menuSections = [
@@ -10,6 +10,7 @@ const menuSections = [
     { label: 'Consolidado', icon: Layers, path: '/consolidado' },
     { label: 'Resultado por kitnet', icon: Building2, path: '/resultado-kitnets' },
     { label: 'Extrato', icon: ArrowLeftRight, path: '/extrato' },
+    { label: 'Caixa e conciliação', icon: Landmark, path: '/caixa' },
     { label: 'Previsão', icon: CalendarRange, path: '/previsao' },
     { label: 'Gastos por categoria', icon: PieChart, path: '/gastos-categoria' }
   ]},

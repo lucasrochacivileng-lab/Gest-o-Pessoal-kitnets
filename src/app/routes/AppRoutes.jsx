@@ -22,6 +22,7 @@ import CategoryReport from '../../pages/CategoryReport.jsx';
 import ComplementaryProjects from '../../pages/ComplementaryProjects.jsx';
 import ExpertReports from '../../pages/ExpertReports.jsx';
 import NotificationsPage from '../../modules/notifications/pages/NotificationsPage.jsx';
+import CashReconciliation from '../../pages/CashReconciliation.jsx';
 
 export default function AppRoutes() {
   return (
@@ -32,6 +33,7 @@ export default function AppRoutes() {
         <Route path="/consolidado" element={<Consolidated />} />
         <Route path="/resultado-kitnets" element={<KitnetResult />} />
         <Route path="/extrato" element={<Statement />} />
+        <Route path="/caixa" element={<CashReconciliation />} />
         <Route path="/kitnets" element={<Kitnets />} />
         <Route path="/locatarios" element={<Tenants />} />
         <Route path="/contratos" element={<Contratos />} />
