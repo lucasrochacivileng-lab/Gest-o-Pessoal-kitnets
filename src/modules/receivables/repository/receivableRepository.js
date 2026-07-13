@@ -36,16 +36,7 @@ export const receivableRepository = {
   },
 
   async pay(receivable, paymentPayload) {
-    const payment = await appRepository.create(PAYMENT_ENTITY, paymentPayload);
-    const totalPaid = Number(receivable.paid_value || 0) + Number(paymentPayload.paid_value || 0);
-    const updatedReceivable = await appRepository.update(ENTITY, receivable.id, {
-      status: paymentPayload.status || receivable.status,
-      updated_at: paymentPayload.updated_at,
-      updated_by: paymentPayload.updated_by,
-      paid_value: totalPaid,
-    });
-
-    return { payment, receivable: updatedReceivable };
+    return appRepository.payReceivable(receivable, paymentPayload);
   },
 
   async listOverdue() {

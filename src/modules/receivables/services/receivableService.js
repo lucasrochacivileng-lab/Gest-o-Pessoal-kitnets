@@ -1,5 +1,6 @@
 import receivableRepository from '../repository/receivableRepository.js';
 import { RECEIVABLE_FILTERS, RECEIVABLE_STATUS } from '../types/receivable.types.js';
+import { addMoney, fromCents, subtractMoney, toCents } from '../../../services/money.js';
 
 const formatDate = (value) => value || '';
 const today = () => new Date().toISOString().slice(0, 10);
@@ -13,11 +14,11 @@ export const getReceivableStatus = (receivable, currentDate = today()) => {
 };
 
 export const calculatePaymentNetValue = ({ paid_value = 0, discount = 0, fine = 0, interest = 0 } = {}) => {
-  return toMoney(paid_value) - toMoney(discount) + toMoney(fine) + toMoney(interest);
+  return addMoney(subtractMoney(paid_value, discount), fine, interest);
 };
 
 export const calculateOutstandingValue = (receivable) => {
-  return Math.max(toMoney(receivable.expected_value) - toMoney(receivable.paid_value), 0);
+  return fromCents(Math.max(toCents(receivable.expected_value) - toCents(receivable.paid_value), 0));
 };
 
 const withContext = (receivables, contracts = [], kitnets = [], tenants = [], payments = []) => {
@@ -234,8 +235,8 @@ export const receivableService = {
     const fine = Math.max(toMoney(paymentPayload.fine), 0);
     const interest = Math.max(toMoney(paymentPayload.interest), 0);
     const netValue = calculatePaymentNetValue({ paid_value: paidValue, discount, fine, interest });
-    const totalPaid = paidValue + toMoney(receivable.paid_value);
-    const status = totalPaid >= toMoney(receivable.expected_value) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
+    const totalPaid = addMoney(paidValue, receivable.paid_value);
+    const status = toCents(totalPaid) >= toCents(receivable.expected_value) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
     const receiptNumber = await receivableRepository.getNextReceiptNumber();
 
     const payload = {
@@ -267,7 +268,12 @@ export const receivableService = {
     };
 
     const result = await receivableRepository.pay(receivable, payload);
-    return { ...result, netValue, status, receiptNumber };
+    return {
+      ...result,
+      netValue,
+      status: result.receivable?.status || status,
+      receiptNumber: result.receiptNumber || result.payment?.receipt_number || receiptNumber,
+    };
   },
 
   async updateReceivable(receivable, payload) {

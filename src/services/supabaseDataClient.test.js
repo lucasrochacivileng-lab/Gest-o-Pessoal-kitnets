@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   rows: [],
   insertCalls: 0,
   failInsertAt: null,
+  rpcCalls: [],
 }));
 
 vi.mock('./supabaseClient.js', () => {
@@ -36,7 +37,20 @@ vi.mock('./supabaseClient.js', () => {
   });
 
   return {
-    supabase: { from },
+    supabase: {
+      from,
+      rpc: async (name, params) => {
+        state.rpcCalls.push({ name, params });
+        return {
+          data: {
+            payment: { ...params.p_payment_data, receipt_number: '2026-0007' },
+            receivable: { id: params.p_receivable_id, paid_value: 800, status: 'pago' },
+            receipt_number: '2026-0007',
+          },
+          error: null,
+        };
+      },
+    },
     isSupabaseEnabled: true,
   };
 });
@@ -55,6 +69,7 @@ describe('supabaseDataClient.importBackup', () => {
     state.rows = [{ ...seedRow }];
     state.insertCalls = 0;
     state.failInsertAt = null;
+    state.rpcCalls = [];
   });
 
   it('substitui os dados pelos do backup quando a importação dá certo', async () => {
@@ -82,5 +97,18 @@ describe('supabaseDataClient.importBackup', () => {
 
     expect(state.rows).toHaveLength(1);
     expect(state.rows[0].id).toBe('antigo-1');
+  });
+
+  it('registra pagamento pelo RPC atomico e usa o recibo gerado no banco', async () => {
+    const result = await supabaseDataClient.payReceivable(
+      { id: 'recebivel-1' },
+      { paid_value: 800, payment_date: '2026-07-12' },
+    );
+
+    expect(state.rpcCalls).toHaveLength(1);
+    expect(state.rpcCalls[0].name).toBe('register_receivable_payment');
+    expect(state.rpcCalls[0].params.p_receivable_id).toBe('recebivel-1');
+    expect(result.receiptNumber).toBe('2026-0007');
+    expect(result.receivable.status).toBe('pago');
   });
 });

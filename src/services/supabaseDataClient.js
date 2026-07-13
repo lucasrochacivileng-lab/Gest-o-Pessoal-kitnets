@@ -97,6 +97,22 @@ export const supabaseDataClient = {
     return this.update(entity, id, { active: false });
   },
 
+  async payReceivable(receivable, paymentPayload) {
+    const paymentId = createId();
+    const { data, error } = await supabase.rpc('register_receivable_payment', {
+      p_receivable_id: String(receivable.id),
+      p_payment_id: String(paymentId),
+      p_payment_data: { id: paymentId, active: true, ...paymentPayload },
+    });
+
+    throwIfError(error, 'Falha ao registrar pagamento');
+    return {
+      payment: data.payment,
+      receivable: data.receivable,
+      receiptNumber: data.receipt_number,
+    };
+  },
+
   async exportBackup() {
     const { data, error } = await supabase
       .from(TABLE)

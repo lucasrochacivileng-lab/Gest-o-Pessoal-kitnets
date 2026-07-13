@@ -19,6 +19,27 @@ export const repository = {
   removeSoft(entity, id) {
     return client.removeSoft(entity, id);
   },
+  async payReceivable(receivable, paymentPayload) {
+    if (client.payReceivable) {
+      return client.payReceivable(receivable, paymentPayload);
+    }
+
+    const payment = await client.create('Payment', paymentPayload);
+
+    try {
+      const paidValue = Number((Number(receivable.paid_value || 0) + Number(paymentPayload.paid_value || 0)).toFixed(2));
+      const updatedReceivable = await client.update('Receivable', receivable.id, {
+        status: paymentPayload.status || receivable.status,
+        updated_at: paymentPayload.updated_at,
+        updated_by: paymentPayload.updated_by,
+        paid_value: paidValue,
+      });
+      return { payment, receivable: updatedReceivable, receiptNumber: payment.receipt_number };
+    } catch (error) {
+      await client.removeSoft('Payment', payment.id).catch(() => {});
+      throw error;
+    }
+  },
   exportBackup() {
     return client.exportBackup();
   },
