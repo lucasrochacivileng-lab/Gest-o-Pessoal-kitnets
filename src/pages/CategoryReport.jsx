@@ -49,7 +49,7 @@ export default function CategoryReport() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Gastos por categoria</h1>
-        <p className="text-sm text-slate-500">Clique no mês para ver onde seu dinheiro foi — kitnets e pessoal juntos.</p>
+        <p className="text-sm text-slate-500">Gastos pagos e parcelas do cartão no mês de vencimento — kitnets e pessoal juntos.</p>
       </div>
 
       <MonthChips value={month} onChange={(value) => { setMonth(value); setSelectedCategory(null); }} />
@@ -59,6 +59,13 @@ export default function CategoryReport() {
           <h2 className="text-lg font-semibold text-slate-900">Total do mês</h2>
           <p className="text-xl font-bold text-slate-900">{money(report.grandTotal)}</p>
         </div>
+
+        {report.cardCount ? (
+          <p className="mt-2 text-sm text-slate-600">
+            Inclui {money(report.cardTotal)} de cartão em {report.cardCount} lançamento(s)
+            {report.cardReviewCount ? `; ${report.cardReviewCount} ainda com categoria a revisar` : ''}.
+          </p>
+        ) : null}
 
         {report.rows.length ? (
           <div className="mt-4 space-y-3">
@@ -95,7 +102,7 @@ export default function CategoryReport() {
           <summary className="cursor-pointer text-sm font-semibold text-amber-900">
             Não contabilizados neste mês ({report.excluded.length})
           </summary>
-          <p className="mt-1 text-xs text-amber-700">Pendências, itens em revisão, transferências e lançamentos sem valor ficam fora do total.</p>
+          <p className="mt-1 text-xs text-amber-700">Pendências, itens ignorados, transferências e lançamentos sem valor ficam fora do total.</p>
           <div className="mt-3 divide-y divide-amber-200">
             {report.excluded.map((row) => (
               <div key={row.id} className="flex items-start justify-between gap-4 py-2 text-sm">
@@ -110,11 +117,11 @@ export default function CategoryReport() {
         </details>
       ) : null}
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+      {selectedCategory ? <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <h2 className="text-lg font-semibold text-slate-900">
-          Evolução {selectedCategory ? `— ${categoryLabel(selectedCategory)}` : '— total'} (6 meses)
+          Evolução — {categoryLabel(selectedCategory)} (6 meses)
         </h2>
-        {selectedCategory ? <p className="text-xs text-slate-500">Toque na categoria de novo para ver o total geral.</p> : null}
+        <p className="text-xs text-slate-500">Toque na categoria de novo para fechar a evolução.</p>
         <div className="mt-4 h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={trend}>
@@ -126,7 +133,7 @@ export default function CategoryReport() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </div> : null}
     </div>
   );
 }

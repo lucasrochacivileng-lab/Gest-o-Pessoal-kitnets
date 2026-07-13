@@ -44,6 +44,8 @@ const CATEGORY_ALIASES = {
   aluguel_pessoal: 'moradia',
   combustivel_para_carro: 'combustivel',
   material_de_construcao: 'material',
+  investimento_kitnets: 'obra',
+  outros: 'outro',
   tarifas_bancarias: 'tarifas_bancarias',
 };
 
@@ -66,6 +68,8 @@ export const normalizeCategory = (row) => {
 // recorrente: isso inflava "Gastos por categoria" acima do que a "Caixa
 // geral do mês" mostrava para os MESMOS lançamentos.
 const isRealizedExpense = (row) => ['pago', 'recebido'].includes(String(row.status || '').toLowerCase()) && toMoney(row.value) > 0;
+const isIncludedCardExpense = (row) => row.type === 'card_transaction' && row.status !== 'ignorar' && toMoney(row.value) > 0;
+const isIncludedPersonalExpense = (row) => isPersonalExpense(row) && (isIncludedCardExpense(row) || isRealizedExpense(row));
 
 const excludedReason = (row) => {
   if (toMoney(row.value) <= 0) return 'Valor não informado';
@@ -94,12 +98,14 @@ export const buildCategoryReport = ({ expenses = [], personal = [], month }) => 
     .forEach((row) => add(row.category, row.value, resolveExpenseSegment(row, 'kitnets')));
 
   personal
-    .filter((row) => isPersonalExpense(row) && monthOf(row.date) === month && isRealizedExpense(row))
-    .forEach((row) => add(row.category, row.value, 'pessoal'));
+    .filter((row) => monthOf(row.date) === month && isIncludedPersonalExpense(row))
+    .forEach((row) => add(row.category, row.value, row.type === 'card_transaction' ? 'cartão' : 'pessoal'));
 
   [...expenses, ...personal]
     .filter((row) => monthOf(row.date) === month)
-    .filter((row) => row.type === 'transfer' || ((isPersonalExpense(row) || expenses.includes(row)) && !isRealizedExpense(row)))
+    .filter((row) => row.type === 'transfer'
+      || (expenses.includes(row) && !isRealizedExpense(row))
+      || (isPersonalExpense(row) && !isIncludedPersonalExpense(row)))
     .forEach((row) => excluded.push({
       id: row.id,
       date: row.date,
@@ -113,10 +119,14 @@ export const buildCategoryReport = ({ expenses = [], personal = [], month }) => 
     .sort((a, b) => b.total - a.total);
 
   const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
+  const includedCards = personal.filter((row) => monthOf(row.date) === month && isIncludedCardExpense(row));
 
   return {
     rows: rows.map((row) => ({ ...row, share: grandTotal ? row.total / grandTotal : 0 })),
     grandTotal,
+    cardTotal: includedCards.reduce((sum, row) => sum + toMoney(row.value), 0),
+    cardCount: includedCards.length,
+    cardReviewCount: includedCards.filter((row) => row.status === 'revisar').length,
     excluded: excluded.sort((a, b) => String(b.date).localeCompare(String(a.date))),
   };
 };
@@ -131,7 +141,7 @@ export const buildCategoryTrend = ({ expenses = [], personal = [], months = [], 
       .reduce((sum, row) => sum + toMoney(row.value), 0);
 
     const personalTotal = personal
-      .filter((row) => isPersonalExpense(row) && isRealizedExpense(row) && monthOf(row.date) === month)
+      .filter((row) => isIncludedPersonalExpense(row) && monthOf(row.date) === month)
       .filter((row) => matches(row.category))
       .reduce((sum, row) => sum + toMoney(row.value), 0);
 
