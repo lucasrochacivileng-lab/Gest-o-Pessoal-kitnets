@@ -27,6 +27,8 @@ A migration `0005_financial_core_hardening.sql` corrige esses itens, preserva a 
 
 `write_record_audit` tambem e `SECURITY DEFINER` para inserir numa tabela sem permissao de escrita ao usuario. E uma trigger function sem endpoint de negocio, possui `search_path=''` e `EXECUTE` revogado de `public`, `anon` e `authenticated`.
 
+As policies de leitura e atualizacao de `profiles` passam a usar `(select auth.uid())`, evitando recalculo por linha indicado pelo Performance Advisor sem mudar a autorizacao.
+
 ## Trilha de auditoria
 
 `audit_log` registra UUID do ator via `auth.uid()`, horario do servidor, entidade, ID, acao, antes, depois, origem e justificativa. Abrange `Payment`, `Receivable`, `Contract` e `Expense`, incluindo criacao, atualizacao, exclusao logica, cancelamento e estorno. Campos de contato, documentos, anexos e observacoes sao omitidos dos snapshots.

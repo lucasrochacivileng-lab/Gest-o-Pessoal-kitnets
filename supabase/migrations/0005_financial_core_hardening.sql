@@ -5,6 +5,17 @@ alter function public.current_app_role() set search_path = pg_catalog, public;
 alter function public.is_admin() set search_path = pg_catalog, public;
 alter function public.can_manage_kitnets() set search_path = pg_catalog, public;
 
+drop policy if exists "profiles read own or admin" on public.profiles;
+create policy "profiles read own or admin"
+  on public.profiles for select to authenticated
+  using (id = (select auth.uid()) or public.is_admin());
+
+drop policy if exists "profiles update own or admin" on public.profiles;
+create policy "profiles update own or admin"
+  on public.profiles for update to authenticated
+  using (id = (select auth.uid()) or public.is_admin())
+  with check (id = (select auth.uid()) or public.is_admin());
+
 drop index if exists public.records_receivable_contract_competence_uidx;
 
 create unique index records_receivable_contract_competence_uidx
