@@ -36,6 +36,14 @@ values (
 
 insert into public.records (id, entity, active, data)
 values (
+  'audit-test-partial-receivable',
+  'Receivable',
+  true,
+  '{"id":"audit-test-partial-receivable","contract_id":"audit-test-contract-partial","competence":"2099-03","expected_value":100,"paid_value":40,"status":"parcial","active":true}'::jsonb
+);
+
+insert into public.records (id, entity, active, data)
+values (
   'audit-test-expense',
   'Expense',
   true,
@@ -55,6 +63,74 @@ begin
     'justificativa nao foi limitada';
   assert not (select data ? 'audit_origin' or data ? 'audit_justification' from public.records where id='audit-test-expense'),
     'metadados de auditoria foram persistidos no JSON';
+end;
+$$;
+
+do $$
+declare
+  omitted_result jsonb;
+  zero_result jsonb;
+  next_result jsonb;
+  inactive_receipt text;
+begin
+  omitted_result := public.register_receivable_payment(
+    'audit-test-partial-receivable', 'audit-test-omitted-value',
+    '{"payment_date":"2099-03-10"}'::jsonb
+  );
+  assert (omitted_result -> 'payment' ->> 'paid_value')::numeric = 60,
+    'paid_value ausente nao usou o saldo restante';
+  assert omitted_result -> 'receivable' ->> 'status' = 'pago',
+    'paid_value ausente nao quitou recebivel parcial';
+
+  zero_result := public.register_receivable_payment(
+    'audit-test-receivable-2', 'audit-test-zero-value',
+    '{"paid_value":0,"payment_date":"2099-02-10"}'::jsonb
+  );
+  assert (zero_result -> 'payment' ->> 'paid_value')::numeric = 0,
+    'paid_value zero foi substituido pelo saldo';
+  assert (zero_result -> 'receivable' ->> 'paid_value')::numeric = 0,
+    'pagamento zero alterou saldo do recebivel';
+
+  inactive_receipt := omitted_result ->> 'receipt_number';
+  update public.records set active=false where id='audit-test-omitted-value';
+  assert exists (
+    select 1 from public.records
+    where id='audit-test-omitted-value' and data ->> 'receipt_number'=inactive_receipt
+  ), 'recibo inativo foi removido';
+
+  next_result := public.register_receivable_payment(
+    'audit-test-receivable-2', 'audit-test-after-inactive-receipt',
+    '{"paid_value":1,"payment_date":"2099-03-11"}'::jsonb
+  );
+  assert next_result ->> 'receipt_number' <> inactive_receipt,
+    'numero de recibo inativo foi reutilizado';
+end;
+$$;
+
+update public.records
+set data = data || jsonb_build_object('created_by', 'forged-client', 'audit_origin', 'forged')
+where id='audit-test-expense';
+
+do $$
+begin
+  assert (select data ->> 'created_by' from public.records where id='audit-test-expense') = auth.uid()::text,
+    'created_by foi alterado pelo cliente no update';
+  assert (select data ->> 'updated_by' from public.records where id='audit-test-expense') = auth.uid()::text,
+    'updated_by nao foi atualizado';
+end;
+$$;
+
+insert into public.records (id, entity, active, data)
+values ('audit-test-hard-delete', 'Expense', true, '{"id":"audit-test-hard-delete","value":1}'::jsonb);
+delete from public.records where id='audit-test-hard-delete';
+
+do $$
+begin
+  assert exists (
+    select 1 from public.audit_log
+    where entity_id='audit-test-hard-delete' and action='delete'
+      and before_data is not null and after_data is null
+  ), 'DELETE fisico nao foi auditado';
 end;
 $$;
 

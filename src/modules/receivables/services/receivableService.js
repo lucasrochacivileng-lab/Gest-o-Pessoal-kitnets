@@ -229,7 +229,7 @@ export const receivableService = {
     // Este diálogo de pagamento não passa pelo EntityPage (que já floora),
     // então um "-" digitado por engano distorceria o líquido e o total pago.
     const rawValues = [
-      paymentPayload.paid_value ?? receivable.expected_value,
+      paymentPayload.paid_value ?? calculateOutstandingValue(receivable),
       paymentPayload.discount ?? 0,
       paymentPayload.fine ?? 0,
       paymentPayload.interest ?? 0,

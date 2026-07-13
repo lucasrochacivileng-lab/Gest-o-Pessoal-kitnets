@@ -180,6 +180,23 @@ describe('receivableService', () => {
     expect(result.receivable.paid_value).toBe(800);
     expect(result.status).toBe(RECEIVABLE_STATUS.PAID);
   });
+
+  it('quita somente o saldo restante quando paid_value e omitido apos pagamento parcial', async () => {
+    const receivable = await repository.create('Receivable', {
+      competence: '2026-07',
+      expected_value: 800,
+      paid_value: 300,
+      status: RECEIVABLE_STATUS.PARTIAL,
+      active: true,
+    });
+
+    const result = await receivableService.registerPayment(receivable, {});
+
+    expect(result.payment.paid_value).toBe(500);
+    expect(result.receivable.paid_value).toBe(800);
+    expect(result.status).toBe(RECEIVABLE_STATUS.PAID);
+  });
+
   it('bloqueia pagamento acima do saldo restante antes de persistir', async () => {
     const receivable = {
       id: 'recebivel-excedente',

@@ -74,7 +74,6 @@ create unique index records_receivable_contract_competence_uidx
 create unique index records_payment_receipt_number_uidx
   on public.records ((data ->> 'receipt_number'))
   where entity = 'Payment'
-    and active
     and nullif(data ->> 'receipt_number', '') is not null;
 
 create table if not exists public.audit_log (
@@ -121,6 +120,10 @@ begin
   if actor is not null then
     if tg_op = 'INSERT' then
       new.data := jsonb_set(new.data, '{created_by}', to_jsonb(actor), true);
+    elsif old.data ? 'created_by' then
+      new.data := jsonb_set(new.data, '{created_by}', old.data -> 'created_by', true);
+    else
+      new.data := new.data - 'created_by';
     end if;
     new.data := jsonb_set(new.data, '{updated_by}', to_jsonb(actor), true);
   end if;
@@ -163,6 +166,8 @@ begin
 
   if tg_op = 'INSERT' then
     audit_action := 'create';
+  elsif tg_op = 'DELETE' then
+    audit_action := 'delete';
   elsif old.active and not new.active then
     audit_action := 'soft_delete';
   elsif coalesce(new.data ->> 'status', '') in ('cancelado', 'cancelled')
@@ -202,7 +207,7 @@ create trigger records_10_stamp_actor
 
 drop trigger if exists records_90_audit on public.records;
 create trigger records_90_audit
-  after insert or update on public.records
+  after insert or update or delete on public.records
   for each row execute function public.write_record_audit();
 
 revoke execute on function public.stamp_record_actor() from public, anon, authenticated;
@@ -264,12 +269,16 @@ begin
   end if;
 
   begin
-    paid_cents := round(coalesce((p_payment_data ->> 'paid_value')::numeric, 0) * 100);
     discount_cents := round(coalesce((p_payment_data ->> 'discount')::numeric, 0) * 100);
     fine_cents := round(coalesce((p_payment_data ->> 'fine')::numeric, 0) * 100);
     interest_cents := round(coalesce((p_payment_data ->> 'interest')::numeric, 0) * 100);
     current_paid_cents := round(coalesce((receivable_row.data ->> 'paid_value')::numeric, 0) * 100);
     expected_cents := round(coalesce((receivable_row.data ->> 'expected_value')::numeric, 0) * 100);
+    paid_cents := case
+      when p_payment_data ? 'paid_value'
+        then round(coalesce((p_payment_data ->> 'paid_value')::numeric, 0) * 100)
+      else greatest(expected_cents - current_paid_cents, 0)
+    end;
   exception when invalid_text_representation or numeric_value_out_of_range then
     raise exception using message = 'PAYMENT_INVALID_AMOUNT', errcode = '22003';
   end;
@@ -341,7 +350,7 @@ begin
   select coalesce(max((substring(data ->> 'receipt_number' from '^[0-9]{4}-([0-9]+)$'))::integer), 0) + 1
     into receipt_sequence
   from public.records
-  where entity = 'Payment' and active
+  where entity = 'Payment'
     and data ->> 'receipt_number' like receipt_year || '-%';
 
   receipt_number := receipt_year || '-' || lpad(receipt_sequence::text, 4, '0');
