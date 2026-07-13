@@ -95,6 +95,8 @@ begin
     'auditoria do recebivel incompleta';
   assert (select count(*) from public.audit_log where entity='Payment' and entity_id like 'audit-test-payment-%') = 2,
     'auditoria dos pagamentos incompleta';
+  assert (select bool_and(origin='register_receivable_payment') from public.audit_log where entity='Payment' and entity_id like 'audit-test-payment-%'),
+    'origem da auditoria de pagamento incorreta';
 end;
 $$;
 

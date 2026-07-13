@@ -78,8 +78,24 @@ begin
     new.data := jsonb_set(new.data, '{updated_by}', to_jsonb(actor), true);
   end if;
 
-  perform set_config('app.audit_origin', coalesce(nullif(new.data ->> 'audit_origin', ''), 'data_api'), true);
-  perform set_config('app.audit_justification', coalesce(new.data ->> 'audit_justification', ''), true);
+  perform set_config(
+    'app.audit_origin',
+    coalesce(
+      nullif(new.data ->> 'audit_origin', ''),
+      nullif(current_setting('app.audit_origin', true), ''),
+      'data_api'
+    ),
+    true
+  );
+  perform set_config(
+    'app.audit_justification',
+    coalesce(
+      nullif(new.data ->> 'audit_justification', ''),
+      nullif(current_setting('app.audit_justification', true), ''),
+      ''
+    ),
+    true
+  );
   new.data := new.data - 'audit_origin' - 'audit_justification';
   return new;
 end;
