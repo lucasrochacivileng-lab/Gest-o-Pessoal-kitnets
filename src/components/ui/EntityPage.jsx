@@ -347,6 +347,15 @@ export default function EntityPage({
     <span className={`ds-badge ${badgeColors[value] || 'ds-badge-info'}`}>{value}</span>
   );
 
+  const renderColumnValue = (row, column) => {
+    const value = row[column.field];
+    if (typeof column.renderCell === 'function') {
+      return column.renderCell({ row, value, reload: () => loadData({ silent: true }) });
+    }
+    if (column.format === 'badge') return value ? renderBadge(value) : '—';
+    return formatFieldValue(row, column, relationOptions) || '—';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -495,15 +504,12 @@ export default function EntityPage({
                 {sortedRows.map((row) => (
                   <tr key={row.id} className="border-t border-[var(--color-border)] transition hover:bg-[var(--color-surface-alt)]">
                     {columns.map((column) => {
-                      const value = row[column.field];
                       return (
                         <td
                           key={column.field}
                           className={`px-4 py-3 ${column.align === 'right' ? 'text-right tabular-nums' : ''} ${column.format === 'currency' ? 'font-semibold text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'}`}
                         >
-                          {column.format === 'badge'
-                            ? (value ? renderBadge(value) : '—')
-                            : (formatFieldValue(row, column, relationOptions) || '—')}
+                          {renderColumnValue(row, column)}
                         </td>
                       );
                     })}
@@ -536,7 +542,7 @@ export default function EntityPage({
                       return (
                         <p key={column.field} className="text-sm">
                           <span className="text-[var(--color-text-muted)]">{column.label}: </span>
-                          {column.format === 'badge' ? renderBadge(value) : (
+                          {column.renderCell ? renderColumnValue(row, column) : column.format === 'badge' ? renderBadge(value) : (
                             <span className={column.format === 'currency' ? 'font-semibold text-[var(--color-text)]' : 'text-[var(--color-text)]'}>
                               {formatFieldValue(row, column, relationOptions)}
                             </span>

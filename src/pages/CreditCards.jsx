@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileSpreadsheet, Save, Upload } from 'lucide-react';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { repository } from '../repository/index.js';
@@ -10,6 +10,7 @@ import {
 import { CLASSIFICATION_RULE_ENTITY } from '../services/classificationRuleService.js';
 import { CARD_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
 import { SEGMENTS } from '../services/segmentConsolidationService.js';
+import { findSiblingTransactions } from '../services/cardInvoiceService.js';
 
 const segmentOptions = SEGMENTS.map((segment) => ({ value: segment.key, label: segment.label }));
 const expertReportLabel = (report) => [report.client, report.process_number].filter(Boolean).join(' — ') || report.report_type || report.id;
@@ -73,7 +74,7 @@ const fields = [
 const segmentLabelMap = Object.fromEntries(segmentOptions.map((segment) => [segment.value, segment.label]));
 const cardSegmentLabel = (value) => segmentLabelMap[value] || '';
 
-const manualColumns = [
+const manualColumnDefinitions = [
   { field: 'date', label: 'Vencimento', format: 'date' },
   { field: 'description', label: 'Descrição' },
   { field: 'card_name', label: 'Cartão' },
@@ -112,8 +113,9 @@ export default function CreditCards() {
   const [fileName, setFileName] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savingCategoryId, setSavingCategoryId] = useState('');
 
-  const loadReferenceData = async () => {
+  const loadReferenceData = useCallback(async () => {
     const [kitnetRows, personalRows, expertReportRows, projectRows, ruleRows] = await Promise.all([
       repository.list('Kitnet'),
       repository.list('PersonalIncome'),
@@ -127,11 +129,66 @@ export default function CreditCards() {
     setProjects(projectRows);
     setExistingTransactions(personalRows.filter((row) => row.type === 'card_transaction'));
     setRules(ruleRows);
-  };
+  }, []);
 
   useEffect(() => {
     loadReferenceData();
-  }, []);
+  }, [loadReferenceData]);
+
+  const handleCategoryChange = useCallback(async (item, category, reload) => {
+    if (!item?.id || category === item.category) return;
+
+    const siblings = findSiblingTransactions(existingTransactions, item)
+      .filter((row) => row.category !== category);
+    const propagate = siblings.length > 0 && window.confirm(
+      `Esta compra tem mais ${siblings.length} parcela(s). Aplicar a categoria `
+      + `"${categoryOptions.find((option) => option.value === category)?.label || category}" a todas?`,
+    );
+    const targets = propagate ? [item, ...siblings] : [item];
+
+    setSavingCategoryId(item.id);
+    setMessage('');
+    try {
+      for (const target of targets) {
+        // Mantém as parcelas sincronizadas sem disparar uma rajada de escritas.
+        // eslint-disable-next-line no-await-in-loop
+        await repository.update('PersonalIncome', target.id, { category });
+      }
+      await Promise.all([loadReferenceData(), reload?.()]);
+      setMessage(
+        `Categoria atualizada em ${targets.length} lançamento(s). `
+        + 'Despesas, faturas e relatórios já usam essa mesma classificação.',
+      );
+    } catch (error) {
+      setMessage(`Não foi possível atualizar a categoria: ${error instanceof Error ? error.message : 'erro desconhecido'}`);
+      await Promise.all([loadReferenceData(), reload?.()]);
+    } finally {
+      setSavingCategoryId('');
+    }
+  }, [existingTransactions, loadReferenceData]);
+
+  const manualColumns = useMemo(() => manualColumnDefinitions.map((column) => (
+    column.field !== 'category' ? column : {
+      ...column,
+      renderCell: ({ row, reload }) => {
+        const knownCategory = categoryOptions.some((option) => option.value === row.category);
+        return (
+          <select
+            value={row.category || 'outros'}
+            disabled={savingCategoryId === row.id}
+            onChange={(event) => handleCategoryChange(row, event.target.value, reload)}
+            aria-label={`Categoria de ${row.description || 'lançamento de cartão'}`}
+            className="min-w-44 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+          >
+            {!knownCategory && row.category ? <option value={row.category}>{row.category}</option> : null}
+            {categoryOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        );
+      },
+    }
+  )), [handleCategoryChange, savingCategoryId]);
 
   const selectedRows = previewRows.filter((row) => row.selected && !row.duplicate);
   const duplicateCount = previewRows.filter((row) => row.duplicate).length;
@@ -381,6 +438,7 @@ export default function CreditCards() {
         fields={fields}
         cardFields={['card_name', 'description']}
         columns={manualColumns}
+        onRowsChange={(rows) => setExistingTransactions(filterCardTransactions(rows))}
         badgeColors={STATUS_BADGE_COLORS}
         relations={[
           { key: 'Kitnet', entity: 'Kitnet' },
