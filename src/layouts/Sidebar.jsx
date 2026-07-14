@@ -3,39 +3,47 @@ import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings, Bell, LogOut, CalendarRange, PieChart, ArrowLeftRight, Layers, Landmark, Wand2, TrendingUp } from 'lucide-react';
 import { useAuth } from '../app/providers/AuthProvider.jsx';
 
+// Fase 1 da simplificação: 6 grupos por objetivo em vez de 25 itens quase
+// planos. Nenhuma tela mudou por dentro — só onde ela mora no menu. O que é
+// setup/uso raro (cartões, regras, documentos, preferências) foi para
+// "Configurações"; as telas só de análise foram para "Relatórios".
 const menuSections = [
-  { title: 'Geral', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { title: 'Início', items: [
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/' }
+  ]},
+  { title: 'Financeiro', items: [
+    { label: 'Receitas', icon: TrendingUp, path: '/receitas' },
+    { label: 'Despesas', icon: Wallet, path: '/despesas' },
+    { label: 'Recebimentos', icon: HandCoins, path: '/recebimentos' },
+    { label: 'Pagamentos', icon: Receipt, path: '/pagamentos' },
+    { label: 'Extrato', icon: ArrowLeftRight, path: '/extrato' },
+    { label: 'Caixa e conciliação', icon: Landmark, path: '/caixa' }
+  ]},
+  { title: 'Relatórios', items: [
     { label: 'Visão Geral', icon: BarChart3, path: '/visao-geral' },
     { label: 'Consolidado', icon: Layers, path: '/consolidado' },
     { label: 'Resultado por kitnet', icon: Building2, path: '/resultado-kitnets' },
-    { label: 'Receitas', icon: TrendingUp, path: '/receitas' },
-    { label: 'Extrato', icon: ArrowLeftRight, path: '/extrato' },
-    { label: 'Caixa e conciliação', icon: Landmark, path: '/caixa' },
+    { label: 'Gastos por categoria', icon: PieChart, path: '/gastos-categoria' },
     { label: 'Previsão', icon: CalendarRange, path: '/previsao' },
-    { label: 'Gastos por categoria', icon: PieChart, path: '/gastos-categoria' }
+    { label: 'Exportar', icon: FileText, path: '/relatorios' }
   ]},
-  { title: 'Kitnets', items: [
+  { title: 'Imóveis', items: [
     { label: 'Kitnets', icon: Building2, path: '/kitnets' },
     { label: 'Locatários', icon: Users, path: '/locatarios' },
     { label: 'Contratos', icon: FileText, path: '/contratos' },
-    { label: 'Recebimentos', icon: HandCoins, path: '/recebimentos' },
-    { label: 'Pagamentos', icon: Receipt, path: '/pagamentos' },
-    { label: 'Despesas', icon: Wallet, path: '/despesas' },
-    { label: 'Obra', icon: HardHat, path: '/obra' },
-    { label: 'Cartões', icon: CreditCard, path: '/cartoes' },
-    { label: 'Regras de classificação', icon: Wand2, path: '/regras-classificacao' },
-    { label: 'Documentos', icon: FolderOpen, path: '/documentos' },
-    { label: 'Relatórios', icon: FileText, path: '/relatorios' }
+    { label: 'Obra', icon: HardHat, path: '/obra' }
   ]},
   { title: 'Pessoal & Profissional', items: [
     { label: 'Finanças Pessoais', icon: Banknote, path: '/financas-pessoais' },
     { label: 'Perícias', icon: Gavel, path: '/pericias' },
     { label: 'Projetos', icon: Briefcase, path: '/projetos' }
   ]},
-  { title: 'Sistema', items: [
+  { title: 'Configurações', items: [
+    { label: 'Cartões', icon: CreditCard, path: '/cartoes' },
+    { label: 'Regras de classificação', icon: Wand2, path: '/regras-classificacao' },
+    { label: 'Documentos', icon: FolderOpen, path: '/documentos' },
     { label: 'Notificações', icon: Bell, path: '/notificacoes' },
-    { label: 'Configurações', icon: Settings, path: '/configuracoes' }
+    { label: 'Preferências e backup', icon: Settings, path: '/configuracoes' }
   ]}
 ];
 
