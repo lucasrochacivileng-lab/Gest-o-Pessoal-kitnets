@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { applyRules } from './classificationRuleService.js';
 
 const DEFAULT_CATEGORY = 'outros';
 const DEFAULT_CONTEXT = 'pessoal';
@@ -225,6 +226,10 @@ export const buildInstallmentPreview = ({
   defaultCardName = '',
   existingTransactions = [],
   kitnets = [],
+  // Regras de classificação criadas pelo usuário (tela "Regras de
+  // classificação"). Quando uma casa, ela MANDA na categoria/segmento; senão,
+  // cai no classificador embutido por palavras-chave (classifyTransaction).
+  rules = [],
 }) => {
   const existingHashes = new Set(existingTransactions.map((item) => item.origin_hash).filter(Boolean));
 
@@ -234,6 +239,11 @@ export const buildInstallmentPreview = ({
     const totalInstallments = Math.max(transaction.installment_total || firstInstallment, firstInstallment);
     const cardName = transaction.card_name || defaultCardName || 'Cartao';
     const classification = classifyTransaction(transaction.description);
+    const userActions = applyRules(rules, { description: transaction.description, card_name: cardName }) || {};
+    const category = userActions.category || classification.category;
+    // Segmento: regra do usuário > sugestão pela classificação (obra vira
+    // investimento nas kitnets) > pessoal.
+    const segment = userActions.segment || (classification.context === 'obra' ? 'kitnets' : 'pessoal');
 
     for (let installmentNumber = firstInstallment; installmentNumber <= totalInstallments; installmentNumber += 1) {
       const month = addMonths(statementMonth, installmentNumber - firstInstallment);
@@ -245,12 +255,12 @@ export const buildInstallmentPreview = ({
         description: transaction.description,
         value: transaction.value,
         context: classification.context,
-        // Segmento (centro de resultado) sugerido pela classificação — gasto de
-        // obra é investimento nas kitnets; o resto começa como pessoal. Fica
-        // editável na prévia para o usuário mandar a compra para Perícias/
-        // Projetos etc. antes de salvar.
-        segment: classification.context === 'obra' ? 'kitnets' : 'pessoal',
-        category: classification.category,
+        // Segmento (centro de resultado): regra do usuário quando existe, senão
+        // a sugestão da classificação (obra vira investimento nas kitnets; o
+        // resto começa como pessoal). Fica editável na prévia para mandar a
+        // compra para Perícias/Projetos etc. antes de salvar.
+        segment,
+        category,
         card_name: cardName,
         installment: installmentLabel,
         status: 'revisar',

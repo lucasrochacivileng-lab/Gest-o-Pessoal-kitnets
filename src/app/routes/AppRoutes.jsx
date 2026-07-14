@@ -13,6 +13,7 @@ import Payments from '../../pages/Payments.jsx';
 import Expenses from '../../pages/Expenses.jsx';
 import ConstructionPage from '../../pages/ConstructionPage.jsx';
 import CreditCards from '../../pages/CreditCards.jsx';
+import ClassificationRules from '../../pages/ClassificationRules.jsx';
 import Documents from '../../pages/Documents.jsx';
 import Settings from '../../pages/Settings.jsx';
 import Reports from '../../pages/Reports.jsx';
@@ -45,6 +46,7 @@ export default function AppRoutes() {
         <Route path="/despesas/:id" element={<Expenses />} />
         <Route path="/obra" element={<ConstructionPage />} />
         <Route path="/cartoes" element={<CreditCards />} />
+        <Route path="/regras-classificacao" element={<ClassificationRules />} />
         <Route path="/documentos" element={<Documents />} />
         <Route path="/relatorios" element={<Reports />} />
         <Route path="/notificacoes" element={<NotificationsPage />} />

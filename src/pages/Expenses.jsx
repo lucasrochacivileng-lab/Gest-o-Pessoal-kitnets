@@ -7,9 +7,11 @@ import { findExpenseDuplicateOf } from '../services/duplicateCheckService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { repository } from '../repository/index.js';
 import { useEntitySync } from '../hooks/useEntitySync.js';
-import { buildCardInvoices, buildCardInvoiceSummary, selectInvoiceItems } from '../services/cardInvoiceService.js';
+import { buildCardInvoices, buildCardInvoiceSummary, findSiblingTransactions, selectInvoiceItems } from '../services/cardInvoiceService.js';
 import { resolveExpenseSegment } from '../services/segmentConsolidationService.js';
 import { categoryLabel } from '../services/categoryReportService.js';
+import { CLASSIFICATION_OPTIONS } from '../services/classificationRuleService.js';
+import { EXPENSE_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
 import { financialService } from '../services/financialService';
 import { formatDateBR } from '../services/dateUtils.js';
 
@@ -43,20 +45,8 @@ const fields = [
   { name: 'project_id', label: 'Projeto', type: 'select', optionsEntity: 'ComplementaryProject',
     optionLabel: (o) => [o.client, o.project_type].filter(Boolean).join(' — ') || o.address || o.id,
     visibleWhen: (form) => form.segment === 'projetos' },
-  { name: 'category', label: 'Tipo de gasto (tag)', type: 'select', options: [
-    { value: 'manutencao', label: 'Manutenção' },
-    { value: 'agua', label: 'Água' },
-    { value: 'luz', label: 'Luz / Energia' },
-    { value: 'energia_solar', label: 'Energia solar (parcela)' },
-    { value: 'moveis', label: 'Móveis/eletrodomésticos (parcela)' },
-    { value: 'internet', label: 'Internet' },
-    { value: 'iptu', label: 'IPTU' },
-    { value: 'seguro', label: 'Seguro' },
-    { value: 'limpeza', label: 'Limpeza' },
-    { value: 'material', label: 'Material' },
-    { value: 'obra', label: 'Obra' },
-    { value: 'outro', label: 'Outro' },
-  ] },
+  // Opções do catálogo único de categorias (categoryCatalog.js).
+  { name: 'category', label: 'Tipo de gasto (tag)', type: 'select', options: EXPENSE_CATEGORY_OPTIONS },
   { name: 'type', label: 'Tipo', type: 'select', options: [
     { value: 'fixa', label: 'Fixa' },
     { value: 'variavel', label: 'Variável' },
@@ -108,6 +98,10 @@ const COST_TYPE_LABELS = {
   investimento: 'Investimento',
   financiamento: 'Financiamento',
 };
+
+// As opções de classificação (categoria) do seletor inline vêm do
+// classificationRuleService — FONTE ÚNICA compartilhada com a tela de
+// "Regras de classificação", para as duas telas nunca divergirem.
 
 const PAYMENT_METHOD_LABELS = {
   boleto: 'Boleto',
@@ -214,7 +208,7 @@ function PaymentMethodCard({ label, value, sub, active, onClick }) {
 
 function CardInvoicesPanel({
   invoices, summary, selectedCard, onSelectCard, selectedInvoiceView, onSelectInvoiceView,
-  paymentMethodSummary, selectedPaymentMethod, onSelectPaymentMethod,
+  paymentMethodSummary, selectedPaymentMethod, onSelectPaymentMethod, onReclassify, savingItemId,
 }) {
   const selectedInvoice = invoices.find((invoice) => invoice.cardName === selectedCard) || invoices[0] || null;
   // Uma única seleção "manda" na tabela de detalhe por vez: cartão, recorte
@@ -335,7 +329,21 @@ function CardInvoicesPanel({
                   <td className="px-4 py-3 text-slate-600">{formatDateBR(item.date)}</td>
                   <td className="px-4 py-3 text-slate-900">{item.description || item.category || 'Compra no cartão'}</td>
                   <td className="px-4 py-3 text-slate-600">{ORIGIN_LABELS[item.origin] || item.origin}</td>
-                  <td className="px-4 py-3 text-slate-600">{item.category || 'sem categoria'}</td>
+                  <td className="px-4 py-3">
+                    {/* Classificação editável: trocar a categoria grava no
+                        lançamento e o Tipo (Custeio/Investimento) se recalcula. */}
+                    <select
+                      value={CLASSIFICATION_OPTIONS.some((o) => o.value === item.category) ? item.category : 'outros'}
+                      disabled={!item.id || savingItemId === item.id}
+                      onChange={(event) => onReclassify?.(item, event.target.value)}
+                      aria-label={`Classificação de ${item.description || 'lançamento'}`}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+                    >
+                      {CLASSIFICATION_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{COST_TYPE_LABELS[item.costType] || item.costType}</td>
                   <td className="px-4 py-3 text-slate-600">{item.installment || '—'}</td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-900">{financialService.formatCurrency(item.value)}</td>
@@ -474,10 +482,49 @@ export default function Expenses() {
     [expenseRows, competence],
   );
 
+  const [savingItemId, setSavingItemId] = useState('');
+
   const loadCardTransactions = useCallback(async () => {
     const rows = await repository.list('PersonalIncome');
     setPersonalRows(rows);
   }, []);
+
+  // Reclassifica um item da fatura: grava a nova categoria no lançamento
+  // (PersonalIncome). O Tipo (Custeio/Investimento/Financiamento) e os totais
+  // por origem são derivados da categoria, então se ajustam ao recarregar.
+  // Se a compra é parcelada, oferece propagar a correção às parcelas IRMÃS
+  // (mesma compra, meses passados e futuros) — corrigir a 4/5 e deixar a 5/5
+  // errada seria retrabalho garantido na próxima fatura.
+  const handleReclassify = useCallback(async (item, category) => {
+    if (!item?.id || category === item.category) return;
+
+    const siblings = findSiblingTransactions(personalRows, item)
+      .filter((row) => row.category !== category);
+    const propagate = siblings.length > 0 && window.confirm(
+      `Esta compra tem mais ${siblings.length} parcela(s) (${item.description || 'sem descrição'}). `
+      + 'Aplicar a mesma classificação a todas?',
+    );
+    const targets = propagate ? [item, ...siblings] : [item];
+    const targetIds = new Set(targets.map((row) => row.id));
+
+    setSavingItemId(item.id);
+    // Atualização otimista: reflete a troca na tabela antes do round-trip.
+    setPersonalRows((rows) => rows.map((row) => (targetIds.has(row.id) ? { ...row, category } : row)));
+    try {
+      for (const target of targets) {
+        // Sequencial: são poucas parcelas e, se uma gravação falhar, as
+        // anteriores já ficaram salvas (o reload abaixo ressincroniza a tela).
+        // eslint-disable-next-line no-await-in-loop
+        await repository.update('PersonalIncome', target.id, { category });
+      }
+      await loadCardTransactions();
+    } catch {
+      setMessage('Não foi possível salvar a classificação. Tente novamente.');
+      await loadCardTransactions();
+    } finally {
+      setSavingItemId('');
+    }
+  }, [loadCardTransactions, personalRows]);
 
   useEffect(() => {
     loadCardTransactions();
@@ -561,6 +608,8 @@ export default function Expenses() {
         paymentMethodSummary={paymentMethodSummary}
         selectedPaymentMethod={selectedPaymentMethod}
         onSelectPaymentMethod={handleSelectPaymentMethod}
+        onReclassify={handleReclassify}
+        savingItemId={savingItemId}
       />
 
       <SegmentFilter segments={segmentSummary} selected={selectedSegment} onSelect={setSelectedSegment} />

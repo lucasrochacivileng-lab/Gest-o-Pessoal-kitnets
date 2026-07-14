@@ -1,5 +1,10 @@
 const toMoney = (value) => Number(value || 0);
 const monthOf = (date) => String(date || '').slice(0, 7);
+const normalizeText = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/\p{Diacritic}/gu, '')
+  .trim()
+  .toLowerCase();
 
 export const CARD_TRANSACTION_STATUS = {
   REVIEW: 'revisar',
@@ -37,6 +42,23 @@ const byDateThenDescription = (a, b) => (
   String(a.date || '').localeCompare(String(b.date || ''))
   || String(a.description || '').localeCompare(String(b.description || ''))
 );
+
+// Parcelas IRMÃS de um lançamento de cartão: as outras parcelas da MESMA
+// compra (4/5, 5/5...), geradas juntas na importação. Mesma descrição, mesmo
+// cartão e mesmo valor — o valor entra no critério porque duas compras
+// diferentes no mesmo estabelecimento (ex.: dois pedidos Amazon) compartilham
+// a descrição, mas quase nunca o valor da parcela. Quando ambos os lados têm
+// purchase_date, ela também precisa bater (separa compras iguais em dias
+// diferentes). Usado para propagar uma correção de classificação: corrigiu a
+// 4/5, as irmãs (inclusive as futuras) acompanham.
+export const findSiblingTransactions = (rows = [], item = {}) => rows.filter((row) => (
+  row.type === 'card_transaction'
+  && row.id !== item.id
+  && normalizeText(row.description) === normalizeText(item.description)
+  && normalizeText(row.card_name) === normalizeText(item.card_name)
+  && toMoney(row.value) === toMoney(item.value)
+  && (!row.purchase_date || !item.purchase_date || row.purchase_date === item.purchase_date)
+));
 
 export const buildCardInvoices = ({ personal = [], month }) => {
   const groups = new Map();

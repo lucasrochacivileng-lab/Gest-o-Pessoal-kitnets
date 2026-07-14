@@ -2,11 +2,55 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCardInvoices,
   buildCardInvoiceSummary,
+  findSiblingTransactions,
   getCostType,
   getEconomicOrigin,
   matchesInvoiceView,
   selectInvoiceItems,
 } from './cardInvoiceService.js';
+
+describe('findSiblingTransactions', () => {
+  const base = {
+    type: 'card_transaction',
+    description: 'AMAZON BR SAO PAULO',
+    card_name: 'Nubank',
+    value: 12.49,
+    purchase_date: '2026-06-15',
+  };
+  const rows = [
+    { ...base, id: 'p4', installment: '4/5' },
+    { ...base, id: 'p5', installment: '5/5' },
+    // Outra compra no mesmo estabelecimento: valor diferente -> NÃO é irmã.
+    { ...base, id: 'other-value', value: 99.9, installment: '1/3' },
+    // Mesmo valor, mas data de compra diferente -> outra compra igual.
+    { ...base, id: 'other-date', purchase_date: '2026-06-20' },
+    // Cartão diferente -> fora.
+    { ...base, id: 'other-card', card_name: 'Santander' },
+    // Não é transação de cartão -> fora.
+    { ...base, id: 'not-card', type: 'expense' },
+  ];
+
+  it('encontra as parcelas da mesma compra (descrição + cartão + valor + data da compra)', () => {
+    const siblings = findSiblingTransactions(rows, rows[0]);
+    expect(siblings.map((row) => row.id)).toEqual(['p5']);
+  });
+
+  it('não devolve o próprio item', () => {
+    const siblings = findSiblingTransactions(rows, rows[1]);
+    expect(siblings.map((row) => row.id)).toEqual(['p4']);
+  });
+
+  it('ignora acento/caixa na descrição e no cartão', () => {
+    const item = { ...base, id: 'x', description: 'amazôn br sao paulo', card_name: 'NUBANK' };
+    expect(findSiblingTransactions(rows, item).map((row) => row.id)).toEqual(['p4', 'p5']);
+  });
+
+  it('sem purchase_date de um dos lados, casa mesmo assim (dados antigos)', () => {
+    const item = { ...base, id: 'y', purchase_date: '' };
+    expect(findSiblingTransactions(rows, item).map((row) => row.id)).toContain('p4');
+    expect(findSiblingTransactions(rows, item).map((row) => row.id)).toContain('p5');
+  });
+});
 
 describe('cardInvoiceService', () => {
   it('agrupa transacoes de cartao por fatura do mes de vencimento', () => {

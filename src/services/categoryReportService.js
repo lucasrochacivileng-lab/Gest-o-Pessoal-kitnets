@@ -1,38 +1,11 @@
 import { isPersonalExpense } from './personalMovementClassifier.js';
 import { resolveExpenseSegment } from './segmentConsolidationService.js';
+// Rótulos vêm do catálogo único de categorias — este serviço segue dono só da
+// NORMALIZAÇÃO (slug + aliases) que concilia os vocabulários legados.
+import { CATEGORY_LABELS } from './categoryCatalog.js';
 
 const toMoney = (value) => Number(value || 0);
 const monthOf = (date) => String(date || '').slice(0, 7);
-
-const CATEGORY_LABELS = {
-  agua: 'Água',
-  luz: 'Luz',
-  energia_solar: 'Energia solar',
-  moveis: 'Móveis/eletro',
-  internet: 'Internet',
-  iptu: 'IPTU',
-  seguro: 'Seguro',
-  limpeza: 'Limpeza',
-  material: 'Material de obra',
-  manutencao: 'Manutenção',
-  obra: 'Obra',
-  alimentacao: 'Alimentação',
-  combustivel: 'Combustível',
-  pessoal: 'Pessoal',
-  moradia: 'Moradia / aluguel',
-  energia: 'Energia',
-  gas: 'Gás',
-  mercado: 'Mercado',
-  farmacia: 'Farmácia',
-  assinatura: 'Assinaturas',
-  transporte: 'Transporte',
-  telefone: 'Telefone',
-  lazer: 'Lazer',
-  familia: 'Família',
-  tarifas_bancarias: 'Tarifas bancárias',
-  outro: 'Outros',
-  sem_categoria: 'Sem categoria',
-};
 
 export const categoryLabel = (key) => CATEGORY_LABELS[key] || (key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Sem categoria');
 

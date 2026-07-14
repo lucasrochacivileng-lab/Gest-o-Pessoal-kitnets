@@ -7,6 +7,8 @@ import {
   parseStatementFile,
   summarizeByCategory,
 } from '../services/cardStatementImportService.js';
+import { CLASSIFICATION_RULE_ENTITY } from '../services/classificationRuleService.js';
+import { CARD_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
 import { SEGMENTS } from '../services/segmentConsolidationService.js';
 
 const segmentOptions = SEGMENTS.map((segment) => ({ value: segment.key, label: segment.label }));
@@ -36,23 +38,9 @@ const STATUS_BADGE_COLORS = {
 };
 
 const cardOptions = ['Nubank', 'Santander', 'Itaú', 'Amazon Brasil', 'Mercado Pago Pai'];
-const categoryOptions = [
-  'alimentacao',
-  'mercado',
-  'combustivel',
-  'transporte',
-  'farmacia',
-  'lazer',
-  'assinatura',
-  'telefone',
-  'material de construcao',
-  'investimento kitnets',
-  'familia',
-  'impostos',
-  'emprestimos',
-  'tarifas bancarias',
-  'outros',
-];
+// Categorias do catálogo único (categoryCatalog.js) — mesma lista das Regras
+// de classificação e do seletor inline de Despesas.
+const categoryOptions = CARD_CATEGORY_OPTIONS;
 
 // Mesmo formato que uma linha importada de fatura (cardStatementImportService
 // buildInstallmentPreview): "date" é o vencimento usado por cardInvoiceService
@@ -120,22 +108,25 @@ export default function CreditCards() {
   const [expertReports, setExpertReports] = useState([]);
   const [projects, setProjects] = useState([]);
   const [existingTransactions, setExistingTransactions] = useState([]);
+  const [rules, setRules] = useState([]);
   const [fileName, setFileName] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
   const loadReferenceData = async () => {
-    const [kitnetRows, personalRows, expertReportRows, projectRows] = await Promise.all([
+    const [kitnetRows, personalRows, expertReportRows, projectRows, ruleRows] = await Promise.all([
       repository.list('Kitnet'),
       repository.list('PersonalIncome'),
       repository.list('ExpertReport'),
       repository.list('ComplementaryProject'),
+      repository.list(CLASSIFICATION_RULE_ENTITY),
     ]);
 
     setKitnets(kitnetRows);
     setExpertReports(expertReportRows);
     setProjects(projectRows);
     setExistingTransactions(personalRows.filter((row) => row.type === 'card_transaction'));
+    setRules(ruleRows);
   };
 
   useEffect(() => {
@@ -162,6 +153,7 @@ export default function CreditCards() {
         defaultCardName,
         existingTransactions,
         kitnets,
+        rules,
       }).map((row, index) => ({
         ...row,
         preview_id: `${row.origin_hash}-${index}`,
@@ -333,7 +325,7 @@ export default function CreditCards() {
                     </td>
                     <td className="px-2 py-2">
                       <select value={row.category || 'outros'} onChange={(event) => updatePreviewRow(row.preview_id, { category: event.target.value })} className="ds-input min-w-48">
-                        {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+                        {categoryOptions.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
                       </select>
                     </td>
                     <td className="px-2 py-2">
