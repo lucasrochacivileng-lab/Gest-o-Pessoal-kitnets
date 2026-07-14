@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { Plus } from 'lucide-react';
+import AddExpenseModal from './expenses/AddExpenseModal.jsx';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { NOTIFICATION_ENTITY } from '../modules/notifications/types/notification.types.js';
 import { recurringExpenseService } from '../services/recurringExpenseService.js';
@@ -428,6 +430,7 @@ export default function Expenses() {
   const [message, setMessage] = useState('');
   const [generating, setGenerating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [showAdd, setShowAdd] = useState(false);
   const [personalRows, setPersonalRows] = useState([]);
   const [expenseRows, setExpenseRows] = useState([]);
   const [selectedCard, setSelectedCard] = useState('');
@@ -583,7 +586,14 @@ export default function Expenses() {
   const topContent = (
     <div className="space-y-4">
       <MonthChips value={competence} onChange={setCompetence} />
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setShowAdd(true)}
+          className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          <Plus className="h-4 w-4" /> Adicionar
+        </button>
         <button
           type="button"
           onClick={handleGenerate}
@@ -593,6 +603,13 @@ export default function Expenses() {
           {generating ? 'Gerando...' : `Gerar despesas de ${competence}`}
         </button>
       </div>
+
+      {showAdd ? (
+        <AddExpenseModal
+          onClose={() => setShowAdd(false)}
+          onSaved={() => { setShowAdd(false); setReloadKey((key) => key + 1); loadCardTransactions(); }}
+        />
+      ) : null}
 
       {message ? (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{message}</div>

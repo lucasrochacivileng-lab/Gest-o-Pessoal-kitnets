@@ -9,6 +9,7 @@ import FinancialOverview from '../../pages/FinancialOverview.jsx';
 import Consolidated from '../../pages/Consolidated.jsx';
 import KitnetResult from '../../pages/KitnetResult.jsx';
 import Statement from '../../pages/Statement.jsx';
+import Income from '../../pages/Income.jsx';
 import Payments from '../../pages/Payments.jsx';
 import Expenses from '../../pages/Expenses.jsx';
 import ConstructionPage from '../../pages/ConstructionPage.jsx';
@@ -34,6 +35,7 @@ export default function AppRoutes() {
         <Route path="/consolidado" element={<Consolidated />} />
         <Route path="/resultado-kitnets" element={<KitnetResult />} />
         <Route path="/extrato" element={<Statement />} />
+        <Route path="/receitas" element={<Income />} />
         <Route path="/caixa" element={<CashReconciliation />} />
         <Route path="/kitnets" element={<Kitnets />} />
         <Route path="/locatarios" element={<Tenants />} />
