@@ -1,49 +1,100 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings, Bell, LogOut, CalendarRange, PieChart, ArrowLeftRight, Layers, Landmark, Wand2, TrendingUp } from 'lucide-react';
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  BarChart3,
+  Bell,
+  Briefcase,
+  Building2,
+  ChevronLeft,
+  CreditCard,
+  FileSignature,
+  FolderOpen,
+  Gavel,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Plus,
+  Settings,
+  Users,
+  Wallet,
+  Wand2,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../app/providers/AuthProvider.jsx';
 
-// Fases 2 e 3 da simplificação: "Financeiro" e "Relatórios" viraram UMA entrada
-// cada, com abas no topo da própria tela (HubLayout). Recebimentos, Pagamentos
-// e Finanças Pessoais deixaram de ser itens soltos e viram abas dentro de
-// Financeiro. `match` = prefixos de rota que mantêm a entrada destacada quando
-// você está em qualquer uma das abas do hub.
 const menuSections = [
   { title: 'Início', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/' }
-  ]},
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  ] },
   { title: 'Dinheiro', items: [
-    { label: 'Financeiro', icon: Wallet, path: '/receitas',
-      match: ['/receitas', '/recebimentos', '/despesas', '/pagamentos', '/extrato', '/caixa', '/financas-pessoais'] },
-    { label: 'Relatórios', icon: BarChart3, path: '/visao-geral',
-      match: ['/visao-geral', '/consolidado', '/resultado-kitnets', '/gastos-categoria', '/previsao', '/relatorios'] }
-  ]},
+    {
+      label: 'Financeiro',
+      icon: Wallet,
+      path: '/receitas',
+      match: ['/receitas', '/recebimentos', '/despesas', '/pagamentos', '/extrato', '/caixa', '/financas-pessoais'],
+    },
+    {
+      label: 'Relatórios',
+      icon: BarChart3,
+      path: '/visao-geral',
+      match: ['/visao-geral', '/consolidado', '/resultado-kitnets', '/gastos-categoria', '/previsao', '/relatorios'],
+    },
+  ] },
   { title: 'Imóveis', items: [
     { label: 'Kitnets', icon: Building2, path: '/kitnets' },
-    { label: 'Locatários', icon: Users, path: '/locatarios' },
-    { label: 'Contratos', icon: FileText, path: '/contratos' },
-    { label: 'Obra', icon: HardHat, path: '/obra' }
-  ]},
+    {
+      label: 'Locações',
+      icon: Users,
+      path: '/locacoes',
+      match: ['/locacoes', '/locatarios', '/contratos'],
+    },
+  ] },
   { title: 'Trabalho', items: [
     { label: 'Perícias', icon: Gavel, path: '/pericias' },
-    { label: 'Projetos', icon: Briefcase, path: '/projetos' }
-  ]},
-  { title: 'Configurações', items: [
+    { label: 'Projetos', icon: Briefcase, path: '/projetos' },
+  ] },
+  { title: 'Ajustes', items: [
     { label: 'Cartões', icon: CreditCard, path: '/cartoes' },
     { label: 'Regras de classificação', icon: Wand2, path: '/regras-classificacao' },
     { label: 'Documentos', icon: FolderOpen, path: '/documentos' },
     { label: 'Notificações', icon: Bell, path: '/notificacoes' },
-    { label: 'Preferências e backup', icon: Settings, path: '/configuracoes' }
-  ]}
+    { label: 'Preferências e backup', icon: Settings, path: '/configuracoes' },
+  ] },
+];
+
+const quickActions = [
+  {
+    label: 'Adicionar receita',
+    description: 'Aluguel, salário, perícia ou projeto',
+    icon: ArrowUpCircle,
+    path: '/receitas?novo=1',
+    tone: 'bg-emerald-50 text-emerald-700',
+  },
+  {
+    label: 'Adicionar despesa',
+    description: 'Pessoal, kitnet, projeto ou perícia',
+    icon: ArrowDownCircle,
+    path: '/despesas?novo=1',
+    tone: 'bg-rose-50 text-rose-700',
+  },
+  {
+    label: 'Nova locação',
+    description: 'Locatário, contrato e documentos',
+    icon: FileSignature,
+    path: '/locacoes?novo=1',
+    tone: 'bg-blue-50 text-blue-700',
+  },
 ];
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const location = useLocation();
   const { user, logout, requiresLogin } = useAuth();
-  const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
-  // Entrada de hub fica destacada em qualquer uma das rotas das suas abas.
+  const isActive = (path) => (path === '/' ? location.pathname === '/' : location.pathname.startsWith(path));
   const isItemActive = (item) => (item.match
     ? item.match.some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))
     : isActive(item.path));
@@ -52,75 +103,96 @@ export default function Sidebar() {
   const navContent = (
     <div className="flex h-full flex-col bg-[hsl(222,47%,11%)]">
       <div className="flex items-center justify-between border-b border-white/10 p-5">
-        {!collapsed && <div className="flex items-center gap-2.5"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-primary)]"><Building2 className="h-5 w-5 text-white" /></div><div><h1 className="text-base font-semibold leading-tight text-white">Gestão Residencial Rocha</h1><p className="text-[11px] text-white/50">Gestão Patrimonial</p></div></div>}
-        {collapsed && <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-primary)]"><Building2 className="h-5 w-5 text-white" /></div>}
-        <button onClick={() => setCollapsed(!collapsed)} className="hidden h-7 w-7 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/10 lg:flex"><ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} /></button>
-        <button onClick={() => setMobileOpen(false)} className="text-white/50 lg:hidden"><X className="h-5 w-5" /></button>
+        {!collapsed ? (
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary)]"><Building2 className="h-5 w-5 text-white" /></div>
+            <div><h1 className="text-base font-semibold leading-tight text-white">Gestão Residencial Rocha</h1><p className="text-[11px] text-white/50">Gestão Patrimonial</p></div>
+          </div>
+        ) : <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary)]"><Building2 className="h-5 w-5 text-white" /></div>}
+        <button type="button" onClick={() => setCollapsed(!collapsed)} className="hidden h-7 w-7 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/10 lg:flex" aria-label="Recolher menu"><ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} /></button>
+        <button type="button" onClick={() => setMobileOpen(false)} className="text-white/50 lg:hidden" aria-label="Fechar menu"><X className="h-5 w-5" /></button>
       </div>
+
+      <div className="px-3 pt-3">
+        <button type="button" onClick={() => setQuickOpen(true)} className={`flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-95 ${collapsed ? 'px-0' : ''}`}>
+          <Plus className="h-5 w-5" />{!collapsed ? 'Lançar' : null}
+        </button>
+      </div>
+
       <nav className="flex-1 space-y-4 overflow-y-auto p-3">
-        {menuSections.map((section) => <div key={section.title}>{!collapsed && <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30">{section.title}</p>}<div className="space-y-1">{section.items.map((item) => <Link key={item.path} to={item.path} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isItemActive(item) ? 'bg-[color:color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)]' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}><item.icon className={`h-[18px] w-[18px] flex-shrink-0 ${collapsed ? 'mx-auto' : ''}`} />{!collapsed && <span>{item.label}</span>}</Link>)}</div></div>)}
+        {menuSections.map((section) => (
+          <div key={section.title}>
+            {!collapsed ? <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">{section.title}</p> : null}
+            <div className="space-y-1">
+              {section.items.map((item) => (
+                <Link key={item.path} to={item.path} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${isItemActive(item) ? 'bg-[color:color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)]' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
+                  <item.icon className={`h-[18px] w-[18px] flex-shrink-0 ${collapsed ? 'mx-auto' : ''}`} />{!collapsed ? <span>{item.label}</span> : null}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </nav>
+
       {requiresLogin ? (
         <div className="border-t border-white/10 p-4">
-          {!collapsed && <div className="mb-2"><p className="text-sm font-medium text-white">{userName}</p><p className="text-[11px] text-white/50">Administrador</p></div>}
-          <button type="button" onClick={logout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/5 hover:text-white">
-            <LogOut className={`h-4 w-4 ${collapsed ? 'mx-auto' : ''}`} />{!collapsed && 'Sair'}
-          </button>
+          {!collapsed ? <div className="mb-2"><p className="text-sm font-medium text-white">{userName}</p><p className="text-[11px] text-white/50">Administrador</p></div> : null}
+          <button type="button" onClick={logout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/5 hover:text-white"><LogOut className={`h-4 w-4 ${collapsed ? 'mx-auto' : ''}`} />{!collapsed ? 'Sair' : null}</button>
         </div>
       ) : null}
     </div>
   );
 
-  // Atalhos da barra inferior (celular): as 4 telas do dia a dia + menu completo.
   const bottomNavItems = [
     { label: 'Início', icon: LayoutDashboard, path: '/' },
-    { label: 'Receber', icon: HandCoins, path: '/recebimentos' },
-    { label: 'Contratos', icon: FileText, path: '/contratos' },
-    { label: 'Kitnets', icon: Building2, path: '/kitnets' },
+    { label: 'Financeiro', icon: Wallet, path: '/receitas', match: ['/receitas', '/recebimentos', '/despesas', '/pagamentos', '/extrato', '/caixa', '/financas-pessoais'] },
+    { label: 'Imóveis', icon: Building2, path: '/kitnets', match: ['/kitnets', '/locacoes', '/locatarios', '/contratos'] },
   ];
 
   return <>
-    {/* Barra superior (celular): safe-area para o recorte/status bar do PWA */}
     <div className="fixed inset-x-0 top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-surface)] pt-[env(safe-area-inset-top)] lg:hidden">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]"><Building2 className="h-4 w-4 text-white" /></div><span className="text-sm font-semibold text-[var(--color-text)]">Gestão Residencial Rocha</span></div>
-        <button onClick={() => setMobileOpen(true)} aria-label="Abrir menu completo" className="-mr-2 p-3 text-[var(--color-text-muted)]"><Menu className="h-5 w-5" /></button>
+        <button type="button" onClick={() => setMobileOpen(true)} aria-label="Abrir menu completo" className="-mr-2 p-3 text-[var(--color-text-muted)]"><Menu className="h-5 w-5" /></button>
       </div>
     </div>
 
-    {mobileOpen && <div className="fixed inset-0 z-50 lg:hidden"><div className="absolute inset-0 bg-[var(--color-overlay)]" onClick={() => setMobileOpen(false)} /><div className="absolute left-0 top-0 bottom-0 w-64 bg-[hsl(222,47%,11%)] pt-[env(safe-area-inset-top)]">{navContent}</div></div>}
+    {mobileOpen ? <div className="fixed inset-0 z-[60] lg:hidden"><button type="button" aria-label="Fechar menu" className="absolute inset-0 bg-[var(--color-overlay)]" onClick={() => setMobileOpen(false)} /><div className="absolute bottom-0 left-0 top-0 w-[min(19rem,86vw)] bg-[hsl(222,47%,11%)] pt-[env(safe-area-inset-top)] shadow-2xl">{navContent}</div></div> : null}
 
-    {/* Barra inferior de navegação (celular): estilo app nativo */}
-    <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-      <div className="grid grid-cols-5">
-        {bottomNavItems.map((item) => {
-          const active = isActive(item.path);
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium transition-colors ${active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]'}`}
-            >
-              <span className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors ${active ? 'bg-[color:color-mix(in_srgb,var(--color-primary)_14%,transparent)]' : ''}`}>
-                <item.icon className="h-5 w-5" />
-              </span>
-              {item.label}
-            </Link>
-          );
-        })}
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className="flex min-h-14 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors"
-        >
-          <span className="flex h-7 w-12 items-center justify-center rounded-full">
-            <Menu className="h-5 w-5" />
-          </span>
-          Menu
+    <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--color-border)] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+      <div className="grid grid-cols-5 px-1">
+        <MobileNavLink item={bottomNavItems[0]} active={isItemActive(bottomNavItems[0])} />
+        <MobileNavLink item={bottomNavItems[1]} active={isItemActive(bottomNavItems[1])} />
+        <button type="button" onClick={() => setQuickOpen(true)} className="relative flex min-h-16 flex-col items-center justify-end gap-0.5 pb-1.5 text-[11px] font-semibold text-[var(--color-primary)]" aria-label="Lançar">
+          <span className="absolute -top-5 flex h-14 w-14 items-center justify-center rounded-full border-4 border-[var(--color-bg)] bg-[var(--color-primary)] text-white shadow-lg"><Plus className="h-7 w-7" /></span>
+          Lançar
         </button>
+        <MobileNavLink item={bottomNavItems[2]} active={isItemActive(bottomNavItems[2])} />
+        <button type="button" onClick={() => setMobileOpen(true)} className="flex min-h-16 flex-col items-center justify-center gap-1 py-1.5 text-[11px] font-medium text-[var(--color-text-muted)]"><span className="flex h-7 w-12 items-center justify-center rounded-full"><Menu className="h-5 w-5" /></span>Mais</button>
       </div>
     </nav>
 
-    <aside className={`fixed left-0 top-0 bottom-0 z-30 hidden flex-col bg-[hsl(222,47%,11%)] transition-all duration-300 lg:flex ${collapsed ? 'w-[72px]' : 'w-60'}`}>{navContent}</aside>
+    {quickOpen ? (
+      <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/45 sm:items-center sm:p-4">
+        <button type="button" aria-label="Fechar lançamentos" className="absolute inset-0" onClick={() => setQuickOpen(false)} />
+        <div className="relative w-full max-w-md rounded-t-2xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:p-5">
+          <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-slate-900">O que deseja lançar?</h2><p className="text-sm text-slate-500">Escolha uma ação para continuar.</p></div><button type="button" onClick={() => setQuickOpen(false)} className="rounded-lg border border-slate-200 p-2 text-slate-500" aria-label="Fechar"><X className="h-5 w-5" /></button></div>
+          <div className="space-y-2">
+            {quickActions.map((action) => <Link key={action.path} to={action.path} onClick={() => setQuickOpen(false)} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 transition hover:border-blue-200 hover:bg-blue-50/40"><span className={`flex h-11 w-11 items-center justify-center rounded-lg ${action.tone}`}><action.icon className="h-5 w-5" /></span><span><span className="block text-sm font-semibold text-slate-900">{action.label}</span><span className="block text-xs text-slate-500">{action.description}</span></span></Link>)}
+          </div>
+        </div>
+      </div>
+    ) : null}
+
+    <aside className={`fixed bottom-0 left-0 top-0 z-30 hidden flex-col bg-[hsl(222,47%,11%)] transition-all duration-300 lg:flex ${collapsed ? 'w-[72px]' : 'w-60'}`}>{navContent}</aside>
   </>;
+}
+
+function MobileNavLink({ item, active }) {
+  return (
+    <Link to={item.path} className={`flex min-h-16 flex-col items-center justify-center gap-1 py-1.5 text-[11px] font-medium transition-colors ${active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]'}`}>
+      <span className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors ${active ? 'bg-[color:color-mix(in_srgb,var(--color-primary)_14%,transparent)]' : ''}`}><item.icon className="h-5 w-5" /></span>
+      {item.label}
+    </Link>
+  );
 }

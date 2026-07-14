@@ -4,6 +4,14 @@ import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
 import { formatDateBR } from '../../../services/dateUtils.js';
 import { useEntitySync } from '../../../hooks/useEntitySync.js';
+import {
+  RENTAL_DOCUMENT_LABELS,
+  RENTAL_DOCUMENT_TYPES,
+  documentsForContract,
+  getRentalDocumentStatus,
+  openRentalDocument,
+  upsertRentalDocument,
+} from '../../../services/rentalDocumentService.js';
 
 const fields = [
   { key: 'name', label: 'Nome', type: 'text', placeholder: 'Kitnet 01' },
@@ -58,16 +66,6 @@ export const getActiveContract = (kitnetContracts = []) => (
   kitnetContracts.find((contract) => contract.status === 'ativo') || null
 );
 
-const DOCUMENT_TYPES = {
-  contract: 'contrato_pdf',
-  inspection: 'termo_vistoria_pdf',
-};
-
-const DOCUMENT_LABELS = {
-  [DOCUMENT_TYPES.contract]: 'Contrato de locação',
-  [DOCUMENT_TYPES.inspection]: 'Termo de vistoria',
-};
-
 // Cor por status: ocupada é positivo, vaga precisa de ação, manutenção é alerta.
 const STATUS_BADGE_CLASS = {
   ocupada: 'ds-badge-success',
@@ -80,54 +78,6 @@ const inputClass = 'ds-input';
 function fieldValue(value, type) {
   if (type === 'number') return value || '';
   return value || '';
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
-function dataUrlToBlob(dataUrl) {
-  const [metadata, base64] = dataUrl.split(',');
-  const mimeType = metadata.match(/data:(.*);base64/)?.[1] || 'application/pdf';
-  const binary = window.atob(base64);
-  const bytes = new Uint8Array(binary.length);
-
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-
-  return new Blob([bytes], { type: mimeType });
-}
-
-function openDocument(document) {
-  if (!document) return;
-
-  if (document.file_data) {
-    const blob = dataUrlToBlob(document.file_data);
-    const url = URL.createObjectURL(blob);
-    const documentWindow = window.open(url, '_blank');
-
-    if (documentWindow) {
-      documentWindow.focus();
-    }
-
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    return;
-  }
-
-  if (document.file_url) {
-    window.open(document.file_url, '_blank', 'noopener,noreferrer');
-  }
-}
-
-function getDocumentStatus(document) {
-  if (!document) return 'Nenhum arquivo anexado';
-  return document.file_name || document.title || 'Arquivo anexado';
 }
 
 export default function Kitnets() {
@@ -176,23 +126,6 @@ export default function Kitnets() {
   const tenantById = useMemo(() => {
     return tenants.reduce((acc, tenant) => ({ ...acc, [tenant.id]: tenant }), {});
   }, [tenants]);
-
-  const documentsByKitnet = useMemo(() => {
-    return documents.reduce((acc, document) => {
-      if (!document.kitnet_id || !Object.values(DOCUMENT_TYPES).includes(document.type)) return acc;
-      const current = acc[document.kitnet_id]?.[document.type];
-      const shouldReplace = !current || String(document.uploaded_at || '').localeCompare(String(current.uploaded_at || '')) > 0;
-
-      if (shouldReplace) {
-        acc[document.kitnet_id] = {
-          ...(acc[document.kitnet_id] || {}),
-          [document.type]: document,
-        };
-      }
-
-      return acc;
-    }, {});
-  }, [documents]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -244,40 +177,13 @@ export default function Kitnets() {
 
   const handleDocumentUpload = async ({ kitnet, contract, tenant, documentType, file }) => {
     if (!file) return;
-
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      setMessage('Envie apenas arquivos PDF.');
-      return;
+    try {
+      await upsertRentalDocument({ documents, file, type: documentType, kitnet, contract, tenant, source: 'Kitnets' });
+      setMessage(`${RENTAL_DOCUMENT_LABELS[documentType]} anexado com sucesso.`);
+      await loadData();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Não foi possível anexar o documento.');
     }
-
-    const fileData = await readFileAsDataUrl(file);
-    const existingDocument = documents.find((document) => (
-      document.kitnet_id === kitnet.id
-      && document.type === documentType
-      && document.active !== false
-    ));
-    const payload = {
-      title: `${DOCUMENT_LABELS[documentType]} - ${kitnet.name}`,
-      type: documentType,
-      file_name: file.name,
-      file_type: file.type || 'application/pdf',
-      file_data: fileData,
-      kitnet_id: kitnet.id,
-      tenant_id: tenant?.id || contract?.tenant_id || '',
-      contract_id: contract?.id || '',
-      uploaded_at: new Date().toISOString(),
-      notes: `${DOCUMENT_LABELS[documentType]} anexado pela tela de Kitnets`,
-      active: true,
-    };
-
-    if (existingDocument) {
-      await repository.update('Document', existingDocument.id, payload);
-    } else {
-      await repository.create('Document', payload);
-    }
-
-    setMessage(`${DOCUMENT_LABELS[documentType]} anexado com sucesso.`);
-    await loadData();
   };
 
   return (
@@ -360,9 +266,9 @@ export default function Kitnets() {
             const kitnetContracts = contractsByKitnet[kitnet.id] || [];
             const activeContract = getActiveContract(kitnetContracts);
             const activeTenant = activeContract ? tenantById[activeContract.tenant_id] : null;
-            const kitnetDocuments = documentsByKitnet[kitnet.id] || {};
-            const contractDocument = kitnetDocuments[DOCUMENT_TYPES.contract];
-            const inspectionDocument = kitnetDocuments[DOCUMENT_TYPES.inspection];
+            const contractDocuments = documentsForContract(documents, activeContract?.id);
+            const contractDocument = contractDocuments.find((document) => document.type === RENTAL_DOCUMENT_TYPES.contract);
+            const inspectionDocument = contractDocuments.find((document) => document.type === RENTAL_DOCUMENT_TYPES.inspection);
 
             return (
               <div key={kitnet.id} className="ds-card">
@@ -434,11 +340,11 @@ export default function Kitnets() {
                   </p>
                   <div className="mt-3 space-y-3">
                     <div>
-                      <p className="text-xs text-slate-500">Contrato: {getDocumentStatus(contractDocument)}</p>
+                      <p className="text-xs text-slate-500">Contrato: {getRentalDocumentStatus(contractDocument)}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => openDocument(contractDocument)}
+                          onClick={() => openRentalDocument(contractDocument)}
                           disabled={!contractDocument}
                           className="ds-btn ds-btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -454,7 +360,7 @@ export default function Kitnets() {
                               kitnet,
                               contract: activeContract,
                               tenant: activeTenant,
-                              documentType: DOCUMENT_TYPES.contract,
+                              documentType: RENTAL_DOCUMENT_TYPES.contract,
                               file: event.target.files?.[0],
                             })}
                           />
@@ -463,11 +369,11 @@ export default function Kitnets() {
                     </div>
 
                     <div>
-                      <p className="text-xs text-slate-500">Termo de vistoria: {getDocumentStatus(inspectionDocument)}</p>
+                      <p className="text-xs text-slate-500">Termo de vistoria: {getRentalDocumentStatus(inspectionDocument)}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => openDocument(inspectionDocument)}
+                          onClick={() => openRentalDocument(inspectionDocument)}
                           disabled={!inspectionDocument}
                           className="ds-btn ds-btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -483,7 +389,7 @@ export default function Kitnets() {
                               kitnet,
                               contract: activeContract,
                               tenant: activeTenant,
-                              documentType: DOCUMENT_TYPES.inspection,
+                              documentType: RENTAL_DOCUMENT_TYPES.inspection,
                               file: event.target.files?.[0],
                             })}
                           />

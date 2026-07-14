@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { FileSignature, Plus, XCircle } from 'lucide-react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ChevronDown, ExternalLink, FileText, Mail, Phone, Plus, Upload, UserRound, XCircle } from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
 import { formatDateBR } from '../../../services/dateUtils.js';
@@ -9,6 +9,15 @@ import { useEntitySync } from '../../../hooks/useEntitySync.js';
 import NotificationActionDialog from '../../notifications/components/NotificationActionDialog.jsx';
 import notificationService from '../../notifications/services/notificationService.js';
 import { NOTIFICATION_ENTITY } from '../../notifications/types/notification.types.js';
+import ModalShell from '../../../components/ui/ModalShell.jsx';
+import {
+  RENTAL_DOCUMENT_LABELS,
+  RENTAL_DOCUMENT_TYPES,
+  documentsForContract,
+  getRentalDocumentStatus,
+  openRentalDocument,
+  upsertRentalDocument,
+} from '../../../services/rentalDocumentService.js';
 
 const inputClass = 'ds-input';
 const today = () => new Date().toISOString().slice(0, 10);
@@ -17,8 +26,14 @@ const emptyForm = {
   tenantMode: 'novo',
   tenantId: '',
   tenantName: '',
+  tenantCpf: '',
   tenantPhone: '',
+  tenantWhatsapp: '',
   tenantEmail: '',
+  tenantProfession: '',
+  guarantorName: '',
+  guarantorCpf: '',
+  guarantorPhone: '',
   kitnetId: '',
   rentValue: '',
   startDate: '',
@@ -30,13 +45,18 @@ const emptyForm = {
 export default function Contracts() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [contracts, setContracts] = useState([]);
   const [kitnets, setKitnets] = useState([]);
   const [tenants, setTenants] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [documentFiles, setDocumentFiles] = useState({});
+  const [view, setView] = useState('ativas');
+  const [expandedId, setExpandedId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [terminating, setTerminating] = useState(null); // contrato sendo encerrado
   const [exitDate, setExitDate] = useState(today());
@@ -45,14 +65,16 @@ export default function Contracts() {
 
   const loadData = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
-    const [contractRows, kitnetRows, tenantRows] = await Promise.all([
+    const [contractRows, kitnetRows, tenantRows, documentRows] = await Promise.all([
       repository.list('Contract'),
       repository.list('Kitnet'),
       repository.list('Tenant'),
+      repository.list('Document'),
     ]);
     setContracts(contractRows);
     setKitnets(kitnetRows);
     setTenants(tenantRows);
+    setDocuments(documentRows);
     setLoading(false);
   };
 
@@ -60,18 +82,30 @@ export default function Contracts() {
     loadData();
   }, []);
 
-  useEntitySync(['Contract', 'Kitnet', 'Tenant'], () => loadData({ silent: true }));
+  useEntitySync(['Contract', 'Kitnet', 'Tenant', 'Document'], () => loadData({ silent: true }));
+
+  useEffect(() => {
+    if (searchParams.get('novo') !== '1') return;
+    setFormOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('novo');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const kitnetById = useMemo(() => Object.fromEntries(kitnets.map((row) => [row.id, row])), [kitnets]);
   const tenantById = useMemo(() => Object.fromEntries(tenants.map((row) => [row.id, row])), [tenants]);
 
   const sortedContracts = useMemo(() => {
-    return [...contracts].sort((a, b) => {
+    return contracts.filter((contract) => {
+      if (view === 'ativas') return contract.status !== 'encerrado';
+      if (view === 'historico') return contract.status === 'encerrado';
+      return true;
+    }).sort((a, b) => {
       const activeOrder = (a.status === 'encerrado') - (b.status === 'encerrado');
       if (activeOrder !== 0) return activeOrder;
       return String(b.start_date || '').localeCompare(String(a.start_date || ''));
     });
-  }, [contracts]);
+  }, [contracts, view]);
 
   const availableKitnets = useMemo(() => {
     const occupiedIds = new Set(contracts.filter((row) => row.status === 'ativo').map((row) => row.kitnet_id));
@@ -92,6 +126,7 @@ export default function Contracts() {
 
   const closeForm = () => {
     setForm(emptyForm);
+    setDocumentFiles({});
     setFormOpen(false);
   };
 
@@ -106,8 +141,15 @@ export default function Contracts() {
         tenantId: form.tenantMode === 'existente' ? form.tenantId : '',
         tenant: {
           name: form.tenantName,
+          cpf: form.tenantCpf,
           phone: form.tenantPhone,
+          whatsapp: form.tenantWhatsapp || form.tenantPhone,
           email: form.tenantEmail,
+          profession: form.tenantProfession,
+          guarantor_name: form.guarantorName,
+          guarantor_cpf: form.guarantorCpf,
+          guarantor_phone: form.guarantorPhone,
+          kitnet_id: form.kitnetId,
         },
         contract: {
           kitnet_id: form.kitnetId,
@@ -119,14 +161,56 @@ export default function Contracts() {
         },
       });
 
+      const savedTenant = form.tenantMode === 'existente' ? tenantById[form.tenantId] : result.tenant;
+      const savedKitnet = kitnetById[form.kitnetId];
+      let uploaded = 0;
+      let uploadErrors = 0;
+
+      for (const [type, file] of Object.entries(documentFiles)) {
+        if (!file) continue;
+        try {
+          await upsertRentalDocument({
+            documents,
+            file,
+            type,
+            kitnet: savedKitnet,
+            contract: result.contract,
+            tenant: savedTenant,
+            source: 'Locações',
+          });
+          uploaded += 1;
+        } catch {
+          uploadErrors += 1;
+        }
+      }
+
       const lastCompetence = result.receivables[result.receivables.length - 1]?.competence;
-      setMessage(`Contrato criado com ${result.receivables.length} aluguel(éis) lançado(s)${lastCompetence ? ` até ${lastCompetence}` : ''}. A kitnet foi marcada como ocupada.`);
+      setMessage(`Locação criada com ${result.receivables.length} aluguel(éis) lançado(s)${lastCompetence ? ` até ${lastCompetence}` : ''}.${uploaded ? ` ${uploaded} documento(s) anexado(s).` : ''}${uploadErrors ? ` ${uploadErrors} anexo(s) não puderam ser salvos; você pode tentar novamente nos detalhes da locação.` : ''} A kitnet foi marcada como ocupada.`);
       closeForm();
       await loadData({ silent: true });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível criar o contrato.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDocumentUpload = async (contract, type, file) => {
+    if (!file) return;
+    try {
+      await upsertRentalDocument({
+        documents,
+        file,
+        type,
+        kitnet: kitnetById[contract.kitnet_id],
+        contract,
+        tenant: tenantById[contract.tenant_id],
+        source: 'Locações',
+      });
+      setMessage(`${RENTAL_DOCUMENT_LABELS[type]} anexado com sucesso.`);
+      await loadData({ silent: true });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Não foi possível anexar o documento.');
     }
   };
 
@@ -187,35 +271,41 @@ export default function Contracts() {
 
   const closeActionDialog = () => {
     setActionItem(null);
-    navigate('/contratos');
+    navigate('/locacoes');
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--color-text)]">Contratos</h1>
+          <h1 className="text-2xl font-semibold text-[var(--color-text)]">Locações</h1>
           <p className="text-sm text-[var(--color-text-muted)]">
-            Cadastre o inquilino, vincule à kitnet e o carnê de aluguéis é lançado automaticamente.
+            Locatário, contrato, documentos e histórico reunidos em um só lugar.
           </p>
         </div>
         <button type="button" onClick={() => (formOpen ? closeForm() : setFormOpen(true))} className="ds-btn ds-btn-primary">
-          <Plus className="h-4 w-4" /> Novo aluguel
+          <Plus className="h-4 w-4" /> Nova locação
         </button>
       </div>
 
       {message ? <div className="ds-alert ds-alert-info">{message}</div> : null}
 
-      {formOpen ? (
-        <form onSubmit={handleSubmit} className="ds-card space-y-5">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-              <FileSignature className="h-5 w-5" /> Novo aluguel
-            </h2>
-            <p className="text-sm text-slate-500">Inquilino + contrato num passo só. Ao salvar, todos os aluguéis do período são lançados.</p>
-          </div>
+      <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+        {[
+          { value: 'ativas', label: `Ativas (${contracts.filter((row) => row.status !== 'encerrado').length})` },
+          { value: 'historico', label: `Histórico (${contracts.filter((row) => row.status === 'encerrado').length})` },
+          { value: 'todas', label: 'Todas' },
+        ].map((option) => (
+          <button key={option.value} type="button" onClick={() => setView(option.value)} className={`rounded-md px-3 py-2 text-sm font-semibold transition ${view === option.value ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+            {option.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      {formOpen ? (
+        <ModalShell title="Nova locação" subtitle="Cadastre o locatário, o contrato e os PDFs no mesmo fluxo." onClose={closeForm} maxWidth="max-w-4xl">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-semibold text-slate-900">1. Inquilino</p>
             <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-700">
               <label className="flex items-center gap-2">
@@ -245,19 +335,43 @@ export default function Contracts() {
                     <input value={form.tenantName} onChange={(event) => updateForm('tenantName', event.target.value)} className={inputClass} placeholder="Nome completo" required />
                   </label>
                   <label className="ds-form-field">
-                    Telefone (WhatsApp)
+                    CPF
+                    <input value={form.tenantCpf} onChange={(event) => updateForm('tenantCpf', event.target.value)} className={inputClass} placeholder="000.000.000-00" />
+                  </label>
+                  <label className="ds-form-field">
+                    Telefone
                     <input value={form.tenantPhone} onChange={(event) => updateForm('tenantPhone', event.target.value)} className={inputClass} placeholder="(64) 99999-8888" />
+                  </label>
+                  <label className="ds-form-field">
+                    WhatsApp
+                    <input value={form.tenantWhatsapp} onChange={(event) => updateForm('tenantWhatsapp', event.target.value)} className={inputClass} placeholder="Se for diferente do telefone" />
                   </label>
                   <label className="ds-form-field">
                     E-mail (opcional)
                     <input type="email" value={form.tenantEmail} onChange={(event) => updateForm('tenantEmail', event.target.value)} className={inputClass} placeholder="email@exemplo.com" />
+                  </label>
+                  <label className="ds-form-field">
+                    Profissão
+                    <input value={form.tenantProfession} onChange={(event) => updateForm('tenantProfession', event.target.value)} className={inputClass} />
+                  </label>
+                  <label className="ds-form-field">
+                    Nome do fiador
+                    <input value={form.guarantorName} onChange={(event) => updateForm('guarantorName', event.target.value)} className={inputClass} />
+                  </label>
+                  <label className="ds-form-field">
+                    CPF do fiador
+                    <input value={form.guarantorCpf} onChange={(event) => updateForm('guarantorCpf', event.target.value)} className={inputClass} />
+                  </label>
+                  <label className="ds-form-field">
+                    Telefone do fiador
+                    <input value={form.guarantorPhone} onChange={(event) => updateForm('guarantorPhone', event.target.value)} className={inputClass} />
                   </label>
                 </>
               )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-semibold text-slate-900">2. Contrato</p>
             <div className="mt-3 grid gap-4 lg:grid-cols-3">
               <label className="ds-form-field">
@@ -294,13 +408,28 @@ export default function Contracts() {
             </div>
           </div>
 
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-900">3. Documentos em PDF</p>
+            <p className="mt-1 text-xs text-slate-500">Os anexos são opcionais agora e também podem ser enviados depois nos detalhes da locação.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {Object.entries(RENTAL_DOCUMENT_LABELS).map(([type, label]) => (
+                <label key={type} className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-white p-3 transition hover:border-blue-400 hover:bg-blue-50/40">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Upload className="h-5 w-5" /></span>
+                  <span className="min-w-0"><span className="block text-sm font-semibold text-slate-800">{label}</span><span className="block truncate text-xs text-slate-500">{documentFiles[type]?.name || 'Selecionar PDF'}</span></span>
+                  <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => setDocumentFiles((current) => ({ ...current, [type]: event.target.files?.[0] }))} />
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <button type="submit" disabled={saving} className="ds-btn ds-btn-primary disabled:opacity-60">
-              {saving ? 'Salvando...' : 'Salvar e lançar aluguéis'}
+              {saving ? 'Salvando...' : 'Salvar locação e gerar aluguéis'}
             </button>
             <button type="button" onClick={closeForm} className="ds-btn ds-btn-secondary">Cancelar</button>
           </div>
         </form>
+        </ModalShell>
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -311,13 +440,15 @@ export default function Contracts() {
             const kitnet = kitnetById[contract.kitnet_id];
             const tenant = tenantById[contract.tenant_id];
             const isActive = contract.status !== 'encerrado';
+            const contractDocuments = documentsForContract(documents, contract.id);
+            const isExpanded = expandedId === contract.id;
 
             return (
               <div key={contract.id} className="ds-card">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-base font-semibold text-slate-900">{kitnet?.name || 'Kitnet não informada'}</p>
-                    <p className="text-sm text-slate-500">{tenant?.name || 'Locatário não informado'}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold text-slate-900">{tenant?.name || 'Locatário não informado'}</p>
+                    <p className="text-sm text-slate-500">{kitnet?.name || 'Kitnet não informada'}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <span className={`ds-badge ${isActive ? 'ds-badge-success' : 'ds-badge-info'}`}>
                         {isActive ? 'ativo' : 'encerrado'}
@@ -330,16 +461,53 @@ export default function Contracts() {
                       {contract.fine_months ? ` · multa de quebra: ${contract.fine_months} aluguel(éis)` : ''}
                     </p>
                   </div>
+                  <button type="button" onClick={() => setExpandedId(isExpanded ? null : contract.id)} className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+                    {isExpanded ? 'Recolher' : 'Detalhes'}<ChevronDown className={`h-4 w-4 transition ${isExpanded ? 'rotate-180' : ''}`} />
+                  </button>
                 </div>
+
+                {isExpanded ? (
+                  <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
+                    <section>
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><UserRound className="h-4 w-4 text-blue-600" /> Dados do locatário</h3>
+                      <div className="mt-2 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                        <p>CPF: {tenant?.cpf || 'Não informado'}</p>
+                        <p>Profissão: {tenant?.profession || 'Não informada'}</p>
+                        <p className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> {tenant?.whatsapp || tenant?.phone || 'Não informado'}</p>
+                        <p className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> {tenant?.email || 'Não informado'}</p>
+                        {tenant?.guarantor_name ? <p className="sm:col-span-2">Fiador: {tenant.guarantor_name}{tenant.guarantor_phone ? ` · ${tenant.guarantor_phone}` : ''}</p> : null}
+                      </div>
+                    </section>
+
+                    <section className="border-t border-slate-100 pt-4">
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><FileText className="h-4 w-4 text-blue-600" /> Documentos da locação</h3>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {Object.entries(RENTAL_DOCUMENT_LABELS).map(([type, label]) => {
+                          const document = contractDocuments.find((item) => item.type === type);
+                          return (
+                            <div key={type} className="flex items-center justify-between gap-2 border-b border-slate-100 py-2">
+                              <div className="min-w-0"><p className="text-xs font-semibold text-slate-700">{label}</p><p className="truncate text-xs text-slate-500">{getRentalDocumentStatus(document)}</p></div>
+                              <div className="flex shrink-0 gap-1">
+                                {document ? <button type="button" onClick={() => openRentalDocument(document)} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50" aria-label={`Abrir ${label}`}><ExternalLink className="h-4 w-4" /></button> : null}
+                                <label className="cursor-pointer rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50" aria-label={`Anexar ${label}`}><Upload className="h-4 w-4" /><input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => handleDocumentUpload(contract, type, event.target.files?.[0])} /></label>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  </div>
+                ) : null}
+
                 {isActive ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                     <button type="button" onClick={() => handleCompleteSchedule(contract)} className="ds-btn ds-btn-secondary">
                       Completar carnê
                     </button>
                     <button
                       type="button"
                       onClick={() => openTerminate(contract)}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                      className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
                     >
                       <XCircle className="h-4 w-4" /> Encerrar contrato
                     </button>
@@ -349,7 +517,7 @@ export default function Contracts() {
             );
           })
         ) : (
-          <div className="ds-card text-[var(--color-text-muted)]">Nenhum contrato cadastrado. Clique em "Novo aluguel" para começar.</div>
+          <div className="ds-card text-[var(--color-text-muted)]">Nenhuma locação nesta visualização.</div>
         )}
       </div>
 

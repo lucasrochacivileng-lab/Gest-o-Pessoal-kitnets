@@ -116,8 +116,8 @@ export const contractService = {
     }
 
     const savedTenant = tenantId
-      ? { id: tenantId }
-      : await repository.create('Tenant', { status: 'ativo', ...tenant, active: true });
+      ? await repository.update('Tenant', tenantId, { status: 'ativo', kitnet_id: contract.kitnet_id })
+      : await repository.create('Tenant', { status: 'ativo', ...tenant, kitnet_id: contract.kitnet_id, active: true });
 
     const savedContract = await repository.create('Contract', {
       ...contract,
@@ -188,6 +188,16 @@ export const contractService = {
       if (!stillOccupied) {
         await repository.update('Kitnet', contract.kitnet_id, { status: 'vaga' });
       }
+    }
+
+    const tenantStillRents = contracts.some((row) => (
+      row.id !== contract.id
+      && row.tenant_id === contract.tenant_id
+      && row.status === 'ativo'
+    ));
+
+    if (contract.tenant_id && !tenantStillRents) {
+      await repository.update('Tenant', contract.tenant_id, { status: 'inativo', kitnet_id: '' });
     }
 
     let fineReceivable = null;

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, ArrowUpCircle } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { repository } from '../repository/index.js';
 import { buildIncomeInbox } from '../services/incomeInboxService.js';
 import { receivableService } from '../modules/receivables/services/receivableService.js';
@@ -26,6 +27,7 @@ function SummaryCard({ label, value, tone = 'text-slate-900' }) {
 }
 
 export default function Income() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [month, setMonth] = useState(currentMonthKey);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +43,14 @@ export default function Income() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (searchParams.get('novo') !== '1') return;
+    setShowAdd(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('novo');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const inbox = useMemo(() => (data ? buildIncomeInbox({ ...data, month }) : { rows: [], summary: { received: 0, previsto: 0, total: 0 } }), [data, month]);
 

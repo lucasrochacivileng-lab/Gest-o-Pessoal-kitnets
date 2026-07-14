@@ -4,7 +4,6 @@ import Dashboard from '../../modules/dashboard/pages/index.jsx';
 import Recebimentos from '../../modules/receivables/pages/ReceivablesPage.jsx';
 import Kitnets from '../../modules/kitnets/pages/index.jsx';
 import Contratos from '../../modules/contracts/pages/index.jsx';
-import Tenants from '../../modules/tenants/pages/index.jsx';
 import FinancialOverview from '../../pages/FinancialOverview.jsx';
 import Consolidated from '../../pages/Consolidated.jsx';
 import KitnetResult from '../../pages/KitnetResult.jsx';
@@ -80,8 +79,9 @@ export default function AppRoutes() {
         </Route>
 
         <Route path="/kitnets" element={<Kitnets />} />
-        <Route path="/locatarios" element={<Tenants />} />
-        <Route path="/contratos" element={<Contratos />} />
+        <Route path="/locacoes" element={<Contratos />} />
+        <Route path="/locatarios" element={<Navigate to="/locacoes" replace />} />
+        <Route path="/contratos" element={<Navigate to="/locacoes" replace />} />
         <Route path="/contratos/:id" element={<Contratos />} />
         <Route path="/obra" element={<ConstructionPage />} />
         <Route path="/pericias" element={<ExpertReports />} />

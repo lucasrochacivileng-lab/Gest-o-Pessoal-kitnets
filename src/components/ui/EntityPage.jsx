@@ -110,6 +110,7 @@ export default function EntityPage({
   // (ex.: seletor de mês + botão "Gerar"): deixa o título no topo da página
   // em vez de espremido no meio, abaixo dos controles.
   topContent = null,
+  hideCreate = false,
 }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -361,13 +362,15 @@ export default function EntityPage({
           >
             <RefreshCw className="h-4 w-4" /> Atualizar
           </button>
-          <button
-            type="button"
-            onClick={() => (formOpen ? closeForm() : openCreate())}
-            className="ds-btn ds-btn-primary"
-          >
-            <Plus className="h-4 w-4" /> Novo
-          </button>
+          {!hideCreate ? (
+            <button
+              type="button"
+              onClick={() => (formOpen ? closeForm() : openCreate())}
+              className="ds-btn ds-btn-primary"
+            >
+              <Plus className="h-4 w-4" /> Novo
+            </button>
+          ) : null}
         </div>
       </div>
 

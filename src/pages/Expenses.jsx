@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import AddExpenseModal from './expenses/AddExpenseModal.jsx';
 import EntityPage from '../components/ui/EntityPage.jsx';
@@ -425,6 +425,7 @@ function SegmentFilter({ segments, selected, onSelect }) {
 }
 
 export default function Expenses() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { id } = useParams();
   const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
   const [message, setMessage] = useState('');
@@ -438,6 +439,14 @@ export default function Expenses() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSegment, setSelectedSegment] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('novo') !== '1') return;
+    setShowAdd(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('novo');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   // Cartão, recorte de resumo (view) e forma de pagamento disputam a mesma
   // tabela de detalhe — escolher um zera os outros, para o destaque e o que
   // aparece na tela nunca contarem histórias diferentes.
@@ -661,6 +670,7 @@ export default function Expenses() {
           { key: 'ComplementaryProject', entity: 'ComplementaryProject' },
         ]}
         topContent={topContent}
+        hideCreate
       />
   );
 }
