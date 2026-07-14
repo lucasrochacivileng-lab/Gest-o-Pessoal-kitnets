@@ -3,29 +3,20 @@ import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart3, Building2, Users, FileText, HandCoins, Receipt, Wallet, HardHat, CreditCard, FolderOpen, Banknote, Gavel, Briefcase, Menu, X, ChevronLeft, Settings, Bell, LogOut, CalendarRange, PieChart, ArrowLeftRight, Layers, Landmark, Wand2, TrendingUp } from 'lucide-react';
 import { useAuth } from '../app/providers/AuthProvider.jsx';
 
-// Fase 1 da simplificação: 6 grupos por objetivo em vez de 25 itens quase
-// planos. Nenhuma tela mudou por dentro — só onde ela mora no menu. O que é
-// setup/uso raro (cartões, regras, documentos, preferências) foi para
-// "Configurações"; as telas só de análise foram para "Relatórios".
+// Fases 2 e 3 da simplificação: "Financeiro" e "Relatórios" viraram UMA entrada
+// cada, com abas no topo da própria tela (HubLayout). Recebimentos, Pagamentos
+// e Finanças Pessoais deixaram de ser itens soltos e viram abas dentro de
+// Financeiro. `match` = prefixos de rota que mantêm a entrada destacada quando
+// você está em qualquer uma das abas do hub.
 const menuSections = [
   { title: 'Início', items: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/' }
   ]},
-  { title: 'Financeiro', items: [
-    { label: 'Receitas', icon: TrendingUp, path: '/receitas' },
-    { label: 'Despesas', icon: Wallet, path: '/despesas' },
-    { label: 'Recebimentos', icon: HandCoins, path: '/recebimentos' },
-    { label: 'Pagamentos', icon: Receipt, path: '/pagamentos' },
-    { label: 'Extrato', icon: ArrowLeftRight, path: '/extrato' },
-    { label: 'Caixa e conciliação', icon: Landmark, path: '/caixa' }
-  ]},
-  { title: 'Relatórios', items: [
-    { label: 'Visão Geral', icon: BarChart3, path: '/visao-geral' },
-    { label: 'Consolidado', icon: Layers, path: '/consolidado' },
-    { label: 'Resultado por kitnet', icon: Building2, path: '/resultado-kitnets' },
-    { label: 'Gastos por categoria', icon: PieChart, path: '/gastos-categoria' },
-    { label: 'Previsão', icon: CalendarRange, path: '/previsao' },
-    { label: 'Exportar', icon: FileText, path: '/relatorios' }
+  { title: 'Dinheiro', items: [
+    { label: 'Financeiro', icon: Wallet, path: '/receitas',
+      match: ['/receitas', '/recebimentos', '/despesas', '/pagamentos', '/extrato', '/caixa', '/financas-pessoais'] },
+    { label: 'Relatórios', icon: BarChart3, path: '/visao-geral',
+      match: ['/visao-geral', '/consolidado', '/resultado-kitnets', '/gastos-categoria', '/previsao', '/relatorios'] }
   ]},
   { title: 'Imóveis', items: [
     { label: 'Kitnets', icon: Building2, path: '/kitnets' },
@@ -33,8 +24,7 @@ const menuSections = [
     { label: 'Contratos', icon: FileText, path: '/contratos' },
     { label: 'Obra', icon: HardHat, path: '/obra' }
   ]},
-  { title: 'Pessoal & Profissional', items: [
-    { label: 'Finanças Pessoais', icon: Banknote, path: '/financas-pessoais' },
+  { title: 'Trabalho', items: [
     { label: 'Perícias', icon: Gavel, path: '/pericias' },
     { label: 'Projetos', icon: Briefcase, path: '/projetos' }
   ]},
@@ -53,6 +43,10 @@ export default function Sidebar() {
   const location = useLocation();
   const { user, logout, requiresLogin } = useAuth();
   const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+  // Entrada de hub fica destacada em qualquer uma das rotas das suas abas.
+  const isItemActive = (item) => (item.match
+    ? item.match.some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))
+    : isActive(item.path));
   const userName = user?.email === 'lucasrocha.civileng@gmail.com' ? 'Lucas' : (user?.email?.split('@')[0] || 'Usuário');
 
   const navContent = (
@@ -64,7 +58,7 @@ export default function Sidebar() {
         <button onClick={() => setMobileOpen(false)} className="text-white/50 lg:hidden"><X className="h-5 w-5" /></button>
       </div>
       <nav className="flex-1 space-y-4 overflow-y-auto p-3">
-        {menuSections.map((section) => <div key={section.title}>{!collapsed && <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30">{section.title}</p>}<div className="space-y-1">{section.items.map((item) => <Link key={item.path} to={item.path} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive(item.path) ? 'bg-[color:color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)]' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}><item.icon className={`h-[18px] w-[18px] flex-shrink-0 ${collapsed ? 'mx-auto' : ''}`} />{!collapsed && <span>{item.label}</span>}</Link>)}</div></div>)}
+        {menuSections.map((section) => <div key={section.title}>{!collapsed && <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30">{section.title}</p>}<div className="space-y-1">{section.items.map((item) => <Link key={item.path} to={item.path} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isItemActive(item) ? 'bg-[color:color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)]' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}><item.icon className={`h-[18px] w-[18px] flex-shrink-0 ${collapsed ? 'mx-auto' : ''}`} />{!collapsed && <span>{item.label}</span>}</Link>)}</div></div>)}
       </nav>
       {requiresLogin ? (
         <div className="border-t border-white/10 p-4">
