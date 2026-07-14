@@ -73,8 +73,6 @@ export const buildReceivablesForCompetence = (contracts = [], receivables = [], 
         active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        created_by: 'local-user',
-        updated_by: 'local-user',
       };
     });
 };
@@ -230,41 +228,43 @@ export const receivableService = {
     // Piso de zero: valor pago, desconto, multa e juros nunca são negativos.
     // Este diálogo de pagamento não passa pelo EntityPage (que já floora),
     // então um "-" digitado por engano distorceria o líquido e o total pago.
-    const paidValue = Math.max(toMoney(paymentPayload.paid_value ?? receivable.expected_value), 0);
-    const discount = Math.max(toMoney(paymentPayload.discount), 0);
-    const fine = Math.max(toMoney(paymentPayload.fine), 0);
-    const interest = Math.max(toMoney(paymentPayload.interest), 0);
+    const rawValues = [
+      paymentPayload.paid_value ?? calculateOutstandingValue(receivable),
+      paymentPayload.discount ?? 0,
+      paymentPayload.fine ?? 0,
+      paymentPayload.interest ?? 0,
+    ].map(Number);
+    if (rawValues.some((value) => !Number.isFinite(value))) {
+      throw new Error('Informe valores monetarios validos.');
+    }
+    if (rawValues.some((value) => value < 0)) {
+      throw new Error('Pagamento, desconto, multa e juros nao podem ser negativos.');
+    }
+
+    const [paidValue, discount, fine, interest] = rawValues.map((value) => fromCents(toCents(value)));
+    if (toCents(paidValue) > toCents(calculateOutstandingValue(receivable))) {
+      throw new Error('O valor pago nao pode ser maior que o saldo restante.');
+    }
     const netValue = calculatePaymentNetValue({ paid_value: paidValue, discount, fine, interest });
+    if (toCents(netValue) < 0) {
+      throw new Error('O desconto nao pode tornar o valor liquido do pagamento negativo.');
+    }
     const totalPaid = addMoney(paidValue, receivable.paid_value);
     const status = toCents(totalPaid) >= toCents(receivable.expected_value) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
-    const receiptNumber = await receivableRepository.getNextReceiptNumber();
-
     const payload = {
-      ...paymentPayload,
-      receivable_id: receivable.id,
-      // Copia do recebível: o registro de Payment não guarda a cadeia
-      // Contract/Kitnet/Tenant, só o receivable_id — sem isso, a tela de
-      // Pagamentos (que lê kitnet_id/tenant_id/competence direto da linha)
-      // mostra "—" em todo pagamento confirmado por aqui.
-      kitnet_id: receivable.kitnet_id,
-      tenant_id: receivable.tenant_id,
-      competence: receivable.competence,
-      receipt_number: receiptNumber,
+      // A RPC deriva todos os vinculos estruturais do recebivel bloqueado.
+      payment_id: paymentPayload.payment_id,
       paid_value: paidValue,
-      net_value: netValue,
       payment_date: formatDate(paymentPayload.payment_date || today()),
       payment_method: paymentPayload.payment_method || 'pix',
       destination_account: paymentPayload.destination_account || 'Mercado Pago',
+      bank_account_id: paymentPayload.bank_account_id || '',
+      receipt_url: paymentPayload.receipt_url || '',
       notes: paymentPayload.notes || '',
+      justification: paymentPayload.justification || '',
       discount,
       interest,
       fine,
-      active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      created_by: paymentPayload.created_by || 'local-user',
-      updated_by: paymentPayload.updated_by || 'local-user',
-      status,
     };
 
     const result = await receivableRepository.pay(receivable, payload);
@@ -272,7 +272,7 @@ export const receivableService = {
       ...result,
       netValue,
       status: result.receivable?.status || status,
-      receiptNumber: result.receiptNumber || result.payment?.receipt_number || receiptNumber,
+      receiptNumber: result.receiptNumber || result.payment?.receipt_number,
     };
   },
 
@@ -284,7 +284,6 @@ export const receivableService = {
       due_date: formatDate(payload.due_date),
       notes: payload.notes || '',
       updated_at: new Date().toISOString(),
-      updated_by: payload.updated_by || 'local-user',
     });
   },
 };

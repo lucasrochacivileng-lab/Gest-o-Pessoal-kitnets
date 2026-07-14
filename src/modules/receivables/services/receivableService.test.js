@@ -125,6 +125,7 @@ describe('receivableService', () => {
     // "—" em Kitnet/Locatario/Competencia mesmo tendo um recebivel vinculado.
     const receivable = await repository.create('Receivable', {
       competence: '2026-08',
+      contract_id: 'c-teste',
       kitnet_id: 'k-teste',
       tenant_id: 't-teste',
       expected_value: 800,
@@ -134,8 +135,15 @@ describe('receivableService', () => {
       active: true,
     });
 
-    const result = await receivableService.registerPayment(receivable, { paid_value: 800 });
+    const result = await receivableService.registerPayment(receivable, {
+      paid_value: 800,
+      contract_id: 'c-forjado',
+      kitnet_id: 'k-forjada',
+      tenant_id: 't-forjado',
+      competence: '1900-01',
+    });
 
+    expect(result.payment.contract_id).toBe('c-teste');
     expect(result.payment.kitnet_id).toBe('k-teste');
     expect(result.payment.tenant_id).toBe('t-teste');
     expect(result.payment.competence).toBe('2026-08');
@@ -171,5 +179,57 @@ describe('receivableService', () => {
 
     expect(result.receivable.paid_value).toBe(800);
     expect(result.status).toBe(RECEIVABLE_STATUS.PAID);
+  });
+
+  it('quita somente o saldo restante quando paid_value e omitido apos pagamento parcial', async () => {
+    const receivable = await repository.create('Receivable', {
+      competence: '2026-07',
+      expected_value: 800,
+      paid_value: 300,
+      status: RECEIVABLE_STATUS.PARTIAL,
+      active: true,
+    });
+
+    const result = await receivableService.registerPayment(receivable, {});
+
+    expect(result.payment.paid_value).toBe(500);
+    expect(result.receivable.paid_value).toBe(800);
+    expect(result.status).toBe(RECEIVABLE_STATUS.PAID);
+  });
+
+  it('bloqueia pagamento acima do saldo restante antes de persistir', async () => {
+    const receivable = {
+      id: 'recebivel-excedente',
+      expected_value: 800,
+      paid_value: 300,
+      status: RECEIVABLE_STATUS.PARTIAL,
+    };
+
+    await expect(receivableService.registerPayment(receivable, { paid_value: 501 }))
+      .rejects.toThrow('O valor pago nao pode ser maior que o saldo restante.');
+  });
+
+  it('rejeita valores negativos em vez de transforma-los silenciosamente em zero', async () => {
+    const receivable = {
+      id: 'recebivel-negativo',
+      expected_value: 800,
+      paid_value: 0,
+      status: RECEIVABLE_STATUS.PENDING,
+    };
+
+    await expect(receivableService.registerPayment(receivable, { paid_value: -1 }))
+      .rejects.toThrow(/nao podem ser negativos/i);
+  });
+
+  it('rejeita desconto que tornaria o valor liquido negativo', async () => {
+    const receivable = {
+      id: 'recebivel-liquido-negativo',
+      expected_value: 800,
+      paid_value: 0,
+      status: RECEIVABLE_STATUS.PENDING,
+    };
+
+    await expect(receivableService.registerPayment(receivable, { paid_value: 10, discount: 11 }))
+      .rejects.toThrow(/valor liquido.*negativo/i);
   });
 });
