@@ -7,8 +7,8 @@ describe('buildSegmentConsolidation', () => {
   const base = {
     monthKey: '2026-07',
     payments: [
-      { payment_date: '2026-07-10', paid_value: 1200, net_value: 1200, status: 'pago' },
-      { payment_date: '2026-06-10', paid_value: 999, net_value: 999, status: 'pago' }, // fora do mês
+      { receivable_id: 'r-jul', payment_date: '2026-07-10', paid_value: 1200, net_value: 1200, status: 'pago' },
+      { receivable_id: 'r-jun', payment_date: '2026-06-10', paid_value: 999, net_value: 999, status: 'pago' }, // fora do mês
     ],
     expenses: [
       { date: '2026-07-05', value: 300, status: 'pago' },
@@ -60,6 +60,32 @@ describe('buildSegmentConsolidation', () => {
     // salario previsto (9000) fora, aluguel de junho fora, projeto 'entregue' fora.
     expect(bySegment(result, 'trabalho').income).toBe(9000);
     expect(bySegment(result, 'projetos').income).toBe(5000);
+  });
+
+  it('ignora Payment sem vínculo de aluguel', () => {
+    const result = buildSegmentConsolidation({
+      monthKey: '2026-07',
+      payments: [
+        { payment_date: '2026-07-02', paid_value: 2000, net_value: 2000 },
+        { receivable_id: 'r1', payment_date: '2026-07-10', paid_value: 1000, net_value: 1000 },
+      ],
+    });
+
+    expect(bySegment(result, 'kitnets').income).toBe(1000);
+  });
+
+  it('usa a data real de recebimento antes de received_at', () => {
+    const result = buildSegmentConsolidation({
+      monthKey: '2026-06',
+      projects: [{
+        value: 2000,
+        status: 'recebido',
+        received_date: '2026-06-26',
+        received_at: '2026-07-02',
+      }],
+    });
+
+    expect(bySegment(result, 'projetos').income).toBe(2000);
   });
 
   it('coleta os itens que compoem cada segmento para o detalhe', () => {

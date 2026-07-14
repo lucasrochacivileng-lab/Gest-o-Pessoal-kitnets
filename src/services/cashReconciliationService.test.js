@@ -26,4 +26,17 @@ describe('cashReconciliationService', () => {
     expect(result.accounts[0].calculatedBalance).toBe(500);
     expect(result.differenceTotal).toBe(0);
   });
+
+  it('ignora Payment sem vínculo de aluguel', () => {
+    const result = buildCashReconciliation({
+      accounts: [{ id: 'a', opening_date: '2026-07-01', opening_balance: 0, balance_date: '2026-07-31', actual_balance: 1000 }],
+      payments: [
+        { bank_account_id: 'a', payment_date: '2026-07-02', paid_value: 2000 },
+        { receivable_id: 'r1', bank_account_id: 'a', payment_date: '2026-07-10', paid_value: 1000 },
+      ],
+    });
+
+    expect(result.calculatedTotal).toBe(1000);
+    expect(result.differenceTotal).toBe(0);
+  });
 });

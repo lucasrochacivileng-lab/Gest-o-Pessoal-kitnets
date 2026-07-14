@@ -1,5 +1,7 @@
 import { financialService } from './financialService';
 import { isPersonalExpense } from './personalMovementClassifier.js';
+import { rentPaymentsOnly } from './paymentClassifier.js';
+import { incomeDate } from '../modules/receivables/services/extraIncomeService.js';
 
 // Consolidação por SEGMENTO (centro de resultado). Normaliza todas as fontes de
 // dinheiro já existentes num mesmo formato — entradas e saídas por segmento —
@@ -11,11 +13,6 @@ const toMoney = (value) => Number(value || 0);
 const paymentValue = financialService.netPaymentValue;
 const inMonth = (date, monthKey) => String(date || '').startsWith(monthKey);
 const isConfirmed = (row) => ['pago', 'recebido'].includes(row.status);
-
-// Projetos/perícias não têm data de recebimento própria; cai pra previsão/prazo.
-const extraIncomeDate = (row) => (
-  row.received_at || row.received_date || row.expected_payment_date || row.due_date || ''
-);
 
 export const SEGMENTS = [
   { key: 'kitnets', label: 'Kitnets' },
@@ -59,7 +56,7 @@ export const buildSegmentConsolidation = ({
   // Kitnets: aluguéis recebidos entram; as despesas diretas pagas saem no
   // segmento que o lançamento indica (o padrão é Kitnets, para não mudar o
   // comportamento das despesas antigas que não têm segmento).
-  payments
+  rentPaymentsOnly(payments)
     .filter((row) => inMonth(row.payment_date, monthKey))
     .forEach((row) => addIncome('kitnets', paymentValue(row), {
       date: row.payment_date, description: row.description || 'Aluguel recebido', source: 'Aluguel',
@@ -72,14 +69,14 @@ export const buildSegmentConsolidation = ({
 
   // Projetos e perícias: só o que foi efetivamente recebido no mês.
   projects
-    .filter((row) => row.status === 'recebido' && inMonth(extraIncomeDate(row), monthKey))
+    .filter((row) => row.status === 'recebido' && inMonth(incomeDate(row), monthKey))
     .forEach((row) => addIncome('projetos', toMoney(row.value), {
-      date: extraIncomeDate(row), description: [row.client, row.project_type].filter(Boolean).join(' — ') || 'Projeto', source: 'Projeto',
+      date: incomeDate(row), description: [row.client, row.project_type].filter(Boolean).join(' — ') || 'Projeto', source: 'Projeto',
     }));
   expertReports
-    .filter((row) => row.status === 'recebido' && inMonth(extraIncomeDate(row), monthKey))
+    .filter((row) => row.status === 'recebido' && inMonth(incomeDate(row), monthKey))
     .forEach((row) => addIncome('pericias', toMoney(row.fee_value), {
-      date: extraIncomeDate(row), description: [row.client, row.process_number].filter(Boolean).join(' — ') || 'Perícia', source: 'Perícia',
+      date: incomeDate(row), description: [row.client, row.process_number].filter(Boolean).join(' — ') || 'Perícia', source: 'Perícia',
     }));
 
   // Renda pessoal confirmada: salário (contexto 'trabalho') vai pro segmento

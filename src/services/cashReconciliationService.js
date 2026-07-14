@@ -1,4 +1,5 @@
 import { isPersonalExpense } from './personalMovementClassifier.js';
+import { rentPaymentsOnly } from './paymentClassifier.js';
 
 const money = (value) => Number(value || 0);
 
@@ -30,7 +31,7 @@ export const buildCashReconciliation = ({
   };
 
   expenses.filter((row) => row.status === 'pago').forEach((row) => apply(row.bank_account_id, row.date, -money(row.value)));
-  payments.forEach((row) => apply(row.bank_account_id, row.payment_date, money(row.net_value ?? row.paid_value)));
+  rentPaymentsOnly(payments).forEach((row) => apply(row.bank_account_id, row.payment_date, money(row.net_value ?? row.paid_value)));
   personal.filter(confirmed).forEach((row) => {
     if (row.type === 'income') apply(row.bank_account_id, row.date, money(row.value));
     if (isPersonalExpense(row)) apply(row.bank_account_id, row.date, -money(row.value));
