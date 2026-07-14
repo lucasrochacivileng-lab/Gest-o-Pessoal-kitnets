@@ -89,8 +89,18 @@ export const dashboardService = {
     // filtro anterior só pegava 'vencido'/'pendente', subestimando o valor
     // em atraso sempre que havia pagamento parcial feito fora do prazo.
     const overdue = receivables.filter((receivable) => getReceivableStatus(receivable, today) === RECEIVABLE_STATUS.OVERDUE);
-    const upcoming = receivables.filter((receivable) => getReceivableStatus(receivable, today) === RECEIVABLE_STATUS.PENDING && receivable.due_date && receivable.due_date >= today);
-    const receitaPrevista = receivables.filter((receivable) => ['pendente', 'vencido', 'parcial'].includes(receivable.status)).reduce((sum, receivable) => sum + outstandingValue(receivable), 0);
+    const currentMonthReceivables = receivables.filter((receivable) => (
+      receivable.competence === currentMonth
+      || (!receivable.competence && receivable.due_date?.startsWith(currentMonth))
+    ));
+    const upcoming = currentMonthReceivables.filter((receivable) => (
+      getReceivableStatus(receivable, today) === RECEIVABLE_STATUS.PENDING
+      && receivable.due_date
+      && receivable.due_date >= today
+    ));
+    const receitaPrevista = currentMonthReceivables
+      .filter((receivable) => ['pendente', 'vencido', 'parcial'].includes(receivable.status))
+      .reduce((sum, receivable) => sum + outstandingValue(receivable), 0);
 
     const occupied = kitnets.filter((kitnet) => kitnet.status === 'ocupada').length;
     const vacant = kitnets.filter((kitnet) => kitnet.status === 'vaga').length;
