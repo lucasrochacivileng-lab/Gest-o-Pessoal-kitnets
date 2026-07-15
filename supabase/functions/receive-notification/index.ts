@@ -2,7 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { parseNubankNotification, suggestByRules } from './nubank-parser.ts';
 
-const TOKEN_SHA256 = '8f5f36716ec07f46253d8ba0c9bf9534ec72da71c40b00e0e0df035223bac46d';
+const TOKEN_SHA256 = '720254f86db4a3d53b8ed32da1035430b550440b24e76bf7828a2ed9e5e5b44b';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -175,4 +175,3 @@ Deno.serve(async (request) => {
     },
   });
 });
-
