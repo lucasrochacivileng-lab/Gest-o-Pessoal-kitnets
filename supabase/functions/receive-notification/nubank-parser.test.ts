@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseNubankNotification, suggestByRules } from './nubank-parser.ts';
+import { parseBankNotification, parseNubankNotification, suggestByRules } from './nubank-parser.ts';
 
 test('extrai compra aprovada do Nubank', () => {
   assert.deepEqual(parseNubankNotification(
@@ -8,6 +8,7 @@ test('extrai compra aprovada do Nubank', () => {
     'Compra de R$ 32,50 aprovada em IFOOD',
   ), {
     recognized: true,
+    provider: 'nubank',
     transactionType: 'purchase',
     direction: 'out',
     amount: 32.5,
@@ -15,6 +16,56 @@ test('extrai compra aprovada do Nubank', () => {
     description: 'Compra em IFOOD',
     parserVersion: 'nubank-v1',
   });
+});
+
+test('reconhece Pix recebido do Inter', () => {
+  const result = parseBankNotification(
+    'br.com.intermedium',
+    'Pix recebido',
+    'Você recebeu R$ 500,00 via Pix de Carlos Souza',
+  );
+  assert.equal(result.provider, 'inter');
+  assert.equal(result.transactionType, 'pix_received');
+  assert.equal(result.amount, 500);
+});
+
+test('reconhece compra do Itau', () => {
+  const result = parseBankNotification(
+    'com.itau',
+    'Compra aprovada',
+    'Compra de R$ 89,90 aprovada em POSTO CENTRAL',
+  );
+  assert.equal(result.provider, 'itau');
+  assert.equal(result.transactionType, 'purchase');
+  assert.equal(result.merchant, 'POSTO CENTRAL');
+});
+
+test('reconhece Pix enviado da Caixa', () => {
+  const result = parseBankNotification(
+    'br.com.gabba.Caixa',
+    'Pix enviado',
+    'Pix enviado para Maria Lima no valor de R$ 120,00',
+  );
+  assert.equal(result.provider, 'caixa');
+  assert.equal(result.transactionType, 'pix_sent');
+  assert.equal(result.merchant, 'Maria Lima');
+});
+
+test('reconhece compra do Mercado Pago', () => {
+  const result = parseBankNotification(
+    'com.mercadopago.wallet',
+    'Compra aprovada',
+    'Compra de R$ 56,20 aprovada em MERCADOLIVRE',
+  );
+  assert.equal(result.provider, 'mercado_pago');
+  assert.equal(result.transactionType, 'purchase');
+  assert.equal(result.amount, 56.2);
+});
+
+test('pacote desconhecido nao cria movimentacao', () => {
+  const result = parseBankNotification('com.exemplo.app', 'Pix recebido', 'Pix recebido de R$ 10,00');
+  assert.equal(result.recognized, false);
+  assert.equal(result.parserVersion, 'unsupported-package');
 });
 
 test('extrai Pix enviado', () => {
@@ -43,4 +94,3 @@ test('regra personalizada tem prioridade sobre regra embutida', () => {
   ]);
   assert.deepEqual(result, { category: 'familia', costCenter: 'kitnets', source: 'custom_rule' });
 });
-

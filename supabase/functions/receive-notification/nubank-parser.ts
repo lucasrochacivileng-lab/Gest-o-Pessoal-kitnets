@@ -1,7 +1,9 @@
 export type NubankTransactionType = 'purchase' | 'pix_sent' | 'pix_received';
+export type FinancialProvider = 'nubank' | 'inter' | 'itau' | 'caixa' | 'mercado_pago';
 
 export type ParsedNubankNotification = {
   recognized: boolean;
+  provider?: FinancialProvider;
   transactionType?: NubankTransactionType;
   direction?: 'in' | 'out';
   amount?: number;
@@ -10,7 +12,17 @@ export type ParsedNubankNotification = {
   parserVersion: string;
 };
 
-const PARSER_VERSION = 'nubank-v1';
+const PROVIDER_PACKAGES: Array<{ provider: FinancialProvider; pattern: RegExp }> = [
+  { provider: 'nubank', pattern: /(?:^|\.)nu\.production$|nubank/i },
+  { provider: 'inter', pattern: /intermedium|bancointer/i },
+  { provider: 'itau', pattern: /(?:^|\.)itau(?:\.|$)/i },
+  { provider: 'caixa', pattern: /gabba\.caixa|gov\.caixa|caixatem/i },
+  { provider: 'mercado_pago', pattern: /mercadopago|mercado\.pago/i },
+];
+
+export const detectFinancialProvider = (packageName = '') => (
+  PROVIDER_PACKAGES.find(({ pattern }) => pattern.test(packageName))?.provider
+);
 
 const normalizeSpaces = (value: string) => value.replace(/\s+/g, ' ').trim();
 
@@ -38,14 +50,18 @@ const extractAfter = (text: string, patterns: RegExp[]) => {
   return '';
 };
 
-export const parseNubankNotification = (title = '', text = ''): ParsedNubankNotification => {
+export const parseBankNotification = (packageName = '', title = '', text = ''): ParsedNubankNotification => {
+  const provider = detectFinancialProvider(packageName);
+  if (!provider) return { recognized: false, parserVersion: 'unsupported-package' };
+
+  const parserVersion = `${provider}-v1`;
   const combined = normalizeSpaces(`${title} ${text}`);
   const lower = combined.toLocaleLowerCase('pt-BR');
   const amount = extractAmount(combined);
 
-  if (!amount) return { recognized: false, parserVersion: PARSER_VERSION };
+  if (!amount) return { recognized: false, provider, parserVersion };
 
-  if (/pix\s+(?:recebido|recebida)|voc[eê]\s+recebeu\s+(?:um\s+)?pix|recebimento\s+pix/i.test(lower)) {
+  if (/pix\s+(?:recebido|recebida)|voc[eê]\s+recebeu(?:\s+(?:um|via))?\s+pix|voc[eê]\s+recebeu\s+R\$.*\bvia\s+pix|recebimento\s+(?:via\s+)?pix/i.test(lower)) {
     const merchant = extractAfter(combined, [
       /pix\s+recebido\s+de\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|$)/i,
       /voc[eê]\s+recebeu\s+(?:um\s+)?pix\s+de\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|$)/i,
@@ -53,16 +69,17 @@ export const parseNubankNotification = (title = '', text = ''): ParsedNubankNoti
     ]);
     return {
       recognized: true,
+      provider,
       transactionType: 'pix_received',
       direction: 'in',
       amount,
       merchant: merchant || 'Pix recebido',
       description: merchant ? `Pix recebido de ${merchant}` : 'Pix recebido',
-      parserVersion: PARSER_VERSION,
+      parserVersion,
     };
   }
 
-  if (/pix\s+(?:enviado|realizado|feito)|voc[eê]\s+(?:fez|enviou)\s+(?:um\s+)?pix|transfer[eê]ncia\s+pix/i.test(lower)) {
+  if (/pix\s+(?:enviado|realizado|feito)|voc[eê]\s+(?:fez|enviou)\s+(?:um\s+)?pix|transfer[eê]ncia\s+(?:via\s+)?pix/i.test(lower)) {
     const merchant = extractAfter(combined, [
       /pix\s+(?:enviado|realizado|feito)\s+(?:para|a)\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|$)/i,
       /voc[eê]\s+(?:fez|enviou)\s+(?:um\s+)?pix\s+(?:de\s+R\$\s*[\d.]+,\d{2}\s+)?(?:para|a)\s+(.+?)(?:\s+no\s+valor|$)/i,
@@ -70,33 +87,40 @@ export const parseNubankNotification = (title = '', text = ''): ParsedNubankNoti
     ]);
     return {
       recognized: true,
+      provider,
       transactionType: 'pix_sent',
       direction: 'out',
       amount,
       merchant: merchant || 'Pix enviado',
       description: merchant ? `Pix enviado para ${merchant}` : 'Pix enviado',
-      parserVersion: PARSER_VERSION,
+      parserVersion,
     };
   }
 
-  if (/compra\s+(?:aprovada|realizada)|cart[aã]o|d[eé]bito|cr[eé]dito/i.test(lower)) {
+  if (/compra\s+(?:aprovada|realizada)|voc[eê]\s+fez\s+uma\s+compra|cart[aã]o|d[eé]bito|cr[eé]dito/i.test(lower)) {
     const merchant = extractAfter(combined, [
       /(?:em|no estabelecimento)\s+(.+?)(?:\s+no\s+valor|\s+por\s+R\$|$)/i,
       /compra\s+(?:aprovada|realizada)\s+(?:de|no valor de)\s+R\$\s*[\d.]+,\d{2}\s+(?:em|no)\s+(.+)$/i,
+      /compra\s+de\s+R\$\s*[\d.]+,\d{2}.*?\s+(?:em|no)\s+(.+)$/i,
     ]);
     return {
       recognized: true,
+      provider,
       transactionType: 'purchase',
       direction: 'out',
       amount,
       merchant: merchant || 'Compra Nubank',
       description: merchant ? `Compra em ${merchant}` : 'Compra Nubank',
-      parserVersion: PARSER_VERSION,
+      parserVersion,
     };
   }
 
-  return { recognized: false, parserVersion: PARSER_VERSION };
+  return { recognized: false, provider, parserVersion };
 };
+
+export const parseNubankNotification = (title = '', text = '') => (
+  parseBankNotification('com.nu.production', title, text)
+);
 
 const BUILT_IN_RULES = [
   { words: ['ifood', 'restaurante', 'lanchonete'], category: 'alimentacao', costCenter: 'pessoal' },
@@ -137,4 +161,3 @@ export const suggestByRules = (description: string, customRules: ClassificationR
     ? { category: builtIn.category, costCenter: builtIn.costCenter, source: 'built_in_rule' }
     : { category: 'outros', costCenter: 'pessoal', source: 'fallback' };
 };
-

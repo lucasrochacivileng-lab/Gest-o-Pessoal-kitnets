@@ -1,6 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { parseNubankNotification, suggestByRules } from './nubank-parser.ts';
+import { parseBankNotification, suggestByRules } from './nubank-parser.ts';
 
 const TOKEN_SHA256 = '720254f86db4a3d53b8ed32da1035430b550440b24e76bf7828a2ed9e5e5b44b';
 
@@ -71,10 +71,7 @@ Deno.serve(async (request) => {
   if (ownerError || !owner) return json({ success: false, error: 'admin_owner_not_found' }, 500);
 
   const dedupeKey = await sha256(`${packageName}|${title}|${text}|${receivedAt}`);
-  const isNubank = /nubank|nu\.production/i.test(packageName);
-  const parsed = isNubank
-    ? parseNubankNotification(title, text)
-    : { recognized: false, parserVersion: 'unsupported-package' };
+  const parsed = parseBankNotification(packageName, title, text);
 
   const { data: existing } = await supabase
     .from('notifications')
@@ -138,7 +135,7 @@ Deno.serve(async (request) => {
     .insert({
       owner_id: owner.id,
       notification_id: notification.id,
-      provider: 'nubank',
+      provider: parsed.provider,
       transaction_type: parsed.transactionType,
       direction: parsed.direction,
       amount: parsed.amount,
