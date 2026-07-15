@@ -144,6 +144,10 @@ function ExtraReceiptForm({ entity, valueField, title, listLabel, cadastroPath, 
 
   const save = async () => {
     if (!selected) return;
+    if (!form.bank_account_id) {
+      setError('Selecione a conta em que o dinheiro entrou.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -187,8 +191,8 @@ function ExtraReceiptForm({ entity, valueField, title, listLabel, cadastroPath, 
             <input type="number" className={inputClass} value={form.value} onChange={(e) => setForm((p) => ({ ...p, value: e.target.value }))} />
           </label>
           <label className="ds-form-field sm:col-span-2">Conta que recebeu
-            <select className={inputClass} value={form.bank_account_id} onChange={(e) => setForm((p) => ({ ...p, bank_account_id: e.target.value }))}>
-              <option value="">Selecione (opcional)</option>
+            <select className={inputClass} value={form.bank_account_id} onChange={(e) => setForm((p) => ({ ...p, bank_account_id: e.target.value }))} required>
+              <option value="">Selecione</option>
               {accounts.map((acc) => <option key={acc.id} value={acc.id}>{acc.name || acc.id}</option>)}
             </select>
           </label>

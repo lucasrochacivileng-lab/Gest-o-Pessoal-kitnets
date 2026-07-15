@@ -172,4 +172,27 @@ describe('receivableService', () => {
     expect(result.receivable.paid_value).toBe(800);
     expect(result.status).toBe(RECEIVABLE_STATUS.PAID);
   });
+
+  it('usa a conta padrão do contrato quando o recebível antigo não possui conta', async () => {
+    const contract = await repository.create('Contract', {
+      kitnet_id: 'k-conta',
+      tenant_id: 't-conta',
+      bank_account_id: 'conta-inter',
+      status: 'ativo',
+      active: true,
+    });
+    const receivable = await repository.create('Receivable', {
+      contract_id: contract.id,
+      competence: '2026-09',
+      expected_value: 950,
+      due_date: '2026-09-10',
+      status: 'pendente',
+      paid_value: 0,
+      active: true,
+    });
+
+    const result = await receivableService.registerPayment(receivable, { paid_value: 950 });
+
+    expect(result.payment.bank_account_id).toBe('conta-inter');
+  });
 });

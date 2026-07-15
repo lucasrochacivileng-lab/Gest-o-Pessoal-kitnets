@@ -65,6 +65,7 @@ export const buildReceivablesForCompetence = (contracts = [], receivables = [], 
         contract_id: contract.id,
         kitnet_id: contract.kitnet_id,
         tenant_id: contract.tenant_id,
+        bank_account_id: contract.bank_account_id || '',
         competence,
         expected_value: toMoney(contract.rent_value),
         due_date: `${competence}-${String(dueDay).padStart(2, '0')}`,
@@ -238,6 +239,14 @@ export const receivableService = {
     const totalPaid = addMoney(paidValue, receivable.paid_value);
     const status = toCents(totalPaid) >= toCents(receivable.expected_value) ? RECEIVABLE_STATUS.PAID : RECEIVABLE_STATUS.PARTIAL;
     const receiptNumber = await receivableRepository.getNextReceiptNumber();
+    let bankAccountId = paymentPayload.bank_account_id || receivable.bank_account_id || '';
+
+    // Recebíveis antigos podem não ter a conta copiada. Nesse caso, usa a
+    // conta padrão atual do contrato para manter o caixa conciliável.
+    if (!bankAccountId && receivable.contract_id) {
+      const { contracts } = await receivableRepository.getContext();
+      bankAccountId = contracts.find((contract) => contract.id === receivable.contract_id)?.bank_account_id || '';
+    }
 
     const payload = {
       ...paymentPayload,
@@ -254,7 +263,8 @@ export const receivableService = {
       net_value: netValue,
       payment_date: formatDate(paymentPayload.payment_date || today()),
       payment_method: paymentPayload.payment_method || 'pix',
-      destination_account: paymentPayload.destination_account || 'Mercado Pago',
+      bank_account_id: bankAccountId,
+      destination_account: paymentPayload.destination_account || receivable.destination_account || '',
       notes: paymentPayload.notes || '',
       discount,
       interest,

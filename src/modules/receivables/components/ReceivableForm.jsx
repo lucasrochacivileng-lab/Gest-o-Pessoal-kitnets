@@ -11,7 +11,7 @@ const initialValues = {
   notes: '',
   payment_date: new Date().toISOString().slice(0, 10),
   payment_method: 'pix',
-  destination_account: 'Mercado Pago',
+  destination_account: '',
   bank_account_id: '',
   paid_value: '',
   discount: 0,
@@ -52,6 +52,8 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       ? Math.round(Number(paidValue || 0) * 0.10 * 100) / 100
       : 0;
 
+    const contract = contracts.find((item) => item.id === receivable.contract_id);
+
     setValues({
       ...initialValues,
       contract_id: receivable.contract_id || '',
@@ -65,8 +67,9 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       fine: suggestedFine,
       net_value: Number(paidValue || 0) + suggestedFine,
       destination_account: receivable.destination_account || initialValues.destination_account,
+      bank_account_id: receivable.bank_account_id || contract?.bank_account_id || '',
     });
-  }, [mode, receivable]);
+  }, [contracts, mode, receivable]);
 
   const selectedContract = useMemo(() => contracts.find((contract) => contract.id === values.contract_id) || null, [contracts, values.contract_id]);
   const selectedKitnet = useMemo(() => kitnets.find((kitnet) => kitnet.id === selectedContract?.kitnet_id) || null, [kitnets, selectedContract]);
@@ -81,6 +84,9 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
   const handleChange = (event) => {
     const { name, value } = event.target;
     const nextValues = { ...values, [name]: value };
+    if (name === 'contract_id') {
+      nextValues.bank_account_id = contracts.find((contract) => contract.id === value)?.bank_account_id || '';
+    }
     if (name === 'paid_value' || name === 'discount' || name === 'fine' || name === 'interest') {
       nextValues.net_value = calculateNetValue(nextValues);
     }
@@ -99,8 +105,10 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    const bankAccount = bankAccounts.find((account) => account.id === values.bank_account_id);
     onSubmit({
       ...values,
+      destination_account: bankAccount?.name || values.destination_account || '',
       expected_value: Number(values.expected_value || 0),
       paid_value: Number(values.paid_value || 0),
       discount: Number(values.discount || 0),
@@ -178,12 +186,8 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
               <input name="payment_method" value={values.payment_method} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
             </label>
             <label className="text-sm text-slate-600">
-              Conta destino
-              <input name="destination_account" value={values.destination_account} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
-            </label>
-            <label className="text-sm text-slate-600">
               Conta que recebeu
-              <select name="bank_account_id" value={values.bank_account_id} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+              <select name="bank_account_id" value={values.bank_account_id} onChange={handleChange} required className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
                 <option value="">Selecione</option>
                 {bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
               </select>

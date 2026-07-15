@@ -15,7 +15,7 @@ const contract = (overrides = {}) => ({
 
 describe('buildReceivablesForCompetence', () => {
   it('gera recebível para contrato ativo dentro da vigência', () => {
-    const result = buildReceivablesForCompetence([contract()], [], '2026-07');
+    const result = buildReceivablesForCompetence([contract({ bank_account_id: 'conta-inter' })], [], '2026-07');
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
@@ -24,6 +24,7 @@ describe('buildReceivablesForCompetence', () => {
       expected_value: 800,
       due_date: '2026-07-10',
       status: 'pendente',
+      bank_account_id: 'conta-inter',
     });
   });
 

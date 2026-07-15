@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronDown, ExternalLink, FileText, Mail, Phone, Plus, Upload, UserRound, XCircle } from 'lucide-react';
+import { ChevronDown, ExternalLink, FileText, Landmark, Mail, Phone, Plus, Upload, UserRound, XCircle } from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
 import { formatDateBR } from '../../../services/dateUtils.js';
@@ -40,6 +40,7 @@ const emptyForm = {
   endDate: '',
   dueDay: '10',
   fineMonths: '3',
+  bankAccountId: '',
 };
 
 export default function Contracts() {
@@ -50,6 +51,7 @@ export default function Contracts() {
   const [kitnets, setKitnets] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -65,16 +67,18 @@ export default function Contracts() {
 
   const loadData = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
-    const [contractRows, kitnetRows, tenantRows, documentRows] = await Promise.all([
+    const [contractRows, kitnetRows, tenantRows, documentRows, bankAccountRows] = await Promise.all([
       repository.list('Contract'),
       repository.list('Kitnet'),
       repository.list('Tenant'),
       repository.list('Document'),
+      repository.list('BankAccount'),
     ]);
     setContracts(contractRows);
     setKitnets(kitnetRows);
     setTenants(tenantRows);
     setDocuments(documentRows);
+    setBankAccounts(bankAccountRows);
     setLoading(false);
   };
 
@@ -82,7 +86,7 @@ export default function Contracts() {
     loadData();
   }, []);
 
-  useEntitySync(['Contract', 'Kitnet', 'Tenant', 'Document'], () => loadData({ silent: true }));
+  useEntitySync(['Contract', 'Kitnet', 'Tenant', 'Document', 'BankAccount'], () => loadData({ silent: true }));
 
   useEffect(() => {
     if (searchParams.get('novo') !== '1') return;
@@ -94,6 +98,7 @@ export default function Contracts() {
 
   const kitnetById = useMemo(() => Object.fromEntries(kitnets.map((row) => [row.id, row])), [kitnets]);
   const tenantById = useMemo(() => Object.fromEntries(tenants.map((row) => [row.id, row])), [tenants]);
+  const accountById = useMemo(() => Object.fromEntries(bankAccounts.map((row) => [row.id, row])), [bankAccounts]);
 
   const sortedContracts = useMemo(() => {
     return contracts.filter((contract) => {
@@ -158,6 +163,7 @@ export default function Contracts() {
           rent_value: Number(form.rentValue || 0),
           due_day: Number(form.dueDay || 10),
           fine_months: Number(form.fineMonths || 3),
+          bank_account_id: form.bankAccountId,
         },
       });
 
@@ -219,6 +225,12 @@ export default function Contracts() {
     setMessage(created.length > 0
       ? `${created.length} aluguel(éis) que faltavam foram lançados para este contrato.`
       : 'O carnê deste contrato já está completo.');
+    await loadData({ silent: true });
+  };
+
+  const handleAccountChange = async (contract, bankAccountId) => {
+    await repository.update('Contract', contract.id, { bank_account_id: bankAccountId });
+    setMessage('Conta padrão de recebimento atualizada. Os próximos recebimentos usarão esta conta.');
     await loadData({ silent: true });
   };
 
@@ -405,6 +417,13 @@ export default function Contracts() {
                 Multa por quebra (nº de aluguéis)
                 <input type="number" min="0" step="0.5" value={form.fineMonths} onChange={(event) => updateForm('fineMonths', event.target.value)} className={inputClass} />
               </label>
+              <label className="ds-form-field">
+                Conta para receber o aluguel
+                <select value={form.bankAccountId} onChange={(event) => updateForm('bankAccountId', event.target.value)} className={inputClass} required>
+                  <option value="">Selecione</option>
+                  {bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                </select>
+              </label>
             </div>
           </div>
 
@@ -455,6 +474,7 @@ export default function Contracts() {
                       </span>
                       <span className="ds-badge ds-badge-info">{financialService.formatCurrency(contract.rent_value)}</span>
                       <span className="ds-badge ds-badge-info">vence dia {contract.due_day || '-'}</span>
+                      <span className="ds-badge ds-badge-info">{accountById[contract.bank_account_id]?.name || 'conta não definida'}</span>
                     </div>
                     <p className="mt-2 text-xs text-slate-500">
                       Vigência: {formatDateBR(contract.start_date) || '-'} até {formatDateBR(contract.end_date) || '-'}
@@ -468,6 +488,16 @@ export default function Contracts() {
 
                 {isExpanded ? (
                   <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
+                    <section>
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><Landmark className="h-4 w-4 text-blue-600" /> Conta de recebimento</h3>
+                      <label className="mt-2 block max-w-md text-sm text-slate-600">
+                        Conta padrão deste contrato
+                        <select value={contract.bank_account_id || ''} onChange={(event) => handleAccountChange(contract, event.target.value)} className={`${inputClass} mt-2`}>
+                          <option value="">Selecione</option>
+                          {bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                        </select>
+                      </label>
+                    </section>
                     <section>
                       <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><UserRound className="h-4 w-4 text-blue-600" /> Dados do locatário</h3>
                       <div className="mt-2 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
