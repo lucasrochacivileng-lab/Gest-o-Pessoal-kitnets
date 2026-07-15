@@ -43,6 +43,7 @@ export const financialInboxService = {
       p_cost_center: values.costCenter || '',
       p_bank_account_id: values.bankAccountId || null,
       p_credit_card_id: values.creditCardId || null,
+      p_due_date: values.dueDate || null,
     });
 
     throwIfError(error, 'Falha ao confirmar movimentação');
@@ -69,4 +70,3 @@ export const financialInboxService = {
 };
 
 export default financialInboxService;
-

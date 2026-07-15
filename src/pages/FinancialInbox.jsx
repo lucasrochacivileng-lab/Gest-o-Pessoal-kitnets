@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, CreditCard, Inbox, RefreshCw, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, CreditCard, FileText, Inbox, RefreshCw, X } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { financialService } from '../services/financialService';
 import financialInboxService from '../services/financialInboxService.js';
@@ -9,6 +9,7 @@ const TYPE_META = {
   purchase: { label: 'Compra no cartão', icon: CreditCard, tone: 'bg-violet-50 text-violet-700' },
   pix_sent: { label: 'Pix enviado', icon: ArrowUpRight, tone: 'bg-rose-50 text-rose-700' },
   pix_received: { label: 'Pix recebido', icon: ArrowDownLeft, tone: 'bg-emerald-50 text-emerald-700' },
+  boleto_issued: { label: 'Boleto emitido', icon: FileText, tone: 'bg-amber-50 text-amber-700' },
 };
 
 const STATUS_LABELS = {
@@ -48,6 +49,7 @@ function TransactionCard({ row, accounts, cards, onConfirm, onIgnore, busy }) {
     costCenter: row.cost_center_confirmed || row.cost_center_suggested || 'pessoal',
     bankAccountId: row.bank_account_id || '',
     creditCardId: row.credit_card_id || nubankCard?.id || '',
+    dueDate: row.due_date || '',
   });
   const pending = row.status === 'pending';
   const needsBankAccount = ['pix_sent', 'pix_received'].includes(row.transaction_type);
@@ -92,7 +94,11 @@ function TransactionCard({ row, accounts, cards, onConfirm, onIgnore, busy }) {
                   {COST_CENTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </label>
-              {needsBankAccount ? (
+              {row.transaction_type === 'boleto_issued' ? (
+                <label className="ds-form-field">Vencimento
+                  <input type="date" className="ds-input" value={form.dueDate} onChange={(event) => setForm((current) => ({ ...current, dueDate: event.target.value }))} />
+                </label>
+              ) : needsBankAccount ? (
                 <label className="ds-form-field">Conta bancária
                   <select className="ds-input" value={form.bankAccountId} onChange={(event) => setForm((current) => ({ ...current, bankAccountId: event.target.value }))}>
                     <option value="">Selecione</option>
@@ -113,7 +119,7 @@ function TransactionCard({ row, accounts, cards, onConfirm, onIgnore, busy }) {
           {pending ? (
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" onClick={confirm} disabled={busy} className="ds-btn ds-btn-primary disabled:opacity-60">
-                Confirmar lançamento
+                {row.transaction_type === 'boleto_issued' ? 'Adicionar às despesas previstas' : 'Confirmar lançamento'}
               </button>
               <button type="button" onClick={() => onIgnore(row.id)} disabled={busy} className="ds-btn ds-btn-secondary disabled:opacity-60">
                 Ignorar
@@ -231,4 +237,3 @@ export default function FinancialInbox() {
     </div>
   );
 }
-

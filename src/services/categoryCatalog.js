@@ -65,6 +65,9 @@ export const EXPENSE_CATEGORY_OPTIONS = [
 // (com espaços e 'outros' no plural). Também é o vocabulário que
 // getCostType() lê para derivar Custeio/Investimento/Financiamento.
 export const CARD_CATEGORY_OPTIONS = [
+  { value: 'energia', label: 'Energia' },
+  { value: 'agua', label: 'Água' },
+  { value: 'internet', label: 'Internet' },
   { value: 'alimentacao', label: 'Alimentação' },
   { value: 'mercado', label: 'Mercado' },
   { value: 'combustivel', label: 'Combustível' },

@@ -68,6 +68,27 @@ test('pacote desconhecido nao cria movimentacao', () => {
   assert.equal(result.parserVersion, 'unsupported-package');
 });
 
+test('reconhece boleto da Equatorial como conta prevista', () => {
+  const result = parseBankNotification(
+    'com.nu.production',
+    'Novo boleto encontrado',
+    'Boleto emitido por EQUATORIAL ENERGIA no valor de R$ 245,67 com vencimento em 20/07/2026',
+  );
+  assert.equal(result.transactionType, 'boleto_issued');
+  assert.equal(result.amount, 245.67);
+  assert.equal(result.merchant, 'EQUATORIAL ENERGIA');
+  assert.equal(result.dueDate, '2026-07-20');
+});
+
+test('nao confunde boleto pago com boleto emitido', () => {
+  const result = parseBankNotification(
+    'com.itau',
+    'Boleto pago',
+    'Pagamento de boleto concluído no valor de R$ 245,67',
+  );
+  assert.equal(result.recognized, false);
+});
+
 test('extrai Pix enviado', () => {
   const result = parseNubankNotification('Pix realizado', 'Você fez um Pix de R$ 150,00 para Maria Silva.');
   assert.equal(result.transactionType, 'pix_sent');

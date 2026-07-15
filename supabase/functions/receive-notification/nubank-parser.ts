@@ -1,4 +1,4 @@
-export type NubankTransactionType = 'purchase' | 'pix_sent' | 'pix_received';
+export type NubankTransactionType = 'purchase' | 'pix_sent' | 'pix_received' | 'boleto_issued';
 export type FinancialProvider = 'nubank' | 'inter' | 'itau' | 'caixa' | 'mercado_pago';
 
 export type ParsedNubankNotification = {
@@ -9,6 +9,7 @@ export type ParsedNubankNotification = {
   amount?: number;
   merchant?: string;
   description?: string;
+  dueDate?: string;
   parserVersion: string;
 };
 
@@ -37,6 +38,15 @@ const extractAmount = (text: string) => {
   return match ? parseBrazilianMoney(match[1]) : undefined;
 };
 
+const extractDueDate = (text: string) => {
+  const match = text.match(/(?:vencimento|vence|vencendo)(?:\s+(?:em|dia))?\s*[:\-]?\s*(\d{2})[\/-](\d{2})[\/-](\d{4})/i);
+  if (!match) return undefined;
+  const [, day, month, year] = match;
+  const value = `${year}-${month}-${day}`;
+  const parsed = new Date(`${value}T12:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? undefined : value;
+};
+
 const cleanCounterparty = (value = '') => normalizeSpaces(value)
   .replace(/[.!?,;:]+$/g, '')
   .replace(/\s+(?:no valor|de)\s*$/i, '')
@@ -60,6 +70,27 @@ export const parseBankNotification = (packageName = '', title = '', text = ''): 
   const amount = extractAmount(combined);
 
   if (!amount) return { recognized: false, provider, parserVersion };
+
+  const isPaidBoleto = /boleto.*(?:pago|quitado|liquidado)|pagamento\s+(?:de\s+)?boleto.*(?:realizado|conclu[ií]do)/i.test(lower);
+  if (!isPaidBoleto && /boleto|cobran[cç]a\s+(?:emitida|registrada)|dda\b/i.test(lower)) {
+    const merchant = extractAfter(combined, [
+      /(?:boleto|cobran[cç]a)\s+emitid[oa]\s+por\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|\s+com\s+vencimento|$)/i,
+      /(?:benefici[aá]rio|emissor)\s*[:\-]?\s*(.+?)(?:\s+valor|\s+R\$|\s+vencimento|$)/i,
+      /(?:novo\s+)?boleto\s+de\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|\s+com\s+vencimento|$)/i,
+    ]);
+    const dueDate = extractDueDate(combined);
+    return {
+      recognized: true,
+      provider,
+      transactionType: 'boleto_issued',
+      direction: 'out',
+      amount,
+      merchant: merchant || 'Boleto emitido',
+      description: merchant ? `Boleto emitido por ${merchant}` : 'Boleto emitido',
+      dueDate,
+      parserVersion,
+    };
+  }
 
   if (/pix\s+(?:recebido|recebida)|voc[eê]\s+recebeu(?:\s+(?:um|via))?\s+pix|voc[eê]\s+recebeu\s+R\$.*\bvia\s+pix|recebimento\s+(?:via\s+)?pix/i.test(lower)) {
     const merchant = extractAfter(combined, [
@@ -129,6 +160,9 @@ const BUILT_IN_RULES = [
   { words: ['farmacia', 'drogaria'], category: 'farmacia', costCenter: 'pessoal' },
   { words: ['amazon prime', 'netflix', 'spotify', 'melimais'], category: 'assinatura', costCenter: 'pessoal' },
   { words: ['leroy', 'telhanorte', 'material construcao'], category: 'material de construcao', costCenter: 'kitnets' },
+  { words: ['equatorial', 'energia eletrica', 'enel', 'celg'], category: 'energia', costCenter: 'pessoal' },
+  { words: ['saneago', 'conta de agua'], category: 'agua', costCenter: 'pessoal' },
+  { words: ['claro', 'vivo', 'tim', 'internet'], category: 'internet', costCenter: 'pessoal' },
 ];
 
 type ClassificationRule = {
