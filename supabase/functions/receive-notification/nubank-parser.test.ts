@@ -29,6 +29,18 @@ test('reconhece Pix recebido do Inter', () => {
   assert.equal(result.amount, 500);
 });
 
+test('reconhece texto real de transferencia recebida do Nubank', () => {
+  const result = parseBankNotification(
+    'com.nu.production',
+    'Transferência recebida',
+    'Recebemos sua transferência de R$ 0,01.',
+  );
+  assert.equal(result.provider, 'nubank');
+  assert.equal(result.transactionType, 'pix_received');
+  assert.equal(result.direction, 'in');
+  assert.equal(result.amount, 0.01);
+});
+
 test('reconhece compra do Itau', () => {
   const result = parseBankNotification(
     'com.itau',

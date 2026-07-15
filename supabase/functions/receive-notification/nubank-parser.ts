@@ -92,7 +92,7 @@ export const parseBankNotification = (packageName = '', title = '', text = ''): 
     };
   }
 
-  if (/pix\s+(?:recebido|recebida)|voc[eê]\s+recebeu(?:\s+(?:um|via))?\s+pix|voc[eê]\s+recebeu\s+R\$.*\bvia\s+pix|recebimento\s+(?:via\s+)?pix/i.test(lower)) {
+  if (/pix\s+(?:recebido|recebida)|voc[eê]\s+recebeu(?:\s+(?:um|via))?\s+pix|voc[eê]\s+recebeu\s+R\$.*\bvia\s+pix|recebimento\s+(?:via\s+)?pix|transfer[eê]ncia\s+recebida|recebemos\s+sua\s+transfer[eê]ncia/i.test(lower)) {
     const merchant = extractAfter(combined, [
       /pix\s+recebido\s+de\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|$)/i,
       /voc[eê]\s+recebeu\s+(?:um\s+)?pix\s+de\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|$)/i,
