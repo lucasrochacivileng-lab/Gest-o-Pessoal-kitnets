@@ -28,8 +28,25 @@ export const financialInboxService = {
     throwIfError(transactionsResult.error, 'Falha ao carregar movimentações capturadas');
     throwIfError(notificationsResult.error, 'Falha ao carregar notificações não reconhecidas');
 
+    const transactions = transactionsResult.data || [];
+    const transferGroups = new Map();
+    transactions.forEach((row) => {
+      if (!row.transfer_group_id) return;
+      const group = transferGroups.get(row.transfer_group_id) || [];
+      group.push(row);
+      transferGroups.set(row.transfer_group_id, group);
+    });
+
+    const visibleTransactions = transactions
+      .filter((row) => !row.transfer_group_id || row.is_transfer_primary !== false)
+      .map((row) => {
+        if (!row.transfer_group_id) return row;
+        const pair = (transferGroups.get(row.transfer_group_id) || []).find((item) => item.id !== row.id);
+        return { ...row, destination_provider: pair?.provider || '' };
+      });
+
     return {
-      transactions: transactionsResult.data || [],
+      transactions: visibleTransactions,
       unrecognized: notificationsResult.data || [],
     };
   },
@@ -37,16 +54,33 @@ export const financialInboxService = {
   async confirm(transactionId, values) {
     if (!isSupabaseEnabled || !supabase) throw new Error('A confirmação exige conexão com o Supabase.');
 
-    const { data, error } = await supabase.rpc('confirm_financial_inbox_transaction', {
+    const rpc = values.transactionType === 'internal_transfer'
+      ? 'confirm_internal_transfer'
+      : 'confirm_financial_inbox_transaction';
+    const params = values.transactionType === 'internal_transfer' ? {
+      p_transaction_id: transactionId,
+      p_source_account_id: values.bankAccountId || null,
+      p_destination_account_id: values.destinationBankAccountId || null,
+    } : {
       p_transaction_id: transactionId,
       p_category: values.category || '',
       p_cost_center: values.costCenter || '',
       p_bank_account_id: values.bankAccountId || null,
       p_credit_card_id: values.creditCardId || null,
       p_due_date: values.dueDate || null,
-    });
+    };
+    const { data, error } = await supabase.rpc(rpc, params);
 
     throwIfError(error, 'Falha ao confirmar movimentação');
+    return data;
+  },
+
+  async unpair(transactionId) {
+    if (!isSupabaseEnabled || !supabase) throw new Error('A ação exige conexão com o Supabase.');
+    const { data, error } = await supabase.rpc('unpair_internal_transfer', {
+      p_transaction_id: transactionId,
+    });
+    throwIfError(error, 'Falha ao desfazer conciliação');
     return data;
   },
 

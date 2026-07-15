@@ -25,6 +25,14 @@ const safeDate = (value: unknown) => {
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 };
 
+const providerLabel = (provider?: string) => ({
+  nubank: 'Nubank',
+  inter: 'Inter',
+  itau: 'Itaú',
+  caixa: 'CAIXA',
+  mercado_pago: 'Mercado Pago',
+}[provider || ''] || provider || 'outra conta');
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ success: false, error: 'method_not_allowed' }, 405);
@@ -157,20 +165,74 @@ Deno.serve(async (request) => {
 
   await supabase.from('notifications').update({ target_id: transaction.id }).eq('id', notification.id);
 
+  let responseTransaction = transaction;
+  let internalTransferMatched = false;
+
+  if (['pix_sent', 'pix_received'].includes(transaction.transaction_type)) {
+    const occurredAt = new Date(receivedAt);
+    const windowStart = new Date(occurredAt.getTime() - 15 * 60 * 1000).toISOString();
+    const windowEnd = new Date(occurredAt.getTime() + 15 * 60 * 1000).toISOString();
+    const oppositeDirection = transaction.direction === 'out' ? 'in' : 'out';
+
+    const { data: counterpart } = await supabase
+      .from('transactions')
+      .select('*')
+      .neq('id', transaction.id)
+      .eq('amount', transaction.amount)
+      .eq('direction', oppositeDirection)
+      .neq('provider', transaction.provider)
+      .eq('status', 'pending')
+      .in('transaction_type', ['pix_sent', 'pix_received'])
+      .is('transfer_group_id', null)
+      .gte('occurred_at', windowStart)
+      .lte('occurred_at', windowEnd)
+      .order('occurred_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (counterpart) {
+      const groupId = crypto.randomUUID();
+      const outgoing = transaction.direction === 'out' ? transaction : counterpart;
+      const incoming = transaction.direction === 'in' ? transaction : counterpart;
+      const description = `Transferência interna ${providerLabel(outgoing.provider)} → ${providerLabel(incoming.provider)}`;
+
+      const [{ data: primary, error: primaryError }, { error: secondaryError }] = await Promise.all([
+        supabase.from('transactions').update({
+          transaction_type: 'internal_transfer',
+          transfer_group_id: groupId,
+          is_transfer_primary: true,
+          description,
+        }).eq('id', outgoing.id).select('*').single(),
+        supabase.from('transactions').update({
+          transaction_type: 'internal_transfer',
+          transfer_group_id: groupId,
+          is_transfer_primary: false,
+          description,
+        }).eq('id', incoming.id),
+      ]);
+
+      if (!primaryError && !secondaryError && primary) {
+        responseTransaction = primary;
+        internalTransferMatched = true;
+      }
+    }
+  }
+
   return json({
     success: true,
     parsed: true,
     duplicate: false,
     notification_id: notification.id,
-    transaction_id: transaction.id,
+    transaction_id: responseTransaction.id,
+    internal_transfer_matched: internalTransferMatched,
     transaction: {
-      type: transaction.transaction_type,
-      direction: transaction.direction,
-      amount: transaction.amount,
-      merchant: transaction.merchant,
-      due_date: transaction.due_date,
-      category_suggested: transaction.category_suggested,
-      cost_center_suggested: transaction.cost_center_suggested,
+      type: responseTransaction.transaction_type,
+      direction: responseTransaction.direction,
+      amount: responseTransaction.amount,
+      merchant: responseTransaction.merchant,
+      due_date: responseTransaction.due_date,
+      category_suggested: responseTransaction.category_suggested,
+      cost_center_suggested: responseTransaction.cost_center_suggested,
     },
   });
 });

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, CreditCard, FileText, Inbox, RefreshCw, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowRightLeft, ArrowUpRight, CreditCard, FileText, Inbox, RefreshCw, X } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { financialService } from '../services/financialService';
 import financialInboxService from '../services/financialInboxService.js';
@@ -10,6 +10,7 @@ const TYPE_META = {
   pix_sent: { label: 'Pix enviado', icon: ArrowUpRight, tone: 'bg-rose-50 text-rose-700' },
   pix_received: { label: 'Pix recebido', icon: ArrowDownLeft, tone: 'bg-emerald-50 text-emerald-700' },
   boleto_issued: { label: 'Boleto emitido', icon: FileText, tone: 'bg-amber-50 text-amber-700' },
+  internal_transfer: { label: 'Transferência entre contas próprias', icon: ArrowRightLeft, tone: 'bg-blue-50 text-blue-700' },
 };
 
 const STATUS_LABELS = {
@@ -40,18 +41,32 @@ function Summary({ label, value, tone }) {
   );
 }
 
-function TransactionCard({ row, accounts, cards, onConfirm, onIgnore, busy }) {
+const providerTerms = {
+  nubank: ['nubank'], inter: ['inter'], itau: ['itau', 'itaú'], caixa: ['caixa'], mercado_pago: ['mercado pago'],
+};
+
+const uniqueAccountForProvider = (accounts, provider) => {
+  const terms = providerTerms[provider] || [];
+  const matches = accounts.filter((account) => terms.some((term) => `${account.name || ''} ${account.institution || ''}`.toLowerCase().includes(term)));
+  return matches.length === 1 ? matches[0] : null;
+};
+
+function TransactionCard({ row, accounts, cards, onConfirm, onIgnore, onUnpair, busy }) {
   const meta = TYPE_META[row.transaction_type] || TYPE_META.purchase;
   const Icon = meta.icon;
   const nubankCard = cards.find((card) => String(card.name || card.bank || '').toLowerCase().includes('nubank'));
+  const suggestedSource = uniqueAccountForProvider(accounts, row.provider);
+  const suggestedDestination = uniqueAccountForProvider(accounts, row.destination_provider);
   const [form, setForm] = useState({
     category: row.category_confirmed || row.category_suggested || 'outros',
     costCenter: row.cost_center_confirmed || row.cost_center_suggested || 'pessoal',
-    bankAccountId: row.bank_account_id || '',
+    bankAccountId: row.bank_account_id || suggestedSource?.id || '',
+    destinationBankAccountId: row.destination_bank_account_id || suggestedDestination?.id || '',
     creditCardId: row.credit_card_id || nubankCard?.id || '',
     dueDate: row.due_date || '',
   });
   const pending = row.status === 'pending';
+  const isInternalTransfer = row.transaction_type === 'internal_transfer';
   const needsBankAccount = ['pix_sent', 'pix_received'].includes(row.transaction_type);
 
   const confirm = () => {
@@ -59,7 +74,15 @@ function TransactionCard({ row, accounts, cards, onConfirm, onIgnore, busy }) {
       window.alert('Selecione a conta bancária em que o Pix entrou ou saiu.');
       return;
     }
-    onConfirm(row.id, form);
+    if (isInternalTransfer && (!form.bankAccountId || !form.destinationBankAccountId)) {
+      window.alert('Selecione as contas de origem e destino da transferência.');
+      return;
+    }
+    if (isInternalTransfer && form.bankAccountId === form.destinationBankAccountId) {
+      window.alert('A conta de destino deve ser diferente da conta de origem.');
+      return;
+    }
+    onConfirm(row.id, { ...form, transactionType: row.transaction_type });
   };
 
   return (
@@ -84,6 +107,23 @@ function TransactionCard({ row, accounts, cards, onConfirm, onIgnore, busy }) {
 
           {pending ? (
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {isInternalTransfer ? (
+                <>
+                  <label className="ds-form-field">Conta de origem
+                    <select className="ds-input" value={form.bankAccountId} onChange={(event) => setForm((current) => ({ ...current, bankAccountId: event.target.value }))}>
+                      <option value="">Selecione</option>
+                      {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="ds-form-field">Conta de destino
+                    <select className="ds-input" value={form.destinationBankAccountId} onChange={(event) => setForm((current) => ({ ...current, destinationBankAccountId: event.target.value }))}>
+                      <option value="">Selecione</option>
+                      {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                    </select>
+                  </label>
+                </>
+              ) : (
+                <>
               <label className="ds-form-field">Categoria
                 <select className="ds-input" value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}>
                   {CARD_CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -113,14 +153,21 @@ function TransactionCard({ row, accounts, cards, onConfirm, onIgnore, busy }) {
                   </select>
                 </label>
               )}
+                </>
+              )}
             </div>
           ) : null}
 
           {pending ? (
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" onClick={confirm} disabled={busy} className="ds-btn ds-btn-primary disabled:opacity-60">
-                {row.transaction_type === 'boleto_issued' ? 'Adicionar às despesas previstas' : 'Confirmar lançamento'}
+                {isInternalTransfer ? 'Confirmar transferência interna' : row.transaction_type === 'boleto_issued' ? 'Adicionar às despesas previstas' : 'Confirmar lançamento'}
               </button>
+              {isInternalTransfer ? (
+                <button type="button" onClick={() => onUnpair(row.id)} disabled={busy} className="ds-btn ds-btn-secondary disabled:opacity-60">
+                  Não é transferência interna
+                </button>
+              ) : null}
               <button type="button" onClick={() => onIgnore(row.id)} disabled={busy} className="ds-btn ds-btn-secondary disabled:opacity-60">
                 Ignorar
               </button>
@@ -216,6 +263,7 @@ export default function FinancialInbox() {
               busy={busyId === row.id}
               onConfirm={(id, values) => run(id, () => financialInboxService.confirm(id, values))}
               onIgnore={(id) => run(id, () => financialInboxService.ignore(id))}
+              onUnpair={(id) => run(id, () => financialInboxService.unpair(id))}
             />
           ))}
           {!visible.length ? <div className="ds-card text-center text-sm text-slate-500"><Inbox className="mx-auto mb-2 h-6 w-6" />Nenhuma movimentação nesta lista.</div> : null}
