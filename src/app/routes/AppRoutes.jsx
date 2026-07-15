@@ -24,6 +24,7 @@ import ComplementaryProjects from '../../pages/ComplementaryProjects.jsx';
 import ExpertReports from '../../pages/ExpertReports.jsx';
 import NotificationsPage from '../../modules/notifications/pages/NotificationsPage.jsx';
 import CashReconciliation from '../../pages/CashReconciliation.jsx';
+import FinancialInbox from '../../pages/FinancialInbox.jsx';
 import HubLayout from '../../components/ui/HubLayout.jsx';
 
 // Abas dos hubs (fases 2 e 3): as URLs continuam as mesmas, só ganham uma
@@ -32,6 +33,7 @@ import HubLayout from '../../components/ui/HubLayout.jsx';
 // dentro de "Financeiro".
 const FINANCE_TABS = [
   { to: '/receitas', label: 'Receitas' },
+  { to: '/caixa-entrada', label: 'Caixa de Entrada' },
   { to: '/recebimentos', label: 'Recebimentos' },
   { to: '/despesas', label: 'Despesas' },
   { to: '/pagamentos', label: 'Pagamentos' },
@@ -58,6 +60,7 @@ export default function AppRoutes() {
         {/* Hub Financeiro (abas no topo, mesmas URLs) */}
         <Route element={<HubLayout tabs={FINANCE_TABS} />}>
           <Route path="/receitas" element={<Income />} />
+          <Route path="/caixa-entrada" element={<FinancialInbox />} />
           <Route path="/recebimentos" element={<Recebimentos />} />
           <Route path="/recebimentos/:id" element={<Recebimentos />} />
           <Route path="/despesas" element={<Expenses />} />

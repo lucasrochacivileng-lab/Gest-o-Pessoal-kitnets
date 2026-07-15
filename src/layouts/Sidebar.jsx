@@ -33,7 +33,7 @@ const menuSections = [
       label: 'Financeiro',
       icon: Wallet,
       path: '/receitas',
-      match: ['/receitas', '/recebimentos', '/despesas', '/pagamentos', '/extrato', '/caixa', '/financas-pessoais'],
+      match: ['/receitas', '/caixa-entrada', '/recebimentos', '/despesas', '/pagamentos', '/extrato', '/caixa', '/financas-pessoais'],
     },
     {
       label: 'Relatórios',
@@ -145,7 +145,7 @@ export default function Sidebar() {
 
   const bottomNavItems = [
     { label: 'Início', icon: LayoutDashboard, path: '/' },
-    { label: 'Financeiro', icon: Wallet, path: '/receitas', match: ['/receitas', '/recebimentos', '/despesas', '/pagamentos', '/extrato', '/caixa', '/financas-pessoais'] },
+    { label: 'Financeiro', icon: Wallet, path: '/receitas', match: ['/receitas', '/caixa-entrada', '/recebimentos', '/despesas', '/pagamentos', '/extrato', '/caixa', '/financas-pessoais'] },
     { label: 'Imóveis', icon: Building2, path: '/kitnets', match: ['/kitnets', '/locacoes', '/locatarios', '/contratos'] },
   ];
 
