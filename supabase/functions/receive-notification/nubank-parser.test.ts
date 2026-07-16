@@ -8,6 +8,7 @@ test('extrai compra aprovada do Nubank', () => {
     'Compra de R$ 32,50 aprovada em IFOOD',
   ), {
     recognized: true,
+    relevant: true,
     provider: 'nubank',
     transactionType: 'purchase',
     direction: 'out',
@@ -39,6 +40,8 @@ test('reconhece texto real de transferencia recebida do Nubank', () => {
   assert.equal(result.transactionType, 'pix_received');
   assert.equal(result.direction, 'in');
   assert.equal(result.amount, 0.01);
+  assert.equal(result.merchant, 'Pix recebido');
+  assert.equal(result.description, 'Pix recebido');
 });
 
 test('reconhece compra do Itau', () => {
@@ -118,7 +121,28 @@ test('extrai Pix recebido', () => {
 test('nao inventa valor quando a notificacao nao e reconhecida', () => {
   const result = parseNubankNotification('Novidade no app', 'Confira as novidades do Nubank.');
   assert.equal(result.recognized, false);
+  assert.equal(result.relevant, false);
   assert.equal(result.amount, undefined);
+});
+
+test('ignora oferta bancaria mesmo quando o texto possui valor', () => {
+  const result = parseBankNotification(
+    'com.itau',
+    'Conheca o Consorcio Ganhe Mais',
+    'Contrate uma carta de R$ 20.000,00 e concorra a premios.',
+  );
+  assert.equal(result.recognized, false);
+  assert.equal(result.relevant, false);
+});
+
+test('preserva lembrete de boleto sem valor para revisao', () => {
+  const result = parseBankNotification(
+    'br.com.intermedium',
+    'Seu boleto vence em breve',
+    'Voce tem um boleto emitido por MUTUA que vence em breve.',
+  );
+  assert.equal(result.recognized, false);
+  assert.equal(result.relevant, true);
 });
 
 test('regra personalizada tem prioridade sobre regra embutida', () => {

@@ -81,6 +81,11 @@ Deno.serve(async (request) => {
   const dedupeKey = await sha256(`${packageName}|${title}|${text}|${receivedAt}`);
   const parsed = parseBankNotification(packageName, title, text);
 
+  // Ads and offers are acknowledged without polluting the financial inbox.
+  if (!parsed.relevant) {
+    return json({ success: true, parsed: false, ignored: true, reason: 'non_financial_notification' });
+  }
+
   const { data: existing } = await supabase
     .from('notifications')
     .select('id, target_id, parse_status')
@@ -138,6 +143,20 @@ Deno.serve(async (request) => {
     .eq('active', true);
   const suggestion = suggestByRules(parsed.description, (ruleRows || []).map((row) => row.data));
 
+  let bankAccountId: string | null = null;
+  if (['pix_sent', 'pix_received'].includes(parsed.transactionType)) {
+    const { data: accountRows } = await supabase
+      .from('records')
+      .select('id, data')
+      .eq('entity', 'BankAccount')
+      .eq('active', true);
+    const primaryAccount = (accountRows || []).find(({ data }) => (
+      data?.notification_provider === parsed.provider
+      && data?.is_primary_transaction_account === true
+    ));
+    bankAccountId = primaryAccount?.id || null;
+  }
+
   const { data: transaction, error: transactionError } = await supabase
     .from('transactions')
     .insert({
@@ -153,6 +172,7 @@ Deno.serve(async (request) => {
       due_date: parsed.dueDate || null,
       category_suggested: suggestion.category,
       cost_center_suggested: suggestion.costCenter,
+      bank_account_id: bankAccountId,
       raw_parse: { ...parsed, classification_source: suggestion.source },
     })
     .select('*')
@@ -233,6 +253,7 @@ Deno.serve(async (request) => {
       due_date: responseTransaction.due_date,
       category_suggested: responseTransaction.category_suggested,
       cost_center_suggested: responseTransaction.cost_center_suggested,
+      bank_account_id: responseTransaction.bank_account_id,
     },
   });
 });

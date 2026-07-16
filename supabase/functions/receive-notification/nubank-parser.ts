@@ -3,6 +3,7 @@ export type FinancialProvider = 'nubank' | 'inter' | 'itau' | 'caixa' | 'mercado
 
 export type ParsedNubankNotification = {
   recognized: boolean;
+  relevant: boolean;
   provider?: FinancialProvider;
   transactionType?: NubankTransactionType;
   direction?: 'in' | 'out';
@@ -62,14 +63,15 @@ const extractAfter = (text: string, patterns: RegExp[]) => {
 
 export const parseBankNotification = (packageName = '', title = '', text = ''): ParsedNubankNotification => {
   const provider = detectFinancialProvider(packageName);
-  if (!provider) return { recognized: false, parserVersion: 'unsupported-package' };
+  if (!provider) return { recognized: false, relevant: false, parserVersion: 'unsupported-package' };
 
   const parserVersion = `${provider}-v1`;
   const combined = normalizeSpaces(`${title} ${text}`);
   const lower = combined.toLocaleLowerCase('pt-BR');
   const amount = extractAmount(combined);
+  const relevant = /\bpix\b|transfer[eê]ncia\s+(?:recebida|enviada|realizada)|boleto|cobran[cç]a\s+(?:emitida|registrada)|\bdda\b|compra\s+(?:aprovada|realizada)|voc[eê]\s+fez\s+uma\s+compra/i.test(lower);
 
-  if (!amount) return { recognized: false, provider, parserVersion };
+  if (!amount) return { recognized: false, relevant, provider, parserVersion };
 
   const isPaidBoleto = /boleto.*(?:pago|quitado|liquidado)|pagamento\s+(?:de\s+)?boleto.*(?:realizado|conclu[ií]do)/i.test(lower);
   if (!isPaidBoleto && /boleto|cobran[cç]a\s+(?:emitida|registrada)|dda\b/i.test(lower)) {
@@ -81,6 +83,7 @@ export const parseBankNotification = (packageName = '', title = '', text = ''): 
     const dueDate = extractDueDate(combined);
     return {
       recognized: true,
+      relevant: true,
       provider,
       transactionType: 'boleto_issued',
       direction: 'out',
@@ -96,10 +99,10 @@ export const parseBankNotification = (packageName = '', title = '', text = ''): 
     const merchant = extractAfter(combined, [
       /pix\s+recebido\s+de\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|$)/i,
       /voc[eê]\s+recebeu\s+(?:um\s+)?pix\s+de\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|$)/i,
-      /de\s+(.+?)(?:\s+no\s+valor|\s+de\s+R\$|$)/i,
     ]);
     return {
       recognized: true,
+      relevant: true,
       provider,
       transactionType: 'pix_received',
       direction: 'in',
@@ -118,6 +121,7 @@ export const parseBankNotification = (packageName = '', title = '', text = ''): 
     ]);
     return {
       recognized: true,
+      relevant: true,
       provider,
       transactionType: 'pix_sent',
       direction: 'out',
@@ -136,6 +140,7 @@ export const parseBankNotification = (packageName = '', title = '', text = ''): 
     ]);
     return {
       recognized: true,
+      relevant: true,
       provider,
       transactionType: 'purchase',
       direction: 'out',
@@ -146,7 +151,7 @@ export const parseBankNotification = (packageName = '', title = '', text = ''): 
     };
   }
 
-  return { recognized: false, provider, parserVersion };
+  return { recognized: false, relevant, provider, parserVersion };
 };
 
 export const parseNubankNotification = (title = '', text = '') => (

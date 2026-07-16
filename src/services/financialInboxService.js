@@ -42,7 +42,11 @@ export const financialInboxService = {
       .map((row) => {
         if (!row.transfer_group_id) return row;
         const pair = (transferGroups.get(row.transfer_group_id) || []).find((item) => item.id !== row.id);
-        return { ...row, destination_provider: pair?.provider || '' };
+        return {
+          ...row,
+          destination_provider: pair?.provider || '',
+          destination_bank_account_id: row.destination_bank_account_id || pair?.bank_account_id || '',
+        };
       });
 
     return {

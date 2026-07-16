@@ -46,6 +46,12 @@ const providerTerms = {
 };
 
 const uniqueAccountForProvider = (accounts, provider) => {
+  const explicit = accounts.find((account) => (
+    account.notification_provider === provider
+    && account.is_primary_transaction_account === true
+  ));
+  if (explicit) return explicit;
+
   const terms = providerTerms[provider] || [];
   const matches = accounts.filter((account) => terms.some((term) => `${account.name || ''} ${account.institution || ''}`.toLowerCase().includes(term)));
   return matches.length === 1 ? matches[0] : null;
