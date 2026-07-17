@@ -27,6 +27,23 @@ describe('cashReconciliationService', () => {
     expect(result.differenceTotal).toBe(0);
   });
 
+  it('compra no cartão não sai do banco; quem sai é o pagamento da fatura', () => {
+    const result = buildCashReconciliation({
+      accounts: [{ id: 'a', opening_date: '2026-07-01', opening_balance: 5000, balance_date: '2026-07-31', actual_balance: 3500 }],
+      personal: [
+        // Compra no cartão: é gasto, mas não tira dinheiro da conta agora.
+        { type: 'card_transaction', bank_account_id: 'a', date: '2026-07-10', value: 2000, status: 'pago' },
+        // Pagamento da fatura: aí sim sai do banco (e não é gasto novo).
+        { type: 'card_payment', bank_account_id: 'a', date: '2026-07-05', value: 1500, status: 'pago' },
+      ],
+    });
+
+    // 5000 - 1500 (só a fatura) = 3500. Se a compra também descontasse, daria
+    // 1500 e o saldo calculado nunca bateria com o extrato do banco.
+    expect(result.accounts[0].calculatedBalance).toBe(3500);
+    expect(result.differenceTotal).toBe(0);
+  });
+
   it('ignora Payment sem vínculo de aluguel', () => {
     const result = buildCashReconciliation({
       accounts: [{ id: 'a', opening_date: '2026-07-01', opening_balance: 0, balance_date: '2026-07-31', actual_balance: 1000 }],
