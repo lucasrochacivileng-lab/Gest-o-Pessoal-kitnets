@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { applyRules } from './classificationRuleService.js';
+import { matchStatementAgainstNotifications } from './notificationPurchaseMatchService.js';
 
 const DEFAULT_CATEGORY = 'outros';
 const DEFAULT_CONTEXT = 'pessoal';
@@ -232,9 +233,18 @@ export const buildInstallmentPreview = ({
   rules = [],
 }) => {
   const existingHashes = new Set(existingTransactions.map((item) => item.origin_hash).filter(Boolean));
+  // Compras que a notificação do banco já capturou (Caixa de Entrada). São a
+  // MESMA compra desta linha da fatura — a fatura só sabe mais (parcelamento e
+  // vencimento). Ao salvar, a notificação casada é aposentada para a compra não
+  // contar duas vezes.
+  const notificationMatches = matchStatementAgainstNotifications({
+    transactions,
+    existing: existingTransactions,
+  });
 
   return transactions.flatMap((transaction) => {
     const rows = [];
+    const notificationMatch = notificationMatches.get(transaction.source_index);
     const firstInstallment = transaction.installment_current || 1;
     const totalInstallments = Math.max(transaction.installment_total || firstInstallment, firstInstallment);
     const cardName = transaction.card_name || defaultCardName || 'Cartao';
@@ -273,6 +283,15 @@ export const buildInstallmentPreview = ({
 
       item.origin_hash = buildOriginHash(item);
       item.duplicate = existingHashes.has(item.origin_hash);
+
+      // Só a PRIMEIRA parcela carrega o vínculo: a notificação é uma só (o
+      // valor cheio da compra), e quem a aposenta ao salvar é uma linha só.
+      if (notificationMatch && installmentNumber === firstInstallment && !item.duplicate) {
+        item.supersedes_id = notificationMatch.id;
+        item.supersedes_description = notificationMatch.description;
+        item.supersedes_value = notificationMatch.value;
+      }
+
       rows.push(item);
     }
 

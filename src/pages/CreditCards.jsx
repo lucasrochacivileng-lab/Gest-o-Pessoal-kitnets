@@ -90,9 +90,16 @@ const currentMonth = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
+const today = () => new Date().toISOString().slice(0, 10);
 
 function pickRow(row) {
-  const { preview_id, duplicate, selected, ...payload } = row;
+  // `supersedes_*` são só da prévia (dizem qual notificação esta linha
+  // aposenta) — não fazem parte do lançamento gravado.
+  const {
+    preview_id, duplicate, selected,
+    supersedes_id, supersedes_description, supersedes_value,
+    ...payload
+  } = row;
   return payload;
 }
 
@@ -199,6 +206,7 @@ export default function CreditCards() {
 
   const selectedRows = previewRows.filter((row) => row.selected && !row.duplicate);
   const duplicateCount = previewRows.filter((row) => row.duplicate).length;
+  const supersedeCount = selectedRows.filter((row) => row.supersedes_id).length;
   const categorySummary = useMemo(() => summarizeByCategory(selectedRows), [selectedRows]);
 
   const handleFile = async (event) => {
@@ -272,7 +280,22 @@ export default function CreditCards() {
         imported_batch_id: batch.id,
       })));
 
-      setMessage(`${selectedRows.length} parcela(s) importada(s). Elas ficaram em Finanças Pessoais como "Revisar".`);
+      // A fatura é a MESMA compra que a notificação já tinha capturado, só que
+      // com o parcelamento certo. Aposenta a notificação (status 'ignorar' sai
+      // dos gastos e do saldo do cartão, mas não apaga nada) para a compra não
+      // contar duas vezes. Só depois dos lançamentos gravarem: se a importação
+      // falhar no meio, a notificação continua valendo.
+      const superseded = selectedRows.filter((row) => row.supersedes_id);
+      await Promise.all(superseded.map((row) => repository.update('PersonalIncome', row.supersedes_id, {
+        status: 'ignorar',
+        superseded_by_batch_id: batch.id,
+        notes: `Substituido pela fatura importada em ${today()}: a mesma compra entrou como ${row.installment} de ${money(row.value)}.`,
+      })));
+
+      const supersededNote = superseded.length
+        ? ` ${superseded.length} compra(s) que já tinham chegado por notificação foram substituídas pelo parcelamento da fatura — não contam duas vezes.`
+        : '';
+      setMessage(`${selectedRows.length} parcela(s) importada(s). Elas ficaram em Finanças Pessoais como "Revisar".${supersededNote}`);
       setPreviewRows([]);
       await loadReferenceData();
     } catch (error) {
@@ -361,6 +384,7 @@ export default function CreditCards() {
               <h2 className="text-lg font-semibold text-slate-900">Prévia da importação</h2>
               <p className="text-sm text-slate-500">
                 {selectedRows.length} selecionada(s), {duplicateCount} duplicada(s) ignorada(s).
+                {supersedeCount ? ` ${supersedeCount} já tinha(m) chegado por notificação e será(ão) substituída(s) pela fatura.` : ''}
               </p>
             </div>
             <button type="button" onClick={saveImport} disabled={saving} className="ds-btn ds-btn-primary disabled:opacity-60">
@@ -408,6 +432,12 @@ export default function CreditCards() {
                     </td>
                     <td className="px-2 py-2">
                       <input value={row.description || ''} onChange={(event) => updatePreviewRow(row.preview_id, { description: event.target.value })} className="ds-input min-w-64" />
+                      {row.supersedes_id ? (
+                        <p className="mt-1 text-xs text-blue-700">
+                          Já tinha chegado por notificação ({money(row.supersedes_value)}). Ao salvar, aquela
+                          entra como ignorada e vale o parcelamento da fatura — sem contar duas vezes.
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-2 py-2">
                       <input type="number" value={row.value || 0} onChange={(event) => updatePreviewRow(row.preview_id, { value: Number(event.target.value || 0) })} className="ds-input min-w-28" />

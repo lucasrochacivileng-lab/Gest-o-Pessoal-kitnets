@@ -143,6 +143,76 @@ describe('cardStatementImportService', () => {
     expect(preview[0].duplicate).toBe(true);
   });
 
+  it('marca so a primeira parcela como substituta da compra vinda de notificacao', () => {
+    const preview = buildInstallmentPreview({
+      statementMonth: '2026-08',
+      dueDay: 10,
+      transactions: [
+        {
+          source_index: 1,
+          purchase_date: '2026-07-10',
+          description: 'PIZZARIA BELLA LTDA',
+          value: 100,
+          card_name: 'Nubank',
+          installment_current: 1,
+          installment_total: 6,
+        },
+      ],
+      existingTransactions: [
+        {
+          id: 'n1',
+          type: 'card_transaction',
+          source_notification_id: 'notif-1',
+          card_name: 'Nubank',
+          description: 'Compra aprovada: PIZZARIA BELLA',
+          value: 600,
+          date: '2026-07-10',
+          status: 'revisado',
+        },
+      ],
+    });
+
+    expect(preview).toHaveLength(6);
+    // A notificação é uma só (os R$ 600 cheios) e é aposentada uma vez só:
+    // se todas as 6 parcelas carregassem o vínculo, o app tentaria ignorá-la
+    // seis vezes ao salvar.
+    expect(preview[0]).toMatchObject({ supersedes_id: 'n1', supersedes_value: 600 });
+    expect(preview.slice(1).every((row) => !row.supersedes_id)).toBe(true);
+  });
+
+  it('nao marca substituicao quando a compra nao veio de notificacao', () => {
+    const preview = buildInstallmentPreview({
+      statementMonth: '2026-08',
+      dueDay: 10,
+      transactions: [
+        {
+          source_index: 1,
+          purchase_date: '2026-07-10',
+          description: 'PIZZARIA BELLA LTDA',
+          value: 600,
+          card_name: 'Nubank',
+          installment_current: 1,
+          installment_total: 1,
+        },
+      ],
+      // Mesmo cartão, valor e data, mas veio de uma importação anterior
+      // (origin_hash), não da Caixa de Entrada — não é o caso deste casamento.
+      existingTransactions: [
+        {
+          id: 'x1',
+          type: 'card_transaction',
+          origin_hash: 'outro',
+          card_name: 'Nubank',
+          description: 'PIZZARIA BELLA LTDA',
+          value: 600,
+          date: '2026-07-10',
+        },
+      ],
+    });
+
+    expect(preview[0].supersedes_id).toBeUndefined();
+  });
+
   it('interpreta valores acima de R$ 1 milhão (dois separadores de milhar)', () => {
     expect(parseMoney('1.234.567,89')).toBeCloseTo(1234567.89);
     expect(parseMoney('12.345,67')).toBeCloseTo(12345.67);
