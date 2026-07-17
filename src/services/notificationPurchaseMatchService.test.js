@@ -114,6 +114,20 @@ describe('matchStatementAgainstNotifications', () => {
     expect(matches.get(1)?.id).toBe('n1');
   });
 
+  it('casa a notificação nova, que guarda a data da compra separada do vencimento', () => {
+    const matches = matchStatementAgainstNotifications({
+      transactions: [linhaFatura({ purchase_date: '2026-06-15' })],
+      existing: [notificacao({
+        // Lançamento novo: `date` é o vencimento da fatura e a data real da
+        // compra fica em `purchase_date`.
+        date: '2026-07-10',
+        purchase_date: '2026-06-15',
+      })],
+    });
+
+    expect(matches.get(1)?.id).toBe('n1');
+  });
+
   it('ignora notificação já aposentada por uma importação anterior', () => {
     const matches = matchStatementAgainstNotifications({
       transactions: [linhaFatura()],
