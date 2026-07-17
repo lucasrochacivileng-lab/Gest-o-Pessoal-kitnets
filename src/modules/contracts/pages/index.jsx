@@ -15,6 +15,7 @@ import {
   RENTAL_DOCUMENT_TYPES,
   documentsForContract,
   getRentalDocumentStatus,
+  hasRentalDocumentFile,
   openRentalDocument,
   upsertRentalDocument,
 } from '../../../services/rentalDocumentService.js';
@@ -57,6 +58,7 @@ export default function Contracts() {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [documentFiles, setDocumentFiles] = useState({});
+  const [uploadingDocument, setUploadingDocument] = useState('');
   const [view, setView] = useState('ativas');
   const [expandedId, setExpandedId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -203,6 +205,8 @@ export default function Contracts() {
 
   const handleDocumentUpload = async (contract, type, file) => {
     if (!file) return;
+    const uploadKey = `${contract.id}:${type}`;
+    setUploadingDocument(uploadKey);
     try {
       await upsertRentalDocument({
         documents,
@@ -217,6 +221,16 @@ export default function Contracts() {
       await loadData({ silent: true });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível anexar o documento.');
+    } finally {
+      setUploadingDocument('');
+    }
+  };
+
+  const handleDocumentOpen = async (document) => {
+    try {
+      await openRentalDocument(document);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Não foi possível abrir o documento.');
     }
   };
 
@@ -312,6 +326,12 @@ export default function Contracts() {
             {option.label}
           </button>
         ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Locações cadastradas</p><p className="mt-1 text-2xl font-bold text-slate-900">{contracts.length}</p></div>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4"><p className="text-xs font-semibold uppercase text-emerald-700">Contratos em PDF</p><p className="mt-1 text-2xl font-bold text-emerald-800">{contracts.filter((contract) => documentsForContract(documents, contract.id).some((document) => document.type === RENTAL_DOCUMENT_TYPES.contract && hasRentalDocumentFile(document))).length}</p></div>
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-semibold uppercase text-amber-700">PDFs pendentes</p><p className="mt-1 text-2xl font-bold text-amber-800">{contracts.filter((contract) => !documentsForContract(documents, contract.id).some((document) => document.type === RENTAL_DOCUMENT_TYPES.contract && hasRentalDocumentFile(document))).length}</p></div>
       </div>
 
       {formOpen ? (
@@ -460,6 +480,8 @@ export default function Contracts() {
             const tenant = tenantById[contract.tenant_id];
             const isActive = contract.status !== 'encerrado';
             const contractDocuments = documentsForContract(documents, contract.id);
+            const attachedDocuments = contractDocuments.filter(hasRentalDocumentFile);
+            const hasContractPdf = attachedDocuments.some((document) => document.type === RENTAL_DOCUMENT_TYPES.contract);
             const isExpanded = expandedId === contract.id;
 
             return (
@@ -475,6 +497,8 @@ export default function Contracts() {
                       <span className="ds-badge ds-badge-info">{financialService.formatCurrency(contract.rent_value)}</span>
                       <span className="ds-badge ds-badge-info">vence dia {contract.due_day || '-'}</span>
                       <span className="ds-badge ds-badge-info">{accountById[contract.bank_account_id]?.name || 'conta não definida'}</span>
+                      <span className={`ds-badge ${hasContractPdf ? 'ds-badge-success' : 'ds-badge-warning'}`}>{hasContractPdf ? 'Contrato PDF anexado' : 'Contrato PDF pendente'}</span>
+                      <span className="ds-badge ds-badge-info">Documentos {attachedDocuments.length}/{Object.keys(RENTAL_DOCUMENT_LABELS).length}</span>
                     </div>
                     <p className="mt-2 text-xs text-slate-500">
                       Vigência: {formatDateBR(contract.start_date) || '-'} até {formatDateBR(contract.end_date) || '-'}
@@ -514,12 +538,15 @@ export default function Contracts() {
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         {Object.entries(RENTAL_DOCUMENT_LABELS).map(([type, label]) => {
                           const document = contractDocuments.find((item) => item.type === type);
+                          const hasFile = hasRentalDocumentFile(document);
+                          const uploadKey = `${contract.id}:${type}`;
+                          const isUploading = uploadingDocument === uploadKey;
                           return (
                             <div key={type} className="flex items-center justify-between gap-2 border-b border-slate-100 py-2">
-                              <div className="min-w-0"><p className="text-xs font-semibold text-slate-700">{label}</p><p className="truncate text-xs text-slate-500">{getRentalDocumentStatus(document)}</p></div>
+                              <div className="min-w-0"><p className="text-xs font-semibold text-slate-700">{label}</p><p className={`truncate text-xs ${hasFile ? 'text-emerald-700' : 'text-amber-700'}`}>{isUploading ? 'Enviando PDF...' : getRentalDocumentStatus(document)}</p></div>
                               <div className="flex shrink-0 gap-1">
-                                {document ? <button type="button" onClick={() => openRentalDocument(document)} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50" aria-label={`Abrir ${label}`}><ExternalLink className="h-4 w-4" /></button> : null}
-                                <label className="cursor-pointer rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50" aria-label={`Anexar ${label}`}><Upload className="h-4 w-4" /><input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => handleDocumentUpload(contract, type, event.target.files?.[0])} /></label>
+                                {hasFile ? <button type="button" onClick={() => handleDocumentOpen(document)} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50" aria-label={`Abrir ${label}`}><ExternalLink className="h-4 w-4" /></button> : null}
+                                <label className={`rounded-lg border border-slate-200 p-2 text-slate-600 ${isUploading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-slate-50'}`} aria-label={`Anexar ${label}`}><Upload className="h-4 w-4" /><input type="file" accept="application/pdf,.pdf" className="hidden" disabled={isUploading} onChange={(event) => { handleDocumentUpload(contract, type, event.target.files?.[0]); event.target.value = ''; }} /></label>
                               </div>
                             </div>
                           );

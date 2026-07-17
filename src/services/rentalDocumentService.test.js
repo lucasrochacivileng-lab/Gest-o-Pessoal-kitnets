@@ -3,6 +3,7 @@ import {
   RENTAL_DOCUMENT_TYPES,
   documentsForContract,
   getRentalDocumentStatus,
+  hasRentalDocumentFile,
   isPdfFile,
 } from './rentalDocumentService.js';
 
@@ -21,7 +22,9 @@ describe('rentalDocumentService', () => {
   it('aceita apenas arquivos PDF e exibe um estado amigável', () => {
     expect(isPdfFile({ name: 'contrato.PDF', type: '' })).toBe(true);
     expect(isPdfFile({ name: 'foto.jpg', type: 'image/jpeg' })).toBe(false);
-    expect(getRentalDocumentStatus(null)).toBe('Nenhum arquivo anexado');
-    expect(getRentalDocumentStatus({ file_name: 'contrato.pdf' })).toBe('contrato.pdf');
+    expect(getRentalDocumentStatus(null)).toBe('Pendente de anexo');
+    expect(getRentalDocumentStatus({ file_name: 'contrato.pdf', file_path: 'rentals/c1/contrato.pdf' })).toBe('contrato.pdf');
+    expect(hasRentalDocumentFile({ file_name: 'apenas-nome.pdf' })).toBe(false);
+    expect(hasRentalDocumentFile({ file_path: 'rentals/c1/contrato.pdf' })).toBe(true);
   });
 });

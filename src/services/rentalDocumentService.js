@@ -1,4 +1,8 @@
 import { repository } from '../repository/index.js';
+import { isSupabaseEnabled, supabase } from './supabaseClient.js';
+
+const DOCUMENTS_BUCKET = 'documents';
+const MAX_PDF_SIZE = 50 * 1024 * 1024;
 
 export const RENTAL_DOCUMENT_TYPES = {
   contract: 'contrato_pdf',
@@ -18,6 +22,10 @@ export const isPdfFile = (file) => Boolean(
   file && (file.type === 'application/pdf' || String(file.name || '').toLowerCase().endsWith('.pdf')),
 );
 
+export const hasRentalDocumentFile = (document) => Boolean(
+  document && (document.file_data || document.file_url || document.file_path),
+);
+
 export const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onload = () => resolve(reader.result);
@@ -35,8 +43,8 @@ export const dataUrlToBlob = (dataUrl) => {
   return new Blob([bytes], { type: mimeType });
 };
 
-export const openRentalDocument = (document) => {
-  if (!document) return;
+export const openRentalDocument = async (document) => {
+  if (!hasRentalDocumentFile(document)) throw new Error('Nenhum arquivo foi anexado a este documento.');
 
   if (document.file_data) {
     const url = URL.createObjectURL(dataUrlToBlob(document.file_data));
@@ -46,11 +54,26 @@ export const openRentalDocument = (document) => {
     return;
   }
 
+  if (document.file_path && isSupabaseEnabled && supabase) {
+    const opened = window.open('about:blank', '_blank');
+    if (opened) opened.opener = null;
+    const { data, error } = await supabase.storage
+      .from(DOCUMENTS_BUCKET)
+      .createSignedUrl(document.file_path, 10 * 60);
+    if (error || !data?.signedUrl) {
+      if (opened) opened.close();
+      throw new Error('Não foi possível abrir o PDF. Tente novamente.');
+    }
+    if (opened) opened.location.href = data.signedUrl;
+    else window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
   if (document.file_url) window.open(document.file_url, '_blank', 'noopener,noreferrer');
 };
 
 export const getRentalDocumentStatus = (document) => (
-  document?.file_name || document?.title || 'Nenhum arquivo anexado'
+  hasRentalDocumentFile(document) ? (document.file_name || 'PDF anexado') : 'Pendente de anexo'
 );
 
 export const documentsForContract = (documents, contractId) => (
@@ -60,21 +83,35 @@ export const documentsForContract = (documents, contractId) => (
 export const upsertRentalDocument = async ({ documents = [], file, type, kitnet, contract, tenant, source = 'Locações' }) => {
   if (!file) return null;
   if (!isPdfFile(file)) throw new Error('Envie apenas arquivos PDF.');
+  if (Number(file.size || 0) > MAX_PDF_SIZE) throw new Error('O PDF deve ter no máximo 50 MB.');
   if (!contract?.id) throw new Error('Salve o contrato antes de anexar documentos.');
 
-  const fileData = await readFileAsDataUrl(file);
   const existing = documents.find((document) => (
     document.contract_id === contract.id
     && document.type === type
     && document.active !== false
   ));
   const label = RENTAL_DOCUMENT_LABELS[type] || 'Documento';
+  const filePath = `rentals/${contract.id}/${type}.pdf`;
+  let fileData = null;
+
+  if (isSupabaseEnabled && supabase) {
+    const { error } = await supabase.storage
+      .from(DOCUMENTS_BUCKET)
+      .upload(filePath, file, { contentType: 'application/pdf', upsert: true });
+    if (error) throw new Error(`Não foi possível enviar o PDF: ${error.message}`);
+  } else {
+    fileData = await readFileAsDataUrl(file);
+  }
+
   const payload = {
     title: `${label} - ${kitnet?.name || tenant?.name || contract.id}`,
     type,
     file_name: file.name,
     file_type: file.type || 'application/pdf',
     file_data: fileData,
+    file_path: isSupabaseEnabled ? filePath : '',
+    file_url: '',
     kitnet_id: kitnet?.id || contract.kitnet_id || '',
     tenant_id: tenant?.id || contract.tenant_id || '',
     contract_id: contract.id,
