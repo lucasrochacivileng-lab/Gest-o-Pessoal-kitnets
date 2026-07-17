@@ -12,6 +12,7 @@ import { CARD_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
 import { SEGMENTS } from '../services/segmentConsolidationService.js';
 import { findSiblingTransactions } from '../services/cardInvoiceService.js';
 import { buildCardBalances } from '../services/cardBalanceService.js';
+import { describeInvoice, findCardByName, hasCycle, invoicePeriod } from '../services/cardCycleService.js';
 
 const segmentOptions = SEGMENTS.map((segment) => ({ value: segment.key, label: segment.label }));
 const expertReportLabel = (report) => [report.client, report.process_number].filter(Boolean).join(' — ') || report.report_type || report.id;
@@ -72,6 +73,37 @@ const fields = [
   { name: 'notes', label: 'Observações', type: 'textarea', placeholder: 'Detalhes da compra' },
 ];
 
+// Cadastro do cartão. O fechamento e o vencimento são o que permite ao app
+// dizer em qual fatura cada compra cai (cardCycleService) — sem eles, a compra
+// fica na data em que foi feita e a fatura não sabe dizer que período cobre.
+const cardRegistryFields = [
+  { name: 'card_name', label: 'Nome do cartão', placeholder: 'Nubank' },
+  { name: 'bank', label: 'Banco / emissor', placeholder: 'Nubank' },
+  { name: 'closing_day', label: 'Dia do fechamento', type: 'number', placeholder: '3' },
+  { name: 'due_day', label: 'Dia do vencimento', type: 'number', placeholder: '10' },
+  { name: 'limit_value', label: 'Limite (R$)', type: 'number', placeholder: '5000' },
+  { name: 'last_digits', label: 'Final do cartão', placeholder: '8019' },
+  { name: 'owner', label: 'Titular', placeholder: 'Deixe vazio se for seu' },
+  { name: 'notes', label: 'Observações', type: 'textarea' },
+];
+
+const cycleLabel = (row) => (
+  row.closing_day && row.due_day
+    ? `fecha dia ${row.closing_day}, vence dia ${row.due_day}`
+    : 'falta cadastrar'
+);
+
+const cardRegistryColumns = [
+  { field: 'card_name', label: 'Cartão' },
+  { field: 'bank', label: 'Banco' },
+  { field: 'closing_day', label: 'Ciclo', renderCell: ({ row }) => (
+    <span className={row.closing_day && row.due_day ? 'text-slate-700' : 'font-medium text-amber-700'}>
+      {cycleLabel(row)}
+    </span>
+  ) },
+  { field: 'limit_value', label: 'Limite', format: 'currency', align: 'right' },
+];
+
 const segmentLabelMap = Object.fromEntries(segmentOptions.map((segment) => [segment.value, segment.label]));
 const cardSegmentLabel = (value) => segmentLabelMap[value] || '';
 
@@ -120,6 +152,7 @@ export default function CreditCards() {
   // Guardado inteiro (e não só as compras) porque o saldo do cartão precisa
   // também dos pagamentos de fatura ('card_payment'), que abatem a dívida.
   const [allPersonal, setAllPersonal] = useState([]);
+  const [registeredCards, setRegisteredCards] = useState([]);
   const [rules, setRules] = useState([]);
   const [fileName, setFileName] = useState('');
   const [message, setMessage] = useState('');
@@ -127,14 +160,16 @@ export default function CreditCards() {
   const [savingCategoryId, setSavingCategoryId] = useState('');
 
   const loadReferenceData = useCallback(async () => {
-    const [kitnetRows, personalRows, expertReportRows, projectRows, ruleRows] = await Promise.all([
+    const [kitnetRows, personalRows, expertReportRows, projectRows, ruleRows, cardRows] = await Promise.all([
       repository.list('Kitnet'),
       repository.list('PersonalIncome'),
       repository.list('ExpertReport'),
       repository.list('ComplementaryProject'),
       repository.list(CLASSIFICATION_RULE_ENTITY),
+      repository.list('CreditCard'),
     ]);
 
+    setRegisteredCards(cardRows);
     setKitnets(kitnetRows);
     setExpertReports(expertReportRows);
     setProjects(projectRows);
@@ -203,6 +238,30 @@ export default function CreditCards() {
   )), [handleCategoryChange, savingCategoryId]);
 
   const cardBalances = useMemo(() => buildCardBalances({ personal: allPersonal }), [allPersonal]);
+
+  // Cartão que está sendo importado e o que a fatura dele cobre neste mês.
+  const selectedCard = useMemo(
+    () => findCardByName(registeredCards, defaultCardName),
+    [registeredCards, defaultCardName],
+  );
+  const invoiceHeadline = useMemo(
+    () => describeInvoice({ card: selectedCard, month: statementMonth }),
+    [selectedCard, statementMonth],
+  );
+
+  // Os cartões cadastrados mandam na lista; `cardOptions` (fixa no código) só
+  // socorre quem ainda não cadastrou nenhum.
+  const importCardOptions = useMemo(() => {
+    const names = registeredCards.map((card) => card.card_name || card.name || card.bank).filter(Boolean);
+    return names.length ? [...new Set(names)] : cardOptions;
+  }, [registeredCards]);
+
+  // O vencimento vem do cadastro do cartão: é ele que define o ciclo, e digitar
+  // um dia diferente aqui jogaria as parcelas num mês que não é o da fatura.
+  useEffect(() => {
+    const period = invoicePeriod({ card: selectedCard, month: statementMonth });
+    if (period) setDueDay(Number(period.dueDate.slice(8, 10)));
+  }, [selectedCard, statementMonth]);
 
   const selectedRows = previewRows.filter((row) => row.selected && !row.duplicate);
   const duplicateCount = previewRows.filter((row) => row.duplicate).length;
@@ -346,6 +405,11 @@ export default function CreditCards() {
             <p className="mt-1 text-sm text-slate-500">
               Suba CSV ou Excel, revise categoria/contexto e gere parcelas futuras automaticamente.
             </p>
+            {invoiceHeadline ? (
+              <p className={`mt-2 text-sm font-medium ${hasCycle(selectedCard) ? 'text-slate-900' : 'text-amber-700'}`}>
+                {invoiceHeadline}
+              </p>
+            ) : null}
           </div>
           <label className="ds-btn ds-btn-primary cursor-pointer">
             <Upload className="h-4 w-4" /> Subir fatura
@@ -357,7 +421,7 @@ export default function CreditCards() {
           <label className="ds-form-field">
             Cartão padrão
             <select value={defaultCardName} onChange={(event) => setDefaultCardName(event.target.value)} className="ds-input">
-              {cardOptions.map((card) => <option key={card} value={card}>{card}</option>)}
+              {importCardOptions.map((card) => <option key={card} value={card}>{card}</option>)}
             </select>
           </label>
           <label className="ds-form-field">
@@ -366,7 +430,20 @@ export default function CreditCards() {
           </label>
           <label className="ds-form-field">
             Dia de vencimento
-            <input type="number" min="1" max="28" value={dueDay} onChange={(event) => setDueDay(Number(event.target.value || 10))} className="ds-input" />
+            <input
+              type="number"
+              min="1"
+              max="28"
+              value={dueDay}
+              // Com o ciclo cadastrado, o vencimento é consequência dele: deixar
+              // digitar aqui jogaria as parcelas num mês que não é o da fatura.
+              disabled={hasCycle(selectedCard)}
+              onChange={(event) => setDueDay(Number(event.target.value || 10))}
+              className="ds-input disabled:bg-slate-100 disabled:text-slate-500"
+            />
+            <span className="text-xs font-normal text-slate-500">
+              {hasCycle(selectedCard) ? 'Vem do cadastro do cartão.' : 'Cadastre o cartão abaixo para o app preencher sozinho.'}
+            </span>
           </label>
           <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
             <p className="font-semibold text-slate-900">Regra</p>
@@ -496,6 +573,16 @@ export default function CreditCards() {
           </p>
         </div>
       )}
+
+      <EntityPage
+        title="Meus cartões"
+        subtitle="O fechamento e o vencimento dizem em qual fatura cada compra cai. Sem eles, a compra fica na data em que foi feita e a fatura não sabe informar o período que cobre."
+        entity="CreditCard"
+        fields={cardRegistryFields}
+        cardFields={['card_name', 'bank']}
+        columns={cardRegistryColumns}
+        onRowsChange={setRegisteredCards}
+      />
 
       <EntityPage
         title="Lançamentos manuais de cartão"

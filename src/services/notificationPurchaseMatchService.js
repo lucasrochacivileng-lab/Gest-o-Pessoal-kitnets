@@ -42,6 +42,14 @@ export const isNotificationPurchase = (row = {}) => (
 );
 
 /**
+ * Data em que a compra foi FEITA (não a do vencimento da fatura).
+ * Lançamentos novos guardam `purchase_date` e usam `date` para o vencimento da
+ * fatura. Os antigos, capturados antes disso, só têm `date` — e ali `date` era
+ * a própria data da compra. O fallback mantém os dois casos casando.
+ */
+export const purchaseDateOf = (row = {}) => row.purchase_date || row.date || '';
+
+/**
  * Valor cheio da compra na fatura: a linha traz a PARCELA, então o total é
  * parcela x número de parcelas. À vista (total 1) o total é a própria parcela.
  */
@@ -108,7 +116,7 @@ export const matchStatementAgainstNotifications = ({ transactions = [], existing
       if (used.has(row.id)) return false;
       if (normalizeCard(row.card_name) !== normalizeCard(transaction.card_name)) return false;
       if (!valuesMatch(row.value, transaction)) return false;
-      return daysBetween(row.date, transaction.purchase_date) <= DATE_TOLERANCE_DAYS;
+      return daysBetween(purchaseDateOf(row), transaction.purchase_date) <= DATE_TOLERANCE_DAYS;
     });
 
     if (!pool.length) return;
@@ -119,7 +127,7 @@ export const matchStatementAgainstNotifications = ({ transactions = [], existing
       .map((row) => ({
         row,
         similarity: descriptionSimilarity(row.description, transaction.description),
-        distance: daysBetween(row.date, transaction.purchase_date),
+        distance: daysBetween(purchaseDateOf(row), transaction.purchase_date),
       }))
       .sort((a, b) => (b.similarity - a.similarity) || (a.distance - b.distance))[0];
 
