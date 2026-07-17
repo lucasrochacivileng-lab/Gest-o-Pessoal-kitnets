@@ -11,6 +11,7 @@ import { CLASSIFICATION_RULE_ENTITY } from '../services/classificationRuleServic
 import { CARD_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
 import { SEGMENTS } from '../services/segmentConsolidationService.js';
 import { findSiblingTransactions } from '../services/cardInvoiceService.js';
+import { buildCardBalances } from '../services/cardBalanceService.js';
 
 const segmentOptions = SEGMENTS.map((segment) => ({ value: segment.key, label: segment.label }));
 const expertReportLabel = (report) => [report.client, report.process_number].filter(Boolean).join(' — ') || report.report_type || report.id;
@@ -109,6 +110,9 @@ export default function CreditCards() {
   const [expertReports, setExpertReports] = useState([]);
   const [projects, setProjects] = useState([]);
   const [existingTransactions, setExistingTransactions] = useState([]);
+  // Guardado inteiro (e não só as compras) porque o saldo do cartão precisa
+  // também dos pagamentos de fatura ('card_payment'), que abatem a dívida.
+  const [allPersonal, setAllPersonal] = useState([]);
   const [rules, setRules] = useState([]);
   const [fileName, setFileName] = useState('');
   const [message, setMessage] = useState('');
@@ -128,6 +132,7 @@ export default function CreditCards() {
     setExpertReports(expertReportRows);
     setProjects(projectRows);
     setExistingTransactions(personalRows.filter((row) => row.type === 'card_transaction'));
+    setAllPersonal(personalRows);
     setRules(ruleRows);
   }, []);
 
@@ -189,6 +194,8 @@ export default function CreditCards() {
       },
     }
   )), [handleCategoryChange, savingCategoryId]);
+
+  const cardBalances = useMemo(() => buildCardBalances({ personal: allPersonal }), [allPersonal]);
 
   const selectedRows = previewRows.filter((row) => row.selected && !row.duplicate);
   const duplicateCount = previewRows.filter((row) => row.duplicate).length;
@@ -277,6 +284,37 @@ export default function CreditCards() {
 
   return (
     <div className="space-y-6">
+      {cardBalances.cards.length > 0 ? (
+        <div className="ds-card">
+          <div className="flex items-baseline justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Quanto você deve</p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-900">Saldo dos cartões</h2>
+            </div>
+            <p className="text-right">
+              <span className="block text-xs text-slate-500">Total em aberto</span>
+              <span className="text-xl font-semibold text-slate-900">{money(cardBalances.totalBalance)}</span>
+            </p>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            Compras lançadas menos faturas já pagas. Pagar a fatura não é gasto novo — o gasto foi contado na compra.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {cardBalances.cards.map((card) => (
+              <div key={card.key} className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm font-medium text-slate-900">{card.cardName}</p>
+                <p className={`mt-1 text-lg font-semibold ${card.balance > 0 ? 'text-slate-900' : 'text-emerald-600'}`}>
+                  {money(card.balance)}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {money(card.charged)} em compras − {money(card.paid)} pagos
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="ds-card">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>

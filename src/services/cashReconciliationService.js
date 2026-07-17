@@ -1,4 +1,4 @@
-import { isPersonalExpense } from './personalMovementClassifier.js';
+import { leavesBankAccount } from './personalMovementClassifier.js';
 import { rentPaymentsOnly } from './paymentClassifier.js';
 
 const money = (value) => Number(value || 0);
@@ -34,7 +34,12 @@ export const buildCashReconciliation = ({
   rentPaymentsOnly(payments).forEach((row) => apply(row.bank_account_id, row.payment_date, money(row.net_value ?? row.paid_value)));
   personal.filter(confirmed).forEach((row) => {
     if (row.type === 'income') apply(row.bank_account_id, row.date, money(row.value));
-    if (isPersonalExpense(row)) apply(row.bank_account_id, row.date, -money(row.value));
+    // `leavesBankAccount` (não `isPersonalExpense`): comprar no cartão é gasto,
+    // mas NÃO tira dinheiro da conta — quem tira é o pagamento da fatura
+    // ('card_payment'). Antes, cada compra no cartão era descontada do saldo
+    // do banco aqui, derrubando o saldo calculado e, quando o pagamento da
+    // fatura fosse lançado, descontando a mesma compra duas vezes.
+    if (leavesBankAccount(row)) apply(row.bank_account_id, row.date, -money(row.value));
   });
   projects.filter((row) => row.status === 'recebido').forEach((row) => apply(row.bank_account_id, row.received_date || row.expected_payment_date, money(row.value)));
   expertReports.filter((row) => row.status === 'recebido').forEach((row) => apply(row.bank_account_id, row.received_date || row.expected_payment_date, money(row.fee_value)));
