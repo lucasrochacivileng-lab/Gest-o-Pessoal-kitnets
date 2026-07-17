@@ -2,7 +2,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 export function OccupancyChart({ occupied, vacant, totalKitnets }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="mb-4 font-semibold text-slate-900">Ocupação das Kitnets</h3>
       <ResponsiveContainer width="100%" height={280}>
         <PieChart>

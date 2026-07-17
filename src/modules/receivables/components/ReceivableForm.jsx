@@ -119,37 +119,37 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <form onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="space-y-6">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Dados do aluguel</h3>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <label className="text-sm text-slate-600">
               Kitnet
-              <select name="contract_id" value={values.contract_id} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+              <select name="contract_id" value={values.contract_id} onChange={handleChange} className="ds-input mt-2 bg-slate-50">
                 <option value="">Selecione</option>
                 {contracts.map((contract) => <option key={contract.id} value={contract.id}>{kitnets.find((kitnet) => kitnet.id === contract.kitnet_id)?.name || contract.id}</option>)}
               </select>
             </label>
             <label className="text-sm text-slate-600">
               Locatário
-              <input value={selectedTenant?.name || ''} readOnly className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input value={selectedTenant?.name || ''} readOnly className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Competência
-              <input name="competence" value={values.competence} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input name="competence" value={values.competence} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Valor previsto
-              <input name="expected_value" value={values.expected_value} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input name="expected_value" value={values.expected_value} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Vencimento
-              <input type="date" name="due_date" value={values.due_date} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input type="date" name="due_date" value={values.due_date} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Status
-              <input value={values.status} readOnly className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input value={values.status} readOnly className="ds-input mt-2 bg-slate-50" />
             </label>
           </div>
         </div>
@@ -159,61 +159,61 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <label className="text-sm text-slate-600">
               Valor pago
-              <input name="paid_value" type="number" value={values.paid_value} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input name="paid_value" type="number" value={values.paid_value} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Desconto
-              <input name="discount" type="number" value={values.discount} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input name="discount" type="number" value={values.discount} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Multa (10% sugerida em atrasos)
-              <input name="fine" type="number" value={values.fine} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input name="fine" type="number" value={values.fine} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Juros
-              <input name="interest" type="number" value={values.interest} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input name="interest" type="number" value={values.interest} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Total líquido recebido
-              <input value={values.net_value} readOnly className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input value={values.net_value} readOnly className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Data do pagamento
-              <input type="date" name="payment_date" value={values.payment_date} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input type="date" name="payment_date" value={values.payment_date} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Forma de pagamento
-              <input name="payment_method" value={values.payment_method} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input name="payment_method" value={values.payment_method} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Conta que recebeu
-              <select name="bank_account_id" value={values.bank_account_id} onChange={handleChange} required className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+              <select name="bank_account_id" value={values.bank_account_id} onChange={handleChange} required className="ds-input mt-2 bg-slate-50">
                 <option value="">Selecione</option>
                 {bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
               </select>
             </label>
             <label className="text-sm text-slate-600">
               Comprovante
-              <input name="receipt_url" value={values.receipt_url || ''} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+              <input name="receipt_url" value={values.receipt_url || ''} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600 md:col-span-2 xl:col-span-3">
               Observação
-              <textarea name="notes" value={values.notes} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" rows={3} />
+              <textarea name="notes" value={values.notes} onChange={handleChange} className="ds-input mt-2 bg-slate-50" rows={3} />
             </label>
           </div>
         </div> : (
           <label className="text-sm text-slate-600">
             Observação
-            <textarea name="notes" value={values.notes} onChange={handleChange} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900" rows={3} />
+            <textarea name="notes" value={values.notes} onChange={handleChange} className="ds-input mt-2 bg-slate-50" rows={3} />
           </label>
         )}
       </div>
 
       <div className="mt-6 flex gap-3">
-        <button type="submit" className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white">
+        <button type="submit" className="rounded-[var(--radius-lg)] bg-emerald-600 px-4 py-3 text-sm font-semibold text-white">
           {isPaymentMode ? 'Confirmar pagamento' : 'Salvar alterações'}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">Cancelar</button>
+        <button type="button" onClick={onCancel} className="rounded-[var(--radius-lg)] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">Cancelar</button>
       </div>
     </form>
   );

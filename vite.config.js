@@ -9,14 +9,14 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.png'],
       manifest: {
-        name: 'Gestão Residencial Rocha',
+        name: 'Residencial Rocha',
         short_name: 'Rocha',
-        description: 'Gestão de kitnets: aluguéis, contratos, despesas e finanças.',
+        description: 'Gestão patrimonial do Residencial Rocha.',
         lang: 'pt-BR',
         display: 'standalone',
         start_url: '/',
         background_color: '#f8fafc',
-        theme_color: '#2563eb',
+        theme_color: '#0f1e36',
         icons: [
           { src: '/icons/pwa-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/pwa-512.png', sizes: '512x512', type: 'image/png' },

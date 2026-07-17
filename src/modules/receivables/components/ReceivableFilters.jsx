@@ -42,7 +42,7 @@ export function ReceivableFilters({ filter, setFilter, search, setSearch, kitnet
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar kitnet, locatário, mês..."
             aria-label="Buscar recebíveis"
-            className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="ds-input pl-10"
           />
         </div>
         <button
@@ -50,7 +50,7 @@ export function ReceivableFilters({ filter, setFilter, search, setSearch, kitnet
           onClick={() => setShowAdvanced((state) => !state)}
           aria-label="Mais filtros"
           title="Mais filtros"
-          className={`relative rounded-2xl border p-3 transition ${showAdvanced || hasAdvanced ? 'border-blue-300 bg-blue-50 text-blue-600' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+          className={`relative rounded-[var(--radius-lg)] border p-3 transition ${showAdvanced || hasAdvanced ? 'border-blue-300 bg-blue-50 text-blue-600' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
         >
           <SlidersHorizontal className="h-5 w-5" />
           {hasAdvanced ? <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-blue-500" /> : null}
@@ -58,20 +58,20 @@ export function ReceivableFilters({ filter, setFilter, search, setSearch, kitnet
       </div>
 
       {showAdvanced ? (
-        <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 md:grid-cols-2 xl:grid-cols-4">
-          <select value={filters.kitnetFilter} onChange={(event) => setKitnetFilter(event.target.value)} className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700">
+        <div className="grid gap-2 rounded-[var(--radius-lg)] border border-slate-200 bg-white p-3 md:grid-cols-2 xl:grid-cols-4">
+          <select value={filters.kitnetFilter} onChange={(event) => setKitnetFilter(event.target.value)} className="ds-input">
             <option value="">Todas as kitnets</option>
             {kitnets.map((kitnet) => <option key={kitnet.id} value={kitnet.id}>{kitnet.name}</option>)}
           </select>
-          <select value={filters.contractFilter} onChange={(event) => setContractFilter(event.target.value)} className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700">
+          <select value={filters.contractFilter} onChange={(event) => setContractFilter(event.target.value)} className="ds-input">
             <option value="">Todos os contratos</option>
             {filters.contracts?.map((contract) => <option key={contract.id} value={contract.id}>{contract.label || contract.id}</option>)}
           </select>
-          <select value={filters.tenantFilter} onChange={(event) => setTenantFilter(event.target.value)} className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700">
+          <select value={filters.tenantFilter} onChange={(event) => setTenantFilter(event.target.value)} className="ds-input">
             <option value="">Todos os locatários</option>
             {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
           </select>
-          <input value={filters.competenceFilter} onChange={(event) => setCompetenceFilter(event.target.value)} placeholder="Competência (2026-07)" className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700" />
+          <input value={filters.competenceFilter} onChange={(event) => setCompetenceFilter(event.target.value)} placeholder="Competência (2026-07)" className="ds-input" />
         </div>
       ) : null}
     </div>

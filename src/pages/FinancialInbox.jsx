@@ -4,6 +4,7 @@ import { repository } from '../repository/index.js';
 import { financialService } from '../services/financialService';
 import financialInboxService from '../services/financialInboxService.js';
 import { CARD_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const TYPE_META = {
   purchase: { label: 'Compra no cartão', icon: CreditCard, tone: 'bg-violet-50 text-violet-700' },
@@ -236,13 +237,9 @@ export default function FinancialInbox() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Caixa de Entrada Financeira</h1>
-          <p className="text-sm text-slate-500">Notificações bancárias capturadas pelo MacroDroid aguardando sua revisão.</p>
-        </div>
-        <button type="button" onClick={() => load()} className="ds-btn ds-btn-secondary self-start"><RefreshCw className="h-4 w-4" /> Atualizar</button>
-      </div>
+      <PageHeader title="Caixa de Entrada Financeira" description="Movimentações bancárias capturadas automaticamente e aguardando revisão." actions={(
+        <button type="button" onClick={() => load()} className="ds-btn ds-btn-secondary"><RefreshCw className="h-4 w-4" /> Atualizar</button>
+      )} />
 
       {message ? <div className="ds-alert ds-alert-info">{message}</div> : null}
 
@@ -252,9 +249,9 @@ export default function FinancialInbox() {
         <Summary label="Não reconhecidas" value={inbox.unrecognized.length} tone="text-slate-700" />
       </div>
 
-      <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+      <div className="ds-segmented">
         {[{ value: 'pending', label: 'A revisar' }, { value: 'confirmed', label: 'Confirmadas' }, { value: 'all', label: 'Todas' }].map((option) => (
-          <button key={option.value} type="button" onClick={() => setStatus(option.value)} className={`rounded-md px-3 py-2 text-sm font-semibold ${status === option.value ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>{option.label}</button>
+          <button key={option.value} type="button" onClick={() => setStatus(option.value)} className={`ds-segmented-item ${status === option.value ? 'ds-segmented-item-active' : ''}`}>{option.label}</button>
         ))}
       </div>
 

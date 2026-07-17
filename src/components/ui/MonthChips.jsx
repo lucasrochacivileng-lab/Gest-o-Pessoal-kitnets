@@ -11,7 +11,7 @@ export function MonthChips({ value, onChange }) {
   const set = (nextYear, nextMonth) => onChange(`${nextYear}-${String(nextMonth).padStart(2, '0')}`);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-center justify-between">
         <button
           type="button"

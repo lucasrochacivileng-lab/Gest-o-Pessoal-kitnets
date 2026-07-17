@@ -3,6 +3,7 @@ import { Download, Printer } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { financialService } from '../services/financialService';
 import { rentPaymentsOnly } from '../services/paymentClassifier.js';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const entities = ['Receivable', 'Payment', 'Expense', 'Contract'];
 
@@ -135,43 +136,39 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Relatórios</h1>
-          <p className="text-sm text-slate-500">Exportações financeiras em CSV e demonstrativo anual imprimível.</p>
-        </div>
+      <PageHeader title="Relatórios" description="Exportações financeiras em CSV e demonstrativo anual para impressão." actions={(
         <label className="text-sm text-slate-600">
           Ano
-          <input value={year} onChange={(event) => setYear(event.target.value)} className="mt-2 w-32 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900" />
+          <input value={year} onChange={(event) => setYear(event.target.value)} className="ds-input mt-2 w-32" />
         </label>
-      </div>
+      )} />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Receitas</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">{financialService.formatCurrency(reportData.revenue)}</p>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Despesas</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">{financialService.formatCurrency(reportData.expenseTotal)}</p>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Resultado</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">{financialService.formatCurrency(reportData.profit)}</p>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <button type="button" onClick={() => downloadCsv(`fluxo-caixa-${year}.csv`, cashflowRows)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+        <button type="button" onClick={() => downloadCsv(`fluxo-caixa-${year}.csv`, cashflowRows)} className="ds-btn ds-btn-secondary py-3">
           <Download className="h-4 w-4" /> Fluxo de caixa
         </button>
-        <button type="button" onClick={() => downloadCsv(`recebiveis-${year}.csv`, reportData.receivables)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+        <button type="button" onClick={() => downloadCsv(`recebiveis-${year}.csv`, reportData.receivables)} className="ds-btn ds-btn-secondary py-3">
           <Download className="h-4 w-4" /> Recebíveis por período
         </button>
-        <button type="button" onClick={() => downloadCsv(`despesas-categoria-${year}.csv`, expenseCategoryRows)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+        <button type="button" onClick={() => downloadCsv(`despesas-categoria-${year}.csv`, expenseCategoryRows)} className="ds-btn ds-btn-secondary py-3">
           <Download className="h-4 w-4" /> Despesas por categoria
         </button>
-        <button type="button" onClick={printAnnualStatement} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+        <button type="button" onClick={printAnnualStatement} className="ds-btn ds-btn-secondary py-3">
           <Printer className="h-4 w-4" /> Demonstrativo anual PDF
         </button>
       </div>

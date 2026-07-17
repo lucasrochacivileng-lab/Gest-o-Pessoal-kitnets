@@ -17,7 +17,7 @@ export function ActionCenter({ items = [] }) {
 
   if (!items.length) {
     return (
-      <div className="flex items-center gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
+      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
         <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
         Tudo em dia! Nenhum aluguel vencido ou vencendo nos próximos 3 dias.
       </div>
@@ -39,7 +39,7 @@ export function ActionCenter({ items = [] }) {
   };
 
   return (
-    <section className="rounded-3xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+    <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-5 w-5 text-amber-600" />
         <h2 className="text-base font-semibold text-amber-900">Precisa de você</h2>
@@ -50,7 +50,7 @@ export function ActionCenter({ items = [] }) {
 
       <div className="mt-3 space-y-2">
         {items.map((item) => (
-          <div key={item.id} className="rounded-2xl border border-amber-100 bg-white p-3 sm:p-4">
+          <div key={item.id} className="rounded-[var(--radius-lg)] border border-amber-100 bg-white p-3 sm:p-4">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-slate-900">
@@ -73,7 +73,7 @@ export function ActionCenter({ items = [] }) {
                 <button
                   type="button"
                   onClick={() => sendWhatsApp(item)}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-lg)] bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
                 >
                   <MessageCircle className="h-4 w-4" /> Cobrar
                 </button>
@@ -81,7 +81,7 @@ export function ActionCenter({ items = [] }) {
               <button
                 type="button"
                 onClick={() => navigate(`/recebimentos/${item.id}`)}
-                className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 ${item.tenantPhone ? '' : 'col-span-2'}`}
+                className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-lg)] border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 ${item.tenantPhone ? '' : 'col-span-2'}`}
               >
                 Registrar <ChevronRight className="h-4 w-4" />
               </button>

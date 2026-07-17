@@ -4,6 +4,7 @@ import { useEntitySync } from '../hooks/useEntitySync.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { financialService } from '../services/financialService';
 import { buildKitnetResults } from '../services/kitnetResultService.js';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const money = (value) => financialService.formatCurrency(value);
 const resultTone = (value) => (value < 0 ? 'text-red-600' : 'text-slate-900');
@@ -35,22 +36,21 @@ export default function KitnetResult() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Resultado por kitnet</h1>
-        <p className="text-sm text-slate-500">
+      <PageHeader title="Resultado por kitnet" description={(
+        <>
           Aluguel recebido de cada unidade menos as despesas vinculadas a ela. Custos "Geral" (que cobrem todas as
           unidades) aparecem à parte e ainda não são rateados. Regime de caixa: só entra o que foi pago/recebido.
-        </p>
-      </div>
+        </>
+      )} />
 
       <MonthChips value={competence} onChange={setCompetence} />
 
       {!result ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Carregando resultado...</div>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">Carregando resultado...</div>
       ) : (
         <>
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Resultado das kitnets no mês</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs uppercase tracking-normal text-slate-500">Resultado das kitnets no mês</p>
             <p className={`mt-2 text-2xl font-semibold tabular-nums ${resultTone(result.totals.result)}`}>
               {money(result.totals.result)}
             </p>
@@ -60,7 +60,7 @@ export default function KitnetResult() {
             </p>
           </div>
 
-          <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
@@ -106,7 +106,7 @@ export default function KitnetResult() {
           </div>
 
           {result.kitnets.length === 0 ? (
-            <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            <p className="rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
               Nenhuma kitnet cadastrada ainda.
             </p>
           ) : null}

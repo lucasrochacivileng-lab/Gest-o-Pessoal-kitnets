@@ -9,6 +9,8 @@ import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { financialService } from '../services/financialService';
 import { formatDateBR } from '../services/dateUtils.js';
 import AddIncomeModal from './income/AddIncomeModal.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import StatePanel from '../components/ui/StatePanel.jsx';
 
 const money = (value) => financialService.formatCurrency(value);
 const currentMonthKey = () => new Date().toISOString().slice(0, 7);
@@ -19,8 +21,8 @@ const ENTITIES = ['Payment', 'Receivable', 'Contract', 'Kitnet', 'Tenant', 'Comp
 
 function SummaryCard({ label, value, tone = 'text-slate-900' }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{label}</p>
+    <div className="ds-card">
+      <p className="text-xs font-semibold text-slate-500">{label}</p>
       <p className={`mt-2 text-2xl font-semibold ${tone}`}>{money(value)}</p>
     </div>
   );
@@ -76,20 +78,16 @@ export default function Income() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Receitas</h1>
-          <p className="text-sm text-slate-500">Tudo que entra no mês — aluguéis, perícias, projetos e renda pessoal, num lugar só.</p>
-        </div>
-        <button type="button" onClick={() => setShowAdd(true)} className="ds-btn ds-btn-primary self-start">
+      <PageHeader title="Receitas" description="Aluguéis, perícias, projetos e renda pessoal reunidos por competência." actions={(
+        <button type="button" onClick={() => setShowAdd(true)} className="ds-btn ds-btn-primary">
           <Plus className="h-4 w-4" /> Adicionar
         </button>
-      </div>
+      )} />
 
       <MonthChips value={month} onChange={setMonth} />
 
       {loading || !data ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Carregando receitas...</div>
+        <StatePanel type="loading" title="Carregando receitas" />
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-3">
@@ -100,11 +98,9 @@ export default function Income() {
 
           <div className="space-y-2">
             {inbox.rows.length === 0 ? (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-                Nenhuma receita neste mês. Use "Adicionar" para lançar.
-              </div>
+              <StatePanel title="Nenhuma receita neste mês" description="Use Adicionar para lançar uma receita ou escolha outra competência." />
             ) : inbox.rows.map((row) => (
-              <div key={row.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5">
+              <div key={row.id} className="flex items-center gap-3 rounded-[var(--radius-xl)] border border-slate-200 bg-white p-3.5 transition hover:bg-slate-50">
                 <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${row.status === 'recebido' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
                   <ArrowUpCircle className="h-5 w-5" />
                 </div>

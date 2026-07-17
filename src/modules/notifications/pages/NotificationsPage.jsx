@@ -4,6 +4,7 @@ import NotificationCard from '../components/NotificationCard.jsx';
 import NotificationSettings from '../components/NotificationSettings.jsx';
 import notificationService from '../services/notificationService.js';
 import { NOTIFICATION_STATUS, notificationStatusLabels } from '../types/notification.types.js';
+import PageHeader from '../../../components/ui/PageHeader.jsx';
 
 const statusFilters = [
   { value: 'todos', label: 'Todos' },
@@ -97,22 +98,16 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Notificações</h1>
-          <p className="text-sm text-slate-500">
-            Alertas de contas, aluguéis e contratos a vencer com histórico de envio e confirmação.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
+      <PageHeader title="Notificações" description="Alertas de contas, aluguéis e contratos com histórico de envio e confirmação." actions={(
+        <>
           <button type="button" onClick={generateNotifications} className="ds-btn ds-btn-secondary">
             <RefreshCw className="h-4 w-4" /> Gerar alertas agora
           </button>
           <button type="button" onClick={sendPendingNow} className="ds-btn ds-btn-primary">
             <Send className="h-4 w-4" /> Enviar lembretes pendentes
           </button>
-        </div>
-      </div>
+        </>
+      )} />
 
       {message ? <div className="ds-alert ds-alert-info">{message}</div> : null}
 
@@ -157,7 +152,7 @@ export default function NotificationsPage() {
                 key={item.value}
                 type="button"
                 onClick={() => setFilter(item.value)}
-                className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                className={`rounded-[var(--radius-lg)] border px-4 py-2 text-sm font-semibold transition ${
                   filter === item.value ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                 }`}
               >

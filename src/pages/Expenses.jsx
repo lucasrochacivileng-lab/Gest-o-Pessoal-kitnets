@@ -167,21 +167,21 @@ export const groupExpensesBySegment = (rows = []) => {
 function SummaryCard({ label, value, sub, active, onClick }) {
   const body = (
     <>
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="text-xs uppercase tracking-normal text-slate-500">{label}</p>
       <p className="mt-2 text-xl font-semibold text-slate-900">{financialService.formatCurrency(value)}</p>
       {sub ? <p className="mt-1 text-xs text-slate-500">{sub}</p> : null}
     </>
   );
 
   if (!onClick) {
-    return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">{body}</div>;
+    return <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4 shadow-sm">{body}</div>;
   }
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border p-4 text-left shadow-sm transition ${
+      className={`rounded-[var(--radius-lg)] border p-4 text-left shadow-sm transition ${
         active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'
       }`}
     >
@@ -197,11 +197,11 @@ function PaymentMethodCard({ label, value, sub, active, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border p-4 text-left shadow-sm transition ${
+      className={`rounded-[var(--radius-lg)] border p-4 text-left shadow-sm transition ${
         active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'
       }`}
     >
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="text-xs uppercase tracking-normal text-slate-500">{label}</p>
       <p className="mt-2 text-xl font-semibold text-slate-900">{financialService.formatCurrency(value)}</p>
       {sub ? <p className="mt-1 text-xs text-slate-500">{sub}</p> : null}
     </button>
@@ -269,7 +269,7 @@ function CardInvoicesPanel({
               key={invoice.cardName}
               type="button"
               onClick={() => onSelectCard(invoice.cardName)}
-              className={`rounded-2xl border p-4 text-left shadow-sm transition ${
+              className={`rounded-[var(--radius-lg)] border p-4 text-left shadow-sm transition ${
                 active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'
               }`}
             >
@@ -311,7 +311,7 @@ function CardInvoicesPanel({
       </div>
 
       {showInvoiceDetail ? (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-slate-200 bg-white shadow-sm">
           <table className="min-w-[980px] w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
@@ -369,8 +369,8 @@ function CategoryFilter({ categories, selected, onSelect }) {
   if (!categories.length) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Filtrar por categoria</p>
+    <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-normal text-slate-500">Filtrar por categoria</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {categories.map(({ category, total }) => {
           const active = selected === category;
@@ -400,8 +400,8 @@ function SegmentFilter({ segments, selected, onSelect }) {
   if (!segments.length) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Filtrar por segmento</p>
+    <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-normal text-slate-500">Filtrar por segmento</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {segments.map(({ segment, total }) => {
           const active = selected === segment;
@@ -599,7 +599,7 @@ export default function Expenses() {
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          className="ds-btn ds-btn-secondary"
         >
           <Plus className="h-4 w-4" /> Adicionar
         </button>
@@ -607,7 +607,7 @@ export default function Expenses() {
           type="button"
           onClick={handleGenerate}
           disabled={generating || !competence}
-          className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+          className="ds-btn ds-btn-primary"
         >
           {generating ? 'Gerando...' : `Gerar despesas de ${competence}`}
         </button>
@@ -621,7 +621,7 @@ export default function Expenses() {
       ) : null}
 
       {message ? (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{message}</div>
+        <div className="rounded-[var(--radius-lg)] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{message}</div>
       ) : null}
 
       <CardInvoicesPanel

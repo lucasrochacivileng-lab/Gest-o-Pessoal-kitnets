@@ -31,16 +31,16 @@ export function ReceivableTable({ receivables, onPay, onEdit, onHistory }) {
   const whatsappEnabled = readWhatsappPreference();
 
   return (
-    <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
+    <div className="ds-table hidden max-h-[70vh] overflow-auto md:block">
       <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <thead className="text-xs font-semibold text-slate-500">
           <tr>
             <th className="px-4 py-3">Kitnet / Locatário</th>
             <th className="px-4 py-3">Competência</th>
             <th className="px-4 py-3">Vencimento</th>
             <th className="px-4 py-3 text-right">Valor</th>
             <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3 text-right">Ações</th>
+            <th className="w-36 px-4 py-3 text-right">Ações</th>
           </tr>
         </thead>
         <tbody>

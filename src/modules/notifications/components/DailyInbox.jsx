@@ -123,7 +123,7 @@ export function DailyInbox() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:items-center">
-      <div className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-3xl bg-white shadow-xl">
+      <div className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-[var(--radius-2xl)] bg-white shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-6 pb-4">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
@@ -145,8 +145,8 @@ export function DailyInbox() {
 
         <div className="flex-1 space-y-3 overflow-y-auto p-6 pt-4">
           {items.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <div key={item.id} className="rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-normal text-slate-400">
                 {notificationTypeLabels[item.type] || item.type}
               </p>
               <p className="mt-1 text-sm font-semibold text-slate-900">{item.title}</p>
@@ -157,7 +157,7 @@ export function DailyInbox() {
                     type="button"
                     disabled={busyId === item.id}
                     onClick={() => handleConfirm(item)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-lg)] bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                   >
                     <Check className="h-4 w-4" /> {confirmLabel(item)}
                   </button>
@@ -166,14 +166,14 @@ export function DailyInbox() {
                   type="button"
                   disabled={busyId === item.id}
                   onClick={() => handleSnooze(item)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-[var(--radius-lg)] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
                 >
                   <Clock className="h-4 w-4" /> Lembrar amanhã
                 </button>
                 <button
                   type="button"
                   onClick={() => handleOpen(item)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex items-center gap-2 rounded-[var(--radius-lg)] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   <ExternalLink className="h-4 w-4" /> Abrir no app
                 </button>

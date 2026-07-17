@@ -5,6 +5,7 @@ import { buildStatement } from '../services/statementService.js';
 import { findAllDuplicates } from '../services/duplicateCheckService.js';
 import { formatDateBR } from '../services/dateUtils.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const currentMonthKey = () => new Date().toISOString().slice(0, 7);
@@ -25,7 +26,7 @@ function DuplicatePanel({ groups }) {
   const totalItems = groups.reduce((sum, group) => sum + group.items.length, 0);
 
   return (
-    <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
       <button type="button" onClick={() => setOpen((state) => !state)} className="flex w-full items-center gap-3 text-left">
         <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600" />
         <div className="flex-1">
@@ -39,8 +40,8 @@ function DuplicatePanel({ groups }) {
       {open ? (
         <div className="mt-4 space-y-3">
           {groups.map((group, index) => (
-            <div key={index} className="rounded-2xl border border-amber-200 bg-white p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
+            <div key={index} className="rounded-[var(--radius-lg)] border border-amber-200 bg-white p-3">
+              <p className="text-xs font-semibold uppercase tracking-normal text-amber-700">
                 {group.reason} · {group.origin === 'kitnets' ? 'Kitnets' : 'Pessoal'}
               </p>
               <div className="mt-2 space-y-1.5">
@@ -64,7 +65,7 @@ function MovementRow({ movement }) {
   const OriginIcon = movement.origin === 'pessoal' ? User : movement.origin === 'extras' ? Briefcase : Building2;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5">
+    <div className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-slate-200 bg-white p-3.5">
       <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${isIncome ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
         {isIncome ? <ArrowUpCircle className="h-5 w-5" /> : <ArrowDownCircle className="h-5 w-5" />}
       </div>
@@ -143,30 +144,27 @@ export default function Statement() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Extrato</h1>
-        <p className="text-sm text-slate-500">Todas as entradas e saídas do mês, com a origem de cada lançamento.</p>
-      </div>
+      <PageHeader title="Extrato" description="Entradas e saídas do mês com conta, categoria e origem de cada lançamento." />
 
       <MonthChips value={month} onChange={setMonth} />
 
       {loading || !statement ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Montando o extrato...</div>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">Montando o extrato...</div>
       ) : (
         <>
           <DuplicatePanel groups={duplicateGroups} />
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Entradas</p>
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs uppercase tracking-normal text-slate-500">Entradas</p>
               <p className="mt-2 text-2xl font-semibold text-emerald-600">{money(statement.totalIn)}</p>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Saídas</p>
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs uppercase tracking-normal text-slate-500">Saídas</p>
               <p className="mt-2 text-2xl font-semibold text-red-600">{money(statement.totalOut)}</p>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Saldo do mês</p>
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs uppercase tracking-normal text-slate-500">Saldo do mês</p>
               <p className={`mt-2 text-2xl font-semibold ${statement.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{money(statement.balance)}</p>
             </div>
           </div>
@@ -194,7 +192,7 @@ export default function Statement() {
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar por descrição, kitnet, categoria..."
                 aria-label="Buscar lançamentos"
-                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-[var(--radius-lg)] border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
           </div>
@@ -203,14 +201,14 @@ export default function Statement() {
             {visibleMovements.length ? (
               visibleMovements.map((movement) => <MovementRow key={movement.id} movement={movement} />)
             ) : (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+              <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
                 Nenhum lançamento encontrado para este filtro.
               </div>
             )}
           </div>
 
           {statement.pending.length ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-5">
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
               <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <Clock className="h-4 w-4 text-slate-400" /> Ainda pendente este mês ({statement.pending.length})
               </p>

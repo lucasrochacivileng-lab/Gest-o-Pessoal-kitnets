@@ -3,6 +3,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { buildForecast } from '../services/forecastService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const currentMonthKey = () => new Date().toISOString().slice(0, 7);
@@ -14,7 +15,7 @@ const dayOf = (date) => {
 
 function ForecastTable({ title, rows, total, tone }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
         <p className={`text-lg font-semibold ${tone}`}>{money(total)}</p>
@@ -91,19 +92,16 @@ export default function Forecast() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Previsão</h1>
-        <p className="text-sm text-slate-500">O que deve entrar e sair em qualquer mês — aluguéis, projetos, parcelas e orçamento.</p>
-      </div>
+      <PageHeader title="Previsão" description="Entradas e saídas previstas: aluguéis, projetos, parcelas e orçamento." />
 
       <MonthChips value={month} onChange={setMonth} />
 
       {loading || !forecast ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Calculando previsão...</div>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">Calculando previsão...</div>
       ) : (
         <>
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Saldo previsto do mês</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs uppercase tracking-normal text-slate-500">Saldo previsto do mês</p>
             <p className={`mt-2 text-3xl font-bold ${forecast.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{money(forecast.balance)}</p>
             <p className="mt-1 text-sm text-slate-500">{money(forecast.totalIn)} previstos para entrar − {money(forecast.totalOut)} previstos para sair</p>
           </div>

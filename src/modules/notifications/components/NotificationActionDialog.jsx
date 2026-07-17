@@ -23,14 +23,14 @@ export function NotificationActionDialog({ entity, itemLabel, onConfirm, onSnooz
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-      <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-lg rounded-[var(--radius-2xl)] bg-white p-5 shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">{text.title}</h2>
             <p className="mt-1 text-sm text-slate-500">{text.description}</p>
             {itemLabel ? <p className="mt-3 text-sm font-medium text-slate-700">{itemLabel}</p> : null}
           </div>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50">
+          <button type="button" onClick={onClose} className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50">
             <X className="h-5 w-5" />
           </button>
         </div>

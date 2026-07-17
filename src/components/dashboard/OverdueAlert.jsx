@@ -7,7 +7,7 @@ export function OverdueAlert({ count, value }) {
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+    <div className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-red-200 bg-red-50 p-4 text-red-700">
       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100">
         <AlertTriangle className="h-5 w-5" />
       </div>

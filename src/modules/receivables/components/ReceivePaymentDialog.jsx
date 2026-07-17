@@ -13,7 +13,7 @@ export function ReceivePaymentDialog({ receivable, contracts, kitnets, tenants, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-4 shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[var(--radius-2xl)] bg-white p-4 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">{isPaymentMode ? 'Receber aluguel' : 'Editar recebível'}</h2>
@@ -21,7 +21,7 @@ export function ReceivePaymentDialog({ receivable, contracts, kitnets, tenants, 
               {isPaymentMode ? 'Confirme o pagamento e registre os detalhes.' : 'Atualize os dados principais da cobrança.'}
             </p>
           </div>
-          <button onClick={onClose} className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Fechar</button>
+          <button onClick={onClose} className="rounded-[var(--radius-lg)] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Fechar</button>
         </div>
         <ReceivableForm receivable={receivable} contracts={contracts} kitnets={kitnets} tenants={tenants} mode={mode} onSubmit={onSubmit} onCancel={onClose} />
       </div>

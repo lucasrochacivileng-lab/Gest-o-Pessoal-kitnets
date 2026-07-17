@@ -12,6 +12,7 @@ import {
   openRentalDocument,
   upsertRentalDocument,
 } from '../../../services/rentalDocumentService.js';
+import PageHeader from '../../../components/ui/PageHeader.jsx';
 
 const fields = [
   { key: 'name', label: 'Nome', type: 'text', placeholder: 'Kitnet 01' },
@@ -188,13 +189,7 @@ export default function Kitnets() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--color-text)]">Kitnets</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Gerencie suas unidades, documentos PDF e histórico de locações.
-          </p>
-        </div>
+      <PageHeader title="Kitnets" description="Unidades, documentos e histórico de locações em uma visão operacional." actions={(
         <button
           type="button"
           onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
@@ -202,7 +197,7 @@ export default function Kitnets() {
         >
           <Plus className="h-4 w-4" /> Novo
         </button>
-      </div>
+      )} />
 
       {message ? (
         <div className="ds-alert ds-alert-info">{message}</div>
@@ -288,7 +283,7 @@ export default function Kitnets() {
                     <button
                       type="button"
                       onClick={() => startEdit(kitnet)}
-                      className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600"
+                      className="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600"
                       aria-label={`Editar ${kitnet.name}`}
                     >
                       <PencilLine className="h-5 w-5" />
@@ -296,7 +291,7 @@ export default function Kitnets() {
                     <button
                       type="button"
                       onClick={() => handleRemove(kitnet)}
-                      className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600"
+                      className="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600"
                       aria-label={`Excluir ${kitnet.name}`}
                     >
                       <Trash2 className="h-5 w-5" />
@@ -321,7 +316,7 @@ export default function Kitnets() {
                 </div>
 
                 {expandedId === kitnet.id ? (<>
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                <div className="mt-4 rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4 text-sm">
                   <p className="font-semibold text-slate-900">Contrato atual</p>
                   {activeContract ? (
                     <div className="mt-2 space-y-1 text-slate-600">
@@ -334,7 +329,7 @@ export default function Kitnets() {
                   )}
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm">
+                <div className="mt-4 rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4 text-sm">
                   <p className="flex items-center gap-2 font-semibold text-slate-900">
                     <FileText className="h-4 w-4" /> Documentos PDF
                   </p>
@@ -399,7 +394,7 @@ export default function Kitnets() {
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                <div className="mt-4 rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4 text-sm">
                   <p className="flex items-center gap-2 font-semibold text-slate-900">
                     <History className="h-4 w-4" /> Histórico de locações
                   </p>

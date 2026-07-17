@@ -16,27 +16,29 @@ import { useEntitySync } from '../../../hooks/useEntitySync.js';
 import { buildExtraIncomeRows, buildExtraIncomeSummary } from '../services/extraIncomeService.js';
 import { financialService } from '../../../services/financialService';
 import { formatDateBR } from '../../../services/dateUtils.js';
+import PageHeader from '../../../components/ui/PageHeader.jsx';
+import StatePanel from '../../../components/ui/StatePanel.jsx';
 
 function ExtraIncomePanel({ rows, summary }) {
   return (
     <section className="space-y-3">
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Receitas extras</p>
+        <div className="ds-card">
+          <p className="text-xs uppercase tracking-normal text-slate-500">Receitas extras</p>
           <p className="mt-2 text-xl font-semibold text-slate-900">{financialService.formatCurrency(summary.total)}</p>
           <p className="mt-1 text-xs text-slate-500">{summary.count} item(ns) no mês</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Já recebido</p>
+        <div className="ds-card">
+          <p className="text-xs uppercase tracking-normal text-slate-500">Já recebido</p>
           <p className="mt-2 text-xl font-semibold text-emerald-700">{financialService.formatCurrency(summary.received)}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Previsto/pendente</p>
+        <div className="ds-card">
+          <p className="text-xs uppercase tracking-normal text-slate-500">Previsto/pendente</p>
           <p className="mt-2 text-xl font-semibold text-amber-700">{financialService.formatCurrency(summary.pending)}</p>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="ds-table max-h-[60vh] overflow-auto">
         <table className="min-w-[760px] w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
@@ -209,27 +211,21 @@ export default function ReceivablesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Recebimentos</h1>
-          <p className="text-sm text-slate-500">Controle de recebíveis e confirmações de pagamento</p>
-        </div>
-      </div>
-
-      <MonthChips value={selectedMonth} onChange={handleMonthChange} />
-      <div className="flex justify-end">
+      <PageHeader title="Recebimentos" description="Acompanhe aluguéis, receitas extras e confirmações de pagamento." actions={(
         <button
           type="button"
           onClick={handleGenerate}
           disabled={generating || !selectedMonth}
-          className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+          className="ds-btn ds-btn-primary"
         >
           {generating ? 'Gerando...' : `Gerar aluguéis de ${selectedMonth}`}
         </button>
-      </div>
+      )} />
+
+      <MonthChips value={selectedMonth} onChange={handleMonthChange} />
 
       {generateMessage ? (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{generateMessage}</div>
+        <div className="rounded-[var(--radius-lg)] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{generateMessage}</div>
       ) : null}
 
       <ReceivableSummary summary={summary} />
@@ -252,12 +248,10 @@ export default function ReceivablesPage() {
 
       <div className="space-y-4">
         {error ? (
-          <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-            Não foi possível carregar os recebíveis. Tente novamente.
-          </div>
+          <StatePanel type="error" title="Não foi possível carregar os recebíveis" description="Confira a conexão e tente novamente." />
         ) : null}
         {loading ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Carregando recebíveis...</div>
+          <StatePanel type="loading" title="Carregando recebimentos" />
         ) : null}
         {!loading && receivables.length > 0 ? (
           <>
@@ -270,7 +264,7 @@ export default function ReceivablesPage() {
           </>
         ) : null}
         {!loading && !receivables.length ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Nenhum recebível encontrado.</div>
+          <StatePanel title="Nenhum recebimento encontrado" description="Escolha outra competência ou ajuste os filtros." />
         ) : null}
       </div>
 

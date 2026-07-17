@@ -53,7 +53,7 @@ export function NotificationSettings({ settings, onChange, onSave }) {
             placeholder="seuemail@exemplo.com"
           />
         </label>
-        <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        <label className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
           <input
             type="checkbox"
             checked={Boolean(settings.emailEnabled)}
@@ -62,7 +62,7 @@ export function NotificationSettings({ settings, onChange, onSave }) {
           />
           Preparar envio por e-mail
         </label>
-        <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        <label className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
           <input
             type="checkbox"
             checked={Boolean(settings.pushEnabled)}

@@ -83,7 +83,7 @@ export function ReceivableHistoryDialog({ receivable, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-      <div className="w-full max-w-3xl rounded-3xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-3xl rounded-[var(--radius-2xl)] bg-white p-5 shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Histórico de pagamentos</h2>
@@ -91,14 +91,14 @@ export function ReceivableHistoryDialog({ receivable, onClose }) {
               Competência {receivable.competence} · {receivable.tenant?.name || 'Locatário não informado'}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50">
+          <button type="button" onClick={onClose} className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="mt-6 space-y-3">
           {payments.length ? payments.map((payment) => (
-            <div key={payment.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div key={payment.id} className="rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{currency(payment.paid_value)}</p>
@@ -119,7 +119,7 @@ export function ReceivableHistoryDialog({ receivable, onClose }) {
               {payment.notes ? <p className="mt-3 text-sm text-slate-600">{payment.notes}</p> : null}
             </div>
           )) : (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
               Nenhum pagamento registrado para este recebível.
             </div>
           )}

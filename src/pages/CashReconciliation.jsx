@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, Landmark, Scale } from 'lucide-react';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { repository } from '../repository/index.js';
 import { buildCashReconciliation } from '../services/cashReconciliationService.js';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const currency = (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -49,10 +50,7 @@ export default function CashReconciliation() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-[var(--color-text)]">Caixa e conciliação</h1>
-        <p className="text-sm text-[var(--color-text-muted)]">Compare o saldo calculado pelo aplicativo com o dinheiro que existe nas suas contas.</p>
-      </div>
+      <PageHeader title="Caixa e conciliação" description="Compare o saldo calculado pelo aplicativo com o dinheiro disponível nas suas contas." />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="ds-card"><p className="text-xs uppercase text-slate-500">Saldo calculado</p><p className="mt-2 text-2xl font-semibold">{currency(reconciliation.calculatedTotal)}</p></div>

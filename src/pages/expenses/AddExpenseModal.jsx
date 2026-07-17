@@ -40,7 +40,7 @@ function TypePicker({ onPick, onClose }) {
     <ModalShell title="Adicionar despesa" subtitle="Escolha o tipo — kitnet, perícia e projeto vinculam o custo ao cadastro." onClose={onClose}>
       <div className="grid gap-3 sm:grid-cols-2">
         {TYPES.map(({ key, label, icon: Icon, desc }) => (
-          <button key={key} type="button" onClick={() => onPick(key)} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-blue-500 hover:bg-blue-50">
+          <button key={key} type="button" onClick={() => onPick(key)} className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4 text-left transition hover:border-blue-500 hover:bg-blue-50">
             <span className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600"><Icon className="h-5 w-5" /></span>
             <span>
               <span className="block font-semibold text-slate-900">{label}</span>
@@ -252,7 +252,7 @@ function CardInvoicePaymentForm({ onClose, onSaved }) {
       onClose={onClose}
     >
       {balances.cards.length === 0 ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           Nenhum cartão com lançamentos ainda. Importe uma fatura ou lance uma compra primeiro.
         </div>
       ) : (
@@ -284,7 +284,7 @@ function CardInvoicePaymentForm({ onClose, onSaved }) {
             </select>
           </label>
           {selectedCard ? (
-            <p className="sm:col-span-2 rounded-2xl bg-slate-50 p-3 text-xs text-slate-600">
+            <p className="sm:col-span-2 rounded-[var(--radius-lg)] bg-slate-50 p-3 text-xs text-slate-600">
               {selectedCard.cardName}: {money(selectedCard.charged)} em compras − {money(selectedCard.paid)} já pagos ={' '}
               <strong>{money(selectedCard.balance)}</strong> em aberto. Depois deste pagamento de{' '}
               {money(Number(form.value || 0))}, fica {money(selectedCard.balance - Number(form.value || 0))}.

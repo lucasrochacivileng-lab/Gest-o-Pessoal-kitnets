@@ -11,11 +11,19 @@
   body {
     @apply antialiased;
   }
+
+  #root table thead {
+    @apply sticky top-0 z-10 bg-slate-50;
+  }
+
+  #root table tbody tr {
+    @apply transition-colors hover:bg-slate-50;
+  }
 }
 
 @layer components {
   .ds-card {
-    @apply rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-sm)] transition-all duration-[var(--transition-normal)];
+    @apply rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] transition-all duration-[var(--transition-normal)] md:p-5;
   }
 
   .ds-card:hover {
@@ -23,7 +31,7 @@
   }
 
   .ds-dashboard {
-    @apply rounded-[var(--radius-2xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-sm)];
+    @apply rounded-[var(--radius-2xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] md:p-5;
   }
 
   .ds-table {
@@ -31,12 +39,52 @@
   }
 
   .ds-table thead {
-    @apply bg-[var(--color-surface-alt)] text-[var(--color-text-muted)];
+    @apply sticky top-0 z-10 bg-[var(--color-surface-alt)] text-[var(--color-text-muted)];
   }
 
   .ds-table th,
   .ds-table td {
     @apply border-b border-[var(--color-border)] px-4 py-3 text-left;
+  }
+
+  .ds-table tbody tr {
+    @apply transition-colors hover:bg-[var(--color-surface-alt)];
+  }
+
+  .ds-page-header {
+    @apply flex flex-col gap-4 border-b border-[var(--color-border)] pb-4 md:flex-row md:items-end md:justify-between;
+  }
+
+  .ds-page-title {
+    @apply text-2xl font-bold text-[var(--color-text)];
+  }
+
+  .ds-page-description {
+    @apply mt-1 max-w-3xl text-sm leading-5 text-[var(--color-text-muted)];
+  }
+
+  .ds-section {
+    @apply rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] md:p-5;
+  }
+
+  .ds-state {
+    @apply flex min-h-32 flex-col items-center justify-center rounded-[var(--radius-xl)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-8 text-center;
+  }
+
+  .ds-icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)];
+  }
+
+  .ds-segmented {
+    @apply inline-flex rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-sm)];
+  }
+
+  .ds-segmented-item {
+    @apply rounded-[var(--radius-md)] px-3 py-2 text-sm font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface-alt)];
+  }
+
+  .ds-segmented-item-active {
+    @apply bg-[var(--color-primary)] text-white shadow-[var(--shadow-sm)] hover:bg-[var(--color-primary-strong)];
   }
 
   .ds-form-field {
@@ -108,7 +156,7 @@
   }
 
   .ds-btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold transition-all duration-[var(--transition-fast)];
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-md)] px-4 py-2.5 text-sm font-semibold transition-all duration-[var(--transition-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .ds-btn-primary {

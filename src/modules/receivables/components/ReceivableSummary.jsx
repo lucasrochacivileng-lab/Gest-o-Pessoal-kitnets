@@ -13,7 +13,7 @@ export function ReceivableSummary({ summary }) {
   return (
     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
       {cards.map((card) => (
-        <div key={card.label} className={`rounded-2xl border border-slate-200 border-l-4 ${card.accent} bg-white p-4 shadow-sm`}>
+        <div key={card.label} className={`rounded-[var(--radius-lg)] border border-slate-200 border-l-4 ${card.accent} bg-white p-4 shadow-sm`}>
           <p className="truncate text-xs text-slate-500 md:text-sm">{card.label}</p>
           <p className="mt-1.5 text-lg font-semibold tabular-nums text-slate-900 md:text-xl">
             {financialService.formatCurrency(card.value)}

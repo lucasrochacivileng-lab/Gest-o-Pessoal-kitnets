@@ -53,7 +53,7 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
   };
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm md:p-5 ${urgencyClass}`}>
+    <div className={`rounded-[var(--radius-lg)] border p-4 shadow-sm md:p-5 ${urgencyClass}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-900">
@@ -74,19 +74,19 @@ export function ReceivableCard({ receivable, onPay, onEdit, onHistory }) {
       </div>
       <div className="mt-3 flex items-center gap-2">
         {receivable.status !== 'pago' ? (
-          <button type="button" onClick={() => onPay(receivable)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 sm:flex-none">
+          <button type="button" onClick={() => onPay(receivable)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-lg)] bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 sm:flex-none">
             <CheckCircle2 className="h-5 w-5" /> Receber
           </button>
         ) : null}
         {whatsappEnabled && tenantPhone && receivable.status !== 'pago' ? (
-          <button type="button" onClick={handleWhatsApp} title="Cobrar pelo WhatsApp" aria-label="Cobrar pelo WhatsApp" className="rounded-2xl border border-emerald-200 bg-white p-2.5 text-emerald-600 transition hover:bg-emerald-50">
+          <button type="button" onClick={handleWhatsApp} title="Cobrar pelo WhatsApp" aria-label="Cobrar pelo WhatsApp" className="rounded-[var(--radius-lg)] border border-emerald-200 bg-white p-2.5 text-emerald-600 transition hover:bg-emerald-50">
             <MessageCircle className="h-5 w-5" />
           </button>
         ) : null}
-        <button type="button" onClick={() => onHistory(receivable)} title="Ver histórico" aria-label="Ver histórico" className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:bg-slate-50">
+        <button type="button" onClick={() => onHistory(receivable)} title="Ver histórico" aria-label="Ver histórico" className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:bg-slate-50">
           <Eye className="h-5 w-5" />
         </button>
-        <button type="button" onClick={() => onEdit(receivable)} title="Editar" aria-label="Editar" className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:bg-slate-50">
+        <button type="button" onClick={() => onEdit(receivable)} title="Editar" aria-label="Editar" className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:bg-slate-50">
           <PencilLine className="h-5 w-5" />
         </button>
       </div>

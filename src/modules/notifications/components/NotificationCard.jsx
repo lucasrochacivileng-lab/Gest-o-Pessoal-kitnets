@@ -32,7 +32,7 @@ export function NotificationCard({ notification, onSendNow, onWhatsApp }) {
             <span className={`ds-badge ${statusClass[notification.status] || 'ds-badge-info'}`}>
               {notificationStatusLabels[notification.status] || notification.status}
             </span>
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <span className="text-xs font-semibold uppercase tracking-normal text-slate-400">
               {notificationTypeLabels[notification.type] || notification.type}
             </span>
           </div>
@@ -53,7 +53,7 @@ export function NotificationCard({ notification, onSendNow, onWhatsApp }) {
             <button
               type="button"
               onClick={() => onWhatsApp(notification.id)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+              className="inline-flex items-center gap-2 rounded-[var(--radius-lg)] border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
             >
               <MessageCircle className="h-4 w-4" /> Cobrar no WhatsApp
             </button>
@@ -65,7 +65,7 @@ export function NotificationCard({ notification, onSendNow, onWhatsApp }) {
       </div>
 
       {notification.events?.length ? (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="mt-4 rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4">
           <p className="text-sm font-semibold text-slate-900">Histórico</p>
           <div className="mt-3 space-y-2">
             {notification.events.map((event) => (

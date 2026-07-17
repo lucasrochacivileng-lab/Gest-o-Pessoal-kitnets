@@ -32,7 +32,7 @@ function TypePicker({ onPick, onClose }) {
             key={key}
             type="button"
             onClick={() => onPick(key)}
-            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-blue-500 hover:bg-blue-50"
+            className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4 text-left transition hover:border-blue-500 hover:bg-blue-50"
           >
             <span className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600">
               <Icon className="h-5 w-5" />
@@ -168,7 +168,7 @@ function ExtraReceiptForm({ entity, valueField, title, listLabel, cadastroPath, 
   return (
     <Shell title={title} subtitle="Só é possível registrar o recebimento de um cadastro já existente." onClose={onClose}>
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           Nenhum {listLabel} aguardando recebimento.{' '}
           <button type="button" onClick={() => navigate(cadastroPath)} className="font-semibold underline">Cadastrar {listLabel}</button>
         </div>
@@ -280,7 +280,7 @@ function AluguelFlow({ month, onClose, onSaved }) {
   return (
     <Shell title="Receber aluguel" subtitle="Escolha o contrato e o mês; o recebível é gerado se ainda não existir." onClose={onClose}>
       {contracts.length === 0 ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           Nenhum contrato ativo.{' '}
           <button type="button" onClick={() => navigate('/contratos')} className="font-semibold underline">Cadastrar contrato</button>
         </div>

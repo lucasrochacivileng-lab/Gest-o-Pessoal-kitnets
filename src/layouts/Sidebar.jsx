@@ -105,10 +105,10 @@ export default function Sidebar() {
       <div className="flex items-center justify-between border-b border-white/10 p-5">
         {!collapsed ? (
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary)]"><Building2 className="h-5 w-5 text-white" /></div>
-            <div><h1 className="text-base font-semibold leading-tight text-white">Gestão Residencial Rocha</h1><p className="text-[11px] text-white/50">Gestão Patrimonial</p></div>
+            <img src="/brand/residencial-rocha-mark.png" alt="" className="h-9 w-9 rounded-lg object-cover" />
+            <div><h1 className="text-base font-semibold leading-tight text-white">Residencial Rocha</h1><p className="text-[11px] text-white/50">Gestão patrimonial</p></div>
           </div>
-        ) : <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary)]"><Building2 className="h-5 w-5 text-white" /></div>}
+        ) : <img src="/brand/residencial-rocha-mark.png" alt="Residencial Rocha" className="mx-auto h-9 w-9 rounded-lg object-cover" />}
         <button type="button" onClick={() => setCollapsed(!collapsed)} className="hidden h-7 w-7 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/10 lg:flex" aria-label="Recolher menu"><ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} /></button>
         <button type="button" onClick={() => setMobileOpen(false)} className="text-white/50 lg:hidden" aria-label="Fechar menu"><X className="h-5 w-5" /></button>
       </div>
@@ -122,7 +122,7 @@ export default function Sidebar() {
       <nav className="flex-1 space-y-4 overflow-y-auto p-3">
         {menuSections.map((section) => (
           <div key={section.title}>
-            {!collapsed ? <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">{section.title}</p> : null}
+            {!collapsed ? <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-normal text-white/30">{section.title}</p> : null}
             <div className="space-y-1">
               {section.items.map((item) => (
                 <Link key={item.path} to={item.path} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${isItemActive(item) ? 'bg-[color:color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)]' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
@@ -152,7 +152,7 @@ export default function Sidebar() {
   return <>
     <div className="fixed inset-x-0 top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-surface)] pt-[env(safe-area-inset-top)] lg:hidden">
       <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]"><Building2 className="h-4 w-4 text-white" /></div><span className="text-sm font-semibold text-[var(--color-text)]">Gestão Residencial Rocha</span></div>
+        <div className="flex items-center gap-2"><img src="/brand/residencial-rocha-mark.png" alt="" className="h-8 w-8 rounded-lg object-cover" /><span className="text-sm font-semibold text-[var(--color-text)]">Residencial Rocha</span></div>
         <button type="button" onClick={() => setMobileOpen(true)} aria-label="Abrir menu completo" className="-mr-2 p-3 text-[var(--color-text-muted)]"><Menu className="h-5 w-5" /></button>
       </div>
     </div>
@@ -175,7 +175,7 @@ export default function Sidebar() {
     {quickOpen ? (
       <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/45 sm:items-center sm:p-4">
         <button type="button" aria-label="Fechar lançamentos" className="absolute inset-0" onClick={() => setQuickOpen(false)} />
-        <div className="relative w-full max-w-md rounded-t-2xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:p-5">
+        <div className="relative w-full max-w-md rounded-t-2xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[var(--radius-lg)] sm:p-5">
           <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-slate-900">O que deseja lançar?</h2><p className="text-sm text-slate-500">Escolha uma ação para continuar.</p></div><button type="button" onClick={() => setQuickOpen(false)} className="rounded-lg border border-slate-200 p-2 text-slate-500" aria-label="Fechar"><X className="h-5 w-5" /></button></div>
           <div className="space-y-2">
             {quickActions.map((action) => <Link key={action.path} to={action.path} onClick={() => setQuickOpen(false)} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 transition hover:border-blue-200 hover:bg-blue-50/40"><span className={`flex h-11 w-11 items-center justify-center rounded-lg ${action.tone}`}><action.icon className="h-5 w-5" /></span><span><span className="block text-sm font-semibold text-slate-900">{action.label}</span><span className="block text-xs text-slate-500">{action.description}</span></span></Link>)}

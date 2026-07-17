@@ -12,6 +12,7 @@ import { CARD_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
 import { SEGMENTS } from '../services/segmentConsolidationService.js';
 import { findSiblingTransactions } from '../services/cardInvoiceService.js';
 import { buildCardBalances } from '../services/cardBalanceService.js';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const segmentOptions = SEGMENTS.map((segment) => ({ value: segment.key, label: segment.label }));
 const expertReportLabel = (report) => [report.client, report.process_number].filter(Boolean).join(' — ') || report.report_type || report.id;
@@ -307,11 +308,18 @@ export default function CreditCards() {
 
   return (
     <div className="space-y-6">
+      <PageHeader title="Cartões" description="Importe faturas, revise classificações e acompanhe o saldo de cada cartão." actions={(
+        <label className="ds-btn ds-btn-primary cursor-pointer">
+          <Upload className="h-4 w-4" /> Subir fatura
+          <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
+        </label>
+      )} />
+
       {cardBalances.cards.length > 0 ? (
         <div className="ds-card">
           <div className="flex items-baseline justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Quanto você deve</p>
+              <p className="text-xs font-semibold text-slate-500">Quanto você deve</p>
               <h2 className="mt-1 text-lg font-semibold text-slate-900">Saldo dos cartões</h2>
             </div>
             <p className="text-right">
@@ -324,7 +332,7 @@ export default function CreditCards() {
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {cardBalances.cards.map((card) => (
-              <div key={card.key} className="rounded-2xl border border-slate-200 p-4">
+              <div key={card.key} className="rounded-[var(--radius-xl)] border border-slate-200 p-4">
                 <p className="text-sm font-medium text-slate-900">{card.cardName}</p>
                 <p className={`mt-1 text-lg font-semibold ${card.balance > 0 ? 'text-slate-900' : 'text-emerald-600'}`}>
                   {money(card.balance)}
@@ -339,19 +347,7 @@ export default function CreditCards() {
       ) : null}
 
       <div className="ds-card">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Importação de fatura</p>
-            <h1 className="mt-1 text-2xl font-semibold text-slate-900">Cartões</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Suba CSV ou Excel, revise categoria/contexto e gere parcelas futuras automaticamente.
-            </p>
-          </div>
-          <label className="ds-btn ds-btn-primary cursor-pointer">
-            <Upload className="h-4 w-4" /> Subir fatura
-            <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
-          </label>
-        </div>
+        <div><h2 className="text-base font-semibold text-slate-900">Configurar importação</h2><p className="mt-1 text-sm text-slate-500">CSV ou Excel com parcelas futuras geradas automaticamente.</p></div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-4">
           <label className="ds-form-field">
@@ -368,7 +364,7 @@ export default function CreditCards() {
             Dia de vencimento
             <input type="number" min="1" max="28" value={dueDay} onChange={(event) => setDueDay(Number(event.target.value || 10))} className="ds-input" />
           </label>
-          <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+          <div className="rounded-[var(--radius-lg)] bg-slate-50 p-4 text-sm text-slate-600">
             <p className="font-semibold text-slate-900">Regra</p>
             <p>Parcela importada entra como previsão e fica em revisão antes de contar no caixa.</p>
           </div>
@@ -394,8 +390,8 @@ export default function CreditCards() {
 
           <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
             {Object.entries(categorySummary).map(([category, total]) => (
-              <div key={category} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{category}</p>
+              <div key={category} className="rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs uppercase tracking-normal text-slate-500">{category}</p>
                 <p className="mt-1 font-semibold text-slate-900">{money(total)}</p>
               </div>
             ))}
@@ -403,7 +399,7 @@ export default function CreditCards() {
 
           <div className="mt-5 overflow-x-auto">
             <table className="min-w-[1120px] w-full text-left text-sm">
-              <thead className="text-xs uppercase tracking-[0.18em] text-slate-500">
+              <thead className="text-xs uppercase tracking-normal text-slate-500">
                 <tr>
                   <th className="px-2 py-2">Usar</th>
                   <th className="px-2 py-2">Vencimento</th>

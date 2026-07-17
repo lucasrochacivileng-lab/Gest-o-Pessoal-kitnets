@@ -92,14 +92,14 @@ export default function PersonalFinances() {
           type="button"
           onClick={handleGenerate}
           disabled={generating || !competence}
-          className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-[var(--radius-lg)] bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
         >
           {generating ? 'Gerando...' : `Gerar rendas de ${competence}`}
         </button>
       </div>
 
       {message ? (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{message}</div>
+        <div className="rounded-[var(--radius-lg)] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">{message}</div>
       ) : null}
     </div>
   );

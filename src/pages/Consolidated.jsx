@@ -5,6 +5,7 @@ import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { financialService } from '../services/financialService';
 import { buildSegmentConsolidation } from '../services/segmentConsolidationService.js';
 import { formatDateBR } from '../services/dateUtils.js';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const money = (value) => financialService.formatCurrency(value);
 
@@ -50,22 +51,21 @@ export default function Consolidated() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Consolidado por segmento</h1>
-        <p className="text-sm text-slate-500">
+      <PageHeader title="Consolidado por segmento" description={(
+        <>
           Resultado de cada frente — kitnets, projetos, perícias, trabalho e pessoal — com entradas e saídas separadas,
           mais o total global. Regime de caixa: só entra o que foi efetivamente pago/recebido.
-        </p>
-      </div>
+        </>
+      )} />
 
       <MonthChips value={competence} onChange={setCompetence} />
 
       {!consolidation ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Carregando consolidado...</div>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">Carregando consolidado...</div>
       ) : (
         <>
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Resultado global do mês</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs uppercase tracking-normal text-slate-500">Resultado global do mês</p>
             <ResultValue value={consolidation.global.result} />
             <p className="mt-1 text-sm text-slate-500">
               {money(consolidation.global.income)} em entradas − {money(consolidation.global.expense)} em saídas
@@ -80,7 +80,7 @@ export default function Consolidated() {
                   key={segment.key}
                   type="button"
                   onClick={() => setSelectedSegment(active ? '' : segment.key)}
-                  className={`rounded-3xl border p-5 text-left shadow-sm transition ${
+                  className={`rounded-xl border p-5 text-left shadow-sm transition ${
                     active ? 'border-blue-500 ring-1 ring-blue-200' : 'border-slate-200 hover:bg-slate-50'
                   } bg-white`}
                 >
@@ -114,7 +114,7 @@ export default function Consolidated() {
             if (!segment) return null;
 
             return (
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-900">Detalhe — {segment.label}</p>
                   <button type="button" onClick={() => setSelectedSegment('')} className="text-xs text-slate-500 hover:text-slate-700">
@@ -160,7 +160,7 @@ export default function Consolidated() {
             );
           })() : null}
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
+          <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
             <p className="font-semibold text-slate-600">Como cada segmento é montado</p>
             <ul className="mt-2 space-y-1">
               <li><strong>Kitnets</strong>: aluguéis recebidos − despesas diretas pagas (e gastos pessoais marcados como kitnets/obra).</li>

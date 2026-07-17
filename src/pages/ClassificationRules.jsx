@@ -75,7 +75,7 @@ export default function ClassificationRules() {
 
   const topContent = (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+      <div className="rounded-[var(--radius-lg)] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
         <p className="font-semibold">Como funciona</p>
         <p className="mt-1">
           Cada regra tem um <strong>gatilho</strong> (uma palavra que aparece na descrição, ex.: "amazon") e uma{' '}
@@ -89,7 +89,7 @@ export default function ClassificationRules() {
           type="button"
           onClick={handleApplyToExisting}
           disabled={applying}
-          className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-[var(--radius-lg)] bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
         >
           <Wand2 className="h-4 w-4" /> {applying ? 'Aplicando...' : 'Aplicar às existentes'}
         </button>

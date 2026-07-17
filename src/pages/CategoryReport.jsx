@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { repository } from '../repository/index.js';
 import { buildCategoryReport, buildCategoryTrend, categoryLabel } from '../services/categoryReportService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const currentMonthKey = () => new Date().toISOString().slice(0, 7);
@@ -42,19 +43,16 @@ export default function CategoryReport() {
   }, [data, month, selectedCategory]);
 
   if (!report) {
-    return <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Carregando gastos...</div>;
+    return <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">Carregando gastos...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Gastos por categoria</h1>
-        <p className="text-sm text-slate-500">Gastos pagos e parcelas do cartão no mês de vencimento — kitnets e pessoal juntos.</p>
-      </div>
+      <PageHeader title="Gastos por categoria" description="Gastos pagos e parcelas de cartão no mês de vencimento, separados por classificação." />
 
       <MonthChips value={month} onChange={(value) => { setMonth(value); setSelectedCategory(null); }} />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Total do mês</h2>
           <p className="text-xl font-bold text-slate-900">{money(report.grandTotal)}</p>
@@ -76,7 +74,7 @@ export default function CategoryReport() {
                   key={row.category}
                   type="button"
                   onClick={() => setSelectedCategory(active ? null : row.category)}
-                  className={`w-full rounded-2xl border p-3 text-left transition ${active ? 'border-blue-300 bg-blue-50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'}`}
+                  className={`w-full rounded-[var(--radius-lg)] border p-3 text-left transition ${active ? 'border-blue-300 bg-blue-50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'}`}
                 >
                   <div className="flex items-center justify-between gap-3 text-sm">
                     <span className="font-semibold text-slate-900">{row.label}</span>
@@ -98,7 +96,7 @@ export default function CategoryReport() {
       </div>
 
       {report.excluded.length ? (
-        <details className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+        <details className="rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 p-4">
           <summary className="cursor-pointer text-sm font-semibold text-amber-900">
             Não contabilizados neste mês ({report.excluded.length})
           </summary>
@@ -117,7 +115,7 @@ export default function CategoryReport() {
         </details>
       ) : null}
 
-      {selectedCategory ? <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+      {selectedCategory ? <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <h2 className="text-lg font-semibold text-slate-900">
           Evolução — {categoryLabel(selectedCategory)} (6 meses)
         </h2>

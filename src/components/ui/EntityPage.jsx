@@ -7,6 +7,8 @@ import notificationService from '../../modules/notifications/services/notificati
 import { useEntitySync } from '../../hooks/useEntitySync.js';
 import { formatCompetenceBR, formatDateBR } from '../../services/dateUtils.js';
 import { financialService } from '../../services/financialService';
+import PageHeader from './PageHeader.jsx';
+import StatePanel from './StatePanel.jsx';
 
 const inputClass = 'ds-input';
 
@@ -358,12 +360,11 @@ export default function EntityPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--color-text)]">{title}</h1>
-          {subtitle ? <p className="text-sm text-[var(--color-text-muted)]">{subtitle}</p> : null}
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        title={title}
+        description={subtitle}
+        actions={(
+          <>
           <button
             type="button"
             onClick={() => loadData()}
@@ -380,15 +381,14 @@ export default function EntityPage({
               <Plus className="h-4 w-4" /> Novo
             </button>
           ) : null}
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       {topContent}
 
       {errorMessage ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
+        <StatePanel type="error" title="Não foi possível carregar os dados" description={errorMessage} />
       ) : null}
 
       {formOpen ? (
@@ -482,27 +482,27 @@ export default function EntityPage({
       ) : null}
 
       {loading ? (
-        <div className="ds-card text-[var(--color-text-muted)]">Carregando...</div>
+        <StatePanel type="loading" title="Carregando dados" />
       ) : visibleRows.length === 0 ? (
-        <div className="ds-card text-[var(--color-text-muted)]">Nenhum registro encontrado.</div>
+        <StatePanel description="Ajuste os filtros ou use o botão Novo para criar o primeiro registro." />
       ) : columns ? (
         <>
           {/* Desktop/tablet: tabela de verdade. */}
-          <div className="hidden overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] md:block">
+          <div className="ds-table hidden max-h-[70vh] overflow-auto md:block">
             <table className="w-full text-left text-sm">
-              <thead className="bg-[var(--color-surface-alt)] text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              <thead className="text-xs font-semibold text-[var(--color-text-muted)]">
                 <tr>
                   {columns.map((column) => (
                     <th key={column.field} className={`px-4 py-3 ${column.align === 'right' ? 'text-right' : 'text-left'}`}>
                       {column.label}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-right">Ações</th>
+                  <th className="w-24 px-4 py-3 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedRows.map((row) => (
-                  <tr key={row.id} className="border-t border-[var(--color-border)] transition hover:bg-[var(--color-surface-alt)]">
+                  <tr key={row.id}>
                     {columns.map((column) => {
                       return (
                         <td
@@ -515,10 +515,10 @@ export default function EntityPage({
                     })}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                        <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="ds-icon-btn hover:text-blue-600">
                           <PencilLine className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                        <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="ds-icon-btn hover:text-red-600">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -552,10 +552,10 @@ export default function EntityPage({
                     })}
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-2">
-                    <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                    <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="ds-icon-btn h-11 w-11 hover:text-blue-600">
                       <PencilLine className="h-5 w-5" />
                     </button>
-                    <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                    <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="ds-icon-btn h-11 w-11 hover:text-red-600">
                       <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
@@ -600,10 +600,10 @@ export default function EntityPage({
                   </p>
                 ) : (
                   <div className="flex flex-shrink-0 items-center gap-2">
-                    <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                    <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="ds-icon-btn h-11 w-11 hover:text-blue-600">
                       <PencilLine className="h-5 w-5" />
                     </button>
-                    <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-2xl border border-[var(--color-border)] p-3 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                    <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="ds-icon-btn h-11 w-11 hover:text-red-600">
                       <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
@@ -611,10 +611,10 @@ export default function EntityPage({
               </div>
               {headlineField ? (
                 <div className="mt-3 flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-3">
-                  <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="rounded-2xl border border-[var(--color-border)] p-2.5 text-[var(--color-text-muted)] transition hover:bg-blue-50 hover:text-blue-600">
+                  <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="ds-icon-btn hover:text-blue-600">
                     <PencilLine className="h-4 w-4" />
                   </button>
-                  <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="rounded-2xl border border-[var(--color-border)] p-2.5 text-[var(--color-text-muted)] transition hover:bg-red-50 hover:text-red-600">
+                  <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="ds-icon-btn hover:text-red-600">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

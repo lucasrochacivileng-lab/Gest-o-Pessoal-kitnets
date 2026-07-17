@@ -5,7 +5,7 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 
 export function ExpenseChart({ data }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="mb-4 font-semibold text-slate-900">Despesas por Categoria</h3>
       {data?.length > 0 ? (
         <ResponsiveContainer width="100%" height={280}>

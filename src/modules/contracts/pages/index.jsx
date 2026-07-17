@@ -26,6 +26,7 @@ import NotificationActionDialog from '../../notifications/components/Notificatio
 import notificationService from '../../notifications/services/notificationService.js';
 import { NOTIFICATION_ENTITY } from '../../notifications/types/notification.types.js';
 import ModalShell from '../../../components/ui/ModalShell.jsx';
+import PageHeader from '../../../components/ui/PageHeader.jsx';
 import {
   RENTAL_DOCUMENT_LABELS,
   RENTAL_DOCUMENT_TYPES,
@@ -318,27 +319,21 @@ export default function Contracts() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--color-text)]">Locações</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Locatário, contrato, documentos e histórico reunidos em um só lugar.
-          </p>
-        </div>
+      <PageHeader title="Locações" description="Locatário, contrato, documentos e histórico reunidos em um só lugar." actions={(
         <button type="button" onClick={() => (formOpen ? closeForm() : setFormOpen(true))} className="ds-btn ds-btn-primary">
           <Plus className="h-4 w-4" /> Nova locação
         </button>
-      </div>
+      )} />
 
       {message ? <div className="ds-alert ds-alert-info">{message}</div> : null}
 
-      <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+      <div className="ds-segmented">
         {[
           { value: 'ativas', label: `Ativas (${contracts.filter((row) => row.status !== 'encerrado').length})` },
           { value: 'historico', label: `Histórico (${contracts.filter((row) => row.status === 'encerrado').length})` },
           { value: 'todas', label: 'Todas' },
         ].map((option) => (
-          <button key={option.value} type="button" onClick={() => setView(option.value)} className={`rounded-md px-3 py-2 text-sm font-semibold transition ${view === option.value ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+          <button key={option.value} type="button" onClick={() => setView(option.value)} className={`ds-segmented-item ${view === option.value ? 'ds-segmented-item-active' : ''}`}>
             {option.label}
           </button>
         ))}
@@ -597,7 +592,7 @@ export default function Contracts() {
 
       {terminating ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:items-center">
-          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-2xl)] bg-white p-5 shadow-xl">
             <h2 className="text-lg font-semibold text-slate-900">Encerrar contrato</h2>
             <p className="mt-1 text-sm text-slate-500">
               {kitnetById[terminating.kitnet_id]?.name || 'Kitnet'} · {tenantById[terminating.tenant_id]?.name || 'Locatário'}
@@ -609,7 +604,7 @@ export default function Contracts() {
             </label>
 
             {isEarlyExit && fineInfo ? (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <div className="mt-4 rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                 <p className="font-semibold">Quebra antecipada de contrato</p>
                 <p className="mt-1">
                   Multa proporcional: <strong>{financialService.formatCurrency(fineInfo.fine)}</strong>
@@ -633,7 +628,7 @@ export default function Contracts() {
                 type="button"
                 onClick={handleTerminate}
                 disabled={terminatingBusy}
-                className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-[var(--radius-lg)] bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
               >
                 <XCircle className="h-4 w-4" /> {terminatingBusy ? 'Encerrando...' : 'Confirmar encerramento'}
               </button>

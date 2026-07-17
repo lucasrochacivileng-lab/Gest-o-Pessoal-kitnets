@@ -16,6 +16,7 @@ import { buildCashflow } from '../services/cashflowService.js';
 import { getReceivableStatus } from '../modules/receivables/services/receivableService.js';
 import { RECEIVABLE_STATUS } from '../modules/receivables/types/receivable.types.js';
 import { financialService } from '../services/financialService';
+import PageHeader from '../components/ui/PageHeader.jsx';
 import { rentPaymentsOnly } from '../services/paymentClassifier.js';
 import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
 import { buildCategoryReport } from '../services/categoryReportService.js';
@@ -28,14 +29,14 @@ const paymentValue = financialService.netPaymentValue;
 
 function Card({ label, value, icon: Icon, tone = 'bg-slate-100 text-slate-600', sub }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{label}</p>
+          <p className="text-xs uppercase tracking-normal text-slate-500">{label}</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
           {sub ? <p className="mt-1 text-sm text-slate-500">{sub}</p> : null}
         </div>
-        <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl ${tone}`}>
+        <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[var(--radius-lg)] ${tone}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -115,15 +116,12 @@ export default function FinancialOverview() {
   }, []);
 
   if (!data) {
-    return <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-500">Carregando visão geral...</div>;
+    return <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">Carregando visão geral...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Visão Geral Financeira</h1>
-        <p className="text-sm text-slate-500">Consolidação de kitnets, contratos, recebíveis e despesas.</p>
-      </div>
+      <PageHeader title="Visão Geral Financeira" description="Consolidação de kitnets, contratos, recebimentos e despesas." />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card label="Receita do mês" value={money(data.monthRevenue)} icon={TrendingUp} tone="bg-emerald-50 text-emerald-600" />
@@ -137,7 +135,7 @@ export default function FinancialOverview() {
         <Card label="Contratos" value={data.contracts} icon={FileText} tone="bg-blue-50 text-blue-600" sub={`${data.upcomingCount} a vencer`} />
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Caixa geral do mês</h2>
           <Link to="/extrato" className="text-sm font-semibold text-blue-700 hover:underline">Ver extrato completo</Link>
@@ -150,14 +148,14 @@ export default function FinancialOverview() {
           <Card label="Investido na obra/kitnets" value={money(data.cashflow.investedInBusiness)} icon={Hammer} tone="bg-orange-50 text-orange-600" sub="pago pelas contas pessoais (acumulado)" />
         </div>
         {data.cashflow.pendingCardReview > 0 ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <div className="mt-4 rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             {data.cashflow.pendingCardReview} transação(ões) de cartão importadas aguardam revisão e ainda não contam no caixa.{' '}
             <Link to="/financas-pessoais" className="font-semibold underline">Revisar agora</Link>
           </div>
         ) : null}
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Gastos por categoria no mês</h2>
           <Link to="/cartoes" className="text-sm font-semibold text-blue-700 hover:underline">Importar fatura</Link>
@@ -165,8 +163,8 @@ export default function FinancialOverview() {
         {data.categoryRanking.length ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {data.categoryRanking.map((item) => (
-              <div key={item.category} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.category}</p>
+              <div key={item.category} className="rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-normal text-slate-500">{item.category}</p>
                 <p className="mt-2 text-lg font-semibold text-slate-900">{money(item.value)}</p>
               </div>
             ))}
@@ -176,7 +174,7 @@ export default function FinancialOverview() {
         )}
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Receitas x Despesas (últimos 6 meses)</h2>
         <div className="mt-4 h-72">
           <ResponsiveContainer width="100%" height="100%">

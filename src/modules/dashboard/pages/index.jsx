@@ -22,6 +22,8 @@ import { ProfitChart } from '../../../components/dashboard/ProfitChart';
 import { ExpenseChart } from '../../../components/dashboard/ExpenseChart';
 import { OccupancyChart } from '../../../components/dashboard/OccupancyChart';
 import { financialService } from '../../../services/financialService';
+import PageHeader from '../../../components/ui/PageHeader.jsx';
+import StatePanel from '../../../components/ui/StatePanel.jsx';
 
 export default function Dashboard() {
 	const { loading, data } = useDashboard();
@@ -29,54 +31,52 @@ export default function Dashboard() {
 	const [showCharts, setShowCharts] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
 
 	if (loading) {
-		return (
-			<div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-500 shadow-sm">
-				Carregando dashboard...
-			</div>
-		);
+		return <StatePanel type="loading" title="Carregando dashboard" />;
 	}
 
 	return (
 		<div className="space-y-6">
-			<div>
-				<h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-				<p className="mt-1 text-sm text-slate-500">Visão geral financeira e operacional das suas kitnets</p>
-			</div>
-
-			<div className="flex flex-wrap gap-2">
-				<Link to="/recebimentos" className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">
+			<PageHeader
+				title="Dashboard"
+				description="Visão financeira e operacional do Residencial Rocha neste mês."
+				actions={<>
+				<Link to="/recebimentos" className="ds-btn bg-emerald-600 text-white hover:bg-emerald-700">
 					<HandCoins className="h-4 w-4" /> Receber aluguel
 				</Link>
-				<Link to="/despesas" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+				<Link to="/despesas" className="ds-btn ds-btn-secondary">
 					<Wallet className="h-4 w-4" /> Lançar despesa
 				</Link>
-				<Link to="/previsao" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+				<Link to="/previsao" className="ds-btn ds-btn-secondary">
 					<CalendarRange className="h-4 w-4" /> Previsão
 				</Link>
-			</div>
+			</>}
+			/>
 
 			<ActionCenter items={data.actionItems} />
 
-			<div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
-				<MetricCard icon={TrendingUp} label="Receita do mês" value={financialService.formatCurrency(data.revenue)} color="bg-emerald-50 text-emerald-600" href="/extrato" />
-				<MetricCard icon={TrendingDown} label="Despesas do mês" value={financialService.formatCurrency(data.expenseTotal)} color="bg-red-50 text-red-600" href="/despesas" />
-				<MetricCard icon={DollarSign} label="Lucro do mês" value={financialService.formatCurrency(data.profit)} color="bg-blue-50 text-blue-600" href="/visao-geral" />
-				<MetricCard icon={AlertTriangle} label="Aluguéis vencidos" value={data.overdue} color="bg-amber-50 text-amber-600" sub={financialService.formatCurrency(data.overdueValue)} href="/recebimentos" />
-				<MetricCard icon={CalendarClock} label="A vencer" value={data.upcoming} color="bg-violet-50 text-violet-600" sub="neste mês" href="/recebimentos" />
+			<div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+				<MetricCard size="primary" icon={DollarSign} label="Saldo do mês" value={financialService.formatCurrency(data.profit)} color="bg-blue-50 text-blue-600" sub="receitas menos despesas" href="/visao-geral" />
+				<MetricCard size="primary" icon={TrendingUp} label="Receita recebida" value={financialService.formatCurrency(data.revenue)} color="bg-emerald-50 text-emerald-600" sub="realizado neste mês" href="/extrato" />
+				<MetricCard size="primary" icon={TrendingDown} label="Despesas pagas" value={financialService.formatCurrency(data.expenseTotal)} color="bg-red-50 text-red-600" sub="realizado neste mês" href="/despesas" />
+				<MetricCard size="primary" icon={AlertTriangle} label="Aluguéis vencidos" value={data.overdue} color="bg-amber-50 text-amber-600" sub={financialService.formatCurrency(data.overdueValue)} href="/recebimentos" />
 			</div>
 
-			<div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
-				<MetricCard icon={Building2} label="Ocupadas" value={data.occupied} color="bg-emerald-50 text-emerald-600" sub={`de ${data.totalKitnets} kitnets`} href="/kitnets" />
-				<MetricCard icon={Building2} label="Vagas" value={data.vacant} color="bg-orange-50 text-orange-600" href="/kitnets" />
-				<MetricCard icon={FileText} label="Contratos vencendo" value={data.expiringContracts} color="bg-red-50 text-red-600" sub="próximos 30 dias" href="/locacoes" />
-				<MetricCard icon={HandCoins} label="Receita prevista" value={financialService.formatCurrency(data.receitaPrevista)} color="bg-blue-50 text-blue-600" sub="a receber neste mês" href="/previsao" />
-				<MetricCard icon={DollarSign} label="Saldo previsto" value={financialService.formatCurrency(data.revenue - data.expenseTotal + data.overdueValue)} color="bg-cyan-50 text-cyan-600" href="/visao-geral" />
+			<div>
+				<h2 className="mb-3 text-sm font-semibold text-slate-900">Operação das locações</h2>
+				<div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+					<MetricCard size="compact" icon={CalendarClock} label="A vencer" value={data.upcoming} color="bg-violet-50 text-violet-600" sub="neste mês" href="/recebimentos" />
+					<MetricCard size="compact" icon={Building2} label="Ocupadas" value={data.occupied} color="bg-emerald-50 text-emerald-600" sub={`de ${data.totalKitnets}`} href="/kitnets" />
+					<MetricCard size="compact" icon={Building2} label="Vagas" value={data.vacant} color="bg-orange-50 text-orange-600" href="/kitnets" />
+					<MetricCard size="compact" icon={FileText} label="Contratos vencendo" value={data.expiringContracts} color="bg-red-50 text-red-600" sub="em 30 dias" href="/locacoes" />
+					<MetricCard size="compact" icon={HandCoins} label="Receita prevista" value={financialService.formatCurrency(data.receitaPrevista)} color="bg-blue-50 text-blue-600" href="/previsao" />
+					<MetricCard size="compact" icon={Building2} label="Total de unidades" value={data.totalKitnets} color="bg-cyan-50 text-cyan-600" href="/kitnets" />
+				</div>
 			</div>
 
 			<button
 				type="button"
 				onClick={() => setShowCharts((state) => !state)}
-				className="inline-flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 lg:hidden"
+				className="inline-flex w-full items-center justify-between rounded-[var(--radius-lg)] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 lg:hidden"
 			>
 				<span className="inline-flex items-center gap-2"><BarChart3 className="h-4 w-4" /> {showCharts ? 'Ocultar gráficos' : 'Ver gráficos'}</span>
 				<ChevronDown className={`h-4 w-4 transition-transform ${showCharts ? 'rotate-180' : ''}`} />

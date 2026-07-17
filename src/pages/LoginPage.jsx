@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building2, LogIn } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { useAuth } from '../app/providers/AuthProvider.jsx';
 
 export default function LoginPage() {
@@ -24,13 +24,10 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg,#f1f5f9)] p-4">
-      <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-[calc(100vw-2rem)] rounded-[var(--radius-2xl)] border border-slate-200 bg-white p-6 shadow-md sm:max-w-sm sm:p-8">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-primary,#2563eb)]">
-            <Building2 className="h-6 w-6 text-white" />
-          </div>
-          <h1 className="text-xl font-semibold text-slate-900">Gestão Residencial Rocha</h1>
-          <p className="mt-1 text-sm text-slate-500">Entre para acessar seus dados</p>
+          <img src="/brand/residencial-rocha.png" alt="Residencial Rocha" className="mb-4 h-auto w-full max-w-[280px]" />
+          <p className="text-sm text-slate-500">Acesse a gestão patrimonial</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -42,7 +39,7 @@ export default function LoginPage() {
               onChange={(event) => setEmail(event.target.value)}
               required
               autoComplete="email"
-              className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900"
+              className="ds-input mt-2 bg-slate-50"
               placeholder="seu@email.com"
             />
           </label>
@@ -54,19 +51,19 @@ export default function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               required
               autoComplete="current-password"
-              className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900"
+              className="ds-input mt-2 bg-slate-50"
               placeholder="••••••••"
             />
           </label>
 
           {error ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+            <div className="ds-alert ds-alert-danger">{error}</div>
           ) : null}
 
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+            className="ds-btn ds-btn-primary w-full"
           >
             <LogIn className="h-4 w-4" /> {submitting ? 'Entrando...' : 'Entrar'}
           </button>
