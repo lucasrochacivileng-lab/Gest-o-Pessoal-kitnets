@@ -1,6 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronDown, ExternalLink, FileText, Landmark, Mail, Phone, Plus, Upload, UserRound, XCircle } from 'lucide-react';
+import {
+  CalendarClock,
+  ChevronDown,
+  CircleCheck,
+  CircleDollarSign,
+  ExternalLink,
+  FileCheck2,
+  Files,
+  FileText,
+  Landmark,
+  Mail,
+  Phone,
+  Plus,
+  Upload,
+  UserRound,
+  XCircle,
+} from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
 import { formatDateBR } from '../../../services/dateUtils.js';
@@ -471,7 +487,7 @@ export default function Contracts() {
         </ModalShell>
       ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid items-start gap-4 xl:grid-cols-2">
         {loading ? (
           <div className="ds-card text-[var(--color-text-muted)]">Carregando...</div>
         ) : sortedContracts.length > 0 ? (
@@ -485,27 +501,28 @@ export default function Contracts() {
             const isExpanded = expandedId === contract.id;
 
             return (
-              <div key={contract.id} className="ds-card">
+              <article key={contract.id} className="ds-card self-start overflow-hidden">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-base font-semibold text-slate-900">{tenant?.name || 'Locatário não informado'}</p>
                     <p className="text-sm text-slate-500">{kitnet?.name || 'Kitnet não informada'}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <span className={`ds-badge ${isActive ? 'ds-badge-success' : 'ds-badge-info'}`}>
+                      <span className={`ds-badge gap-1.5 ${isActive ? 'ds-badge-success' : 'ds-badge-info'}`}>
+                        <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
                         {isActive ? 'ativo' : 'encerrado'}
                       </span>
-                      <span className="ds-badge ds-badge-info">{financialService.formatCurrency(contract.rent_value)}</span>
-                      <span className="ds-badge ds-badge-info">vence dia {contract.due_day || '-'}</span>
-                      <span className="ds-badge ds-badge-info">{accountById[contract.bank_account_id]?.name || 'conta não definida'}</span>
-                      <span className={`ds-badge ${hasContractPdf ? 'ds-badge-success' : 'ds-badge-warning'}`}>{hasContractPdf ? 'Contrato PDF anexado' : 'Contrato PDF pendente'}</span>
-                      <span className="ds-badge ds-badge-info">Documentos {attachedDocuments.length}/{Object.keys(RENTAL_DOCUMENT_LABELS).length}</span>
+                      <span className="ds-badge ds-badge-info gap-1.5"><CircleDollarSign className="h-3.5 w-3.5" aria-hidden="true" />{financialService.formatCurrency(contract.rent_value)}</span>
+                      <span className="ds-badge ds-badge-info gap-1.5"><CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />vence dia {contract.due_day || '-'}</span>
+                      <span className="ds-badge ds-badge-info gap-1.5"><Landmark className="h-3.5 w-3.5" aria-hidden="true" />{accountById[contract.bank_account_id]?.name || 'conta não definida'}</span>
+                      <span className={`ds-badge gap-1.5 ${hasContractPdf ? 'ds-badge-success' : 'ds-badge-warning'}`}><FileCheck2 className="h-3.5 w-3.5" aria-hidden="true" />{hasContractPdf ? 'Contrato PDF anexado' : 'Contrato PDF pendente'}</span>
+                      <span className="ds-badge ds-badge-info gap-1.5"><Files className="h-3.5 w-3.5" aria-hidden="true" />Documentos {attachedDocuments.length}/{Object.keys(RENTAL_DOCUMENT_LABELS).length}</span>
                     </div>
                     <p className="mt-2 text-xs text-slate-500">
                       Vigência: {formatDateBR(contract.start_date) || '-'} até {formatDateBR(contract.end_date) || '-'}
                       {contract.fine_months ? ` · multa de quebra: ${contract.fine_months} aluguel(éis)` : ''}
                     </p>
                   </div>
-                  <button type="button" onClick={() => setExpandedId(isExpanded ? null : contract.id)} className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+                  <button type="button" onClick={() => setExpandedId(isExpanded ? null : contract.id)} aria-expanded={isExpanded} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
                     {isExpanded ? 'Recolher' : 'Detalhes'}<ChevronDown className={`h-4 w-4 transition ${isExpanded ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
@@ -558,8 +575,8 @@ export default function Contracts() {
 
                 {isActive ? (
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                    <button type="button" onClick={() => handleCompleteSchedule(contract)} className="ds-btn ds-btn-secondary">
-                      Completar carnê
+                    <button type="button" onClick={() => handleCompleteSchedule(contract)} className="ds-btn ds-btn-secondary gap-2 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                      <CalendarClock className="h-4 w-4" aria-hidden="true" /> Completar carnê
                     </button>
                     <button
                       type="button"
@@ -570,7 +587,7 @@ export default function Contracts() {
                     </button>
                   </div>
                 ) : null}
-              </div>
+              </article>
             );
           })
         ) : (
