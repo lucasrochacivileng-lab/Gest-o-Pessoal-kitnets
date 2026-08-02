@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowRightLeft, ArrowUpRight, CreditCard, FileText, Inbox, RefreshCw, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDownLeft, ArrowRightLeft, ArrowUpRight, CreditCard, FileText, Inbox, RefreshCw, Upload, X } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { financialService } from '../services/financialService';
 import financialInboxService from '../services/financialInboxService.js';
+import bankStatementImportService from '../services/bankStatementImportService.js';
 import { CARD_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
 
@@ -186,6 +187,71 @@ function TransactionCard({ row, accounts, cards, onConfirm, onIgnore, onUnpair, 
   );
 }
 
+// Formato aceito hoje: CSV do extrato do Nubank ("Data,Valor,Identificador,
+// Descrição"). Cada linha aproveitável vira 1 item pendente na lista abaixo —
+// reimportar um período sobreposto não duplica (dedupe pelo Identificador do
+// Nubank).
+function ImportStatementCard({ accounts, onImported }) {
+  const fileInputRef = useRef(null);
+  const [bankAccountId, setBankAccountId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+
+  const handleFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setBusy(true);
+    setError('');
+    setResult(null);
+    try {
+      const summary = await bankStatementImportService.import({ file, bankAccountId });
+      setResult(summary);
+      await onImported();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível importar o extrato.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="ds-card">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-semibold text-slate-900">Importar extrato bancário</p>
+          <p className="mt-0.5 text-sm text-slate-500">CSV do Nubank. O que já foi importado antes não duplica.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select className="ds-input" value={bankAccountId} onChange={(event) => setBankAccountId(event.target.value)}>
+            <option value="">De qual conta é este extrato?</option>
+            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+          </select>
+          <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
+          <button
+            type="button"
+            disabled={busy || !bankAccountId}
+            onClick={() => fileInputRef.current?.click()}
+            className="ds-btn ds-btn-primary disabled:opacity-60"
+          >
+            <Upload className="h-4 w-4" /> {busy ? 'Importando...' : 'Escolher arquivo'}
+          </button>
+        </div>
+      </div>
+      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      {result ? (
+        <p className="mt-3 text-sm text-emerald-700">
+          {result.imported} lançamento(s) novo(s) foram para a lista abaixo aguardando revisão.
+          {result.duplicates ? ` ${result.duplicates} já tinham sido importados antes.` : ''}
+          {result.ignored ? ` ${result.ignored} eram caixinha/fatura/estorno e não precisam de revisão.` : ''}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function FinancialInbox() {
   const [inbox, setInbox] = useState({ transactions: [], unrecognized: [] });
   const [accounts, setAccounts] = useState([]);
@@ -242,6 +308,8 @@ export default function FinancialInbox() {
       )} />
 
       {message ? <div className="ds-alert ds-alert-info">{message}</div> : null}
+
+      <ImportStatementCard accounts={accounts} onImported={() => load({ silent: true })} />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Summary label="A revisar" value={pendingCount} tone="text-amber-600" />
