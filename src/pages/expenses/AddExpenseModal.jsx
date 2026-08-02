@@ -56,7 +56,8 @@ function TypePicker({ onPick, onClose }) {
 // Despesa direta (Expense) com segmento fixo pelo tipo e vínculo condicional.
 function ExpenseForm({ type, onClose, onSaved }) {
   const [links, setLinks] = useState([]);
-  const [form, setForm] = useState({ date: today(), description: '', value: '', category: 'outro', link: '', payment_method: 'boleto', status: 'pendente' });
+  const [accounts, setAccounts] = useState([]);
+  const [form, setForm] = useState({ date: today(), description: '', value: '', category: 'outro', link: '', payment_method: 'boleto', bank_account_id: '', status: 'pendente' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = (patch) => setForm((prev) => ({ ...prev, ...patch }));
@@ -65,6 +66,10 @@ function ExpenseForm({ type, onClose, onSaved }) {
     if (!type.linkEntity) return;
     repository.list(type.linkEntity).then(setLinks);
   }, [type.linkEntity]);
+
+  useEffect(() => {
+    repository.list('BankAccount').then(setAccounts);
+  }, []);
 
   const save = async () => {
     setSaving(true);
@@ -79,6 +84,7 @@ function ExpenseForm({ type, onClose, onSaved }) {
         type: 'variavel',
         value: Math.max(Number(form.value || 0), 0),
         payment_method: form.payment_method,
+        bank_account_id: form.bank_account_id || '',
         status: form.status,
         active: true,
       });
@@ -122,6 +128,12 @@ function ExpenseForm({ type, onClose, onSaved }) {
             {PAYMENT_METHODS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
         </label>
+        <label className="ds-form-field">Conta de pagamento
+          <select className={inputClass} value={form.bank_account_id} onChange={(e) => set({ bank_account_id: e.target.value })}>
+            <option value="">De qual conta saiu?</option>
+            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name || account.id}</option>)}
+          </select>
+        </label>
         <label className="ds-form-field">Status
           <select className={inputClass} value={form.status} onChange={(e) => set({ status: e.target.value })}>
             <option value="pendente">Pendente</option>
@@ -140,10 +152,15 @@ function ExpenseForm({ type, onClose, onSaved }) {
 
 // Despesa pessoal → PersonalIncome (type expense, contexto pessoal).
 function PersonalExpenseForm({ onClose, onSaved }) {
-  const [form, setForm] = useState({ date: today(), description: '', value: '', category: '', status: 'pago' });
+  const [accounts, setAccounts] = useState([]);
+  const [form, setForm] = useState({ date: today(), description: '', value: '', category: '', bank_account_id: '', status: 'pago' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = (patch) => setForm((prev) => ({ ...prev, ...patch }));
+
+  useEffect(() => {
+    repository.list('BankAccount').then(setAccounts);
+  }, []);
 
   const save = async () => {
     setSaving(true);
@@ -156,6 +173,7 @@ function PersonalExpenseForm({ onClose, onSaved }) {
         category: form.category,
         value: Math.max(Number(form.value || 0), 0),
         date: form.date,
+        bank_account_id: form.bank_account_id || '',
         status: form.status,
         active: true,
       });
@@ -181,6 +199,12 @@ function PersonalExpenseForm({ onClose, onSaved }) {
         </label>
         <label className="ds-form-field">Categoria
           <input className={inputClass} value={form.category} onChange={(e) => set({ category: e.target.value })} placeholder="alimentação, transporte..." />
+        </label>
+        <label className="ds-form-field">Conta de pagamento
+          <select className={inputClass} value={form.bank_account_id} onChange={(e) => set({ bank_account_id: e.target.value })}>
+            <option value="">De qual conta saiu?</option>
+            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name || account.id}</option>)}
+          </select>
         </label>
         <label className="ds-form-field">Status
           <select className={inputClass} value={form.status} onChange={(e) => set({ status: e.target.value })}>

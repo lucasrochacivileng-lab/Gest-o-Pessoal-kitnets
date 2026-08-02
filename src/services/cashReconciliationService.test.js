@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCashReconciliation } from './cashReconciliationService.js';
+import { buildCashReconciliation, findUnlinkedTransactions } from './cashReconciliationService.js';
 
 describe('cashReconciliationService', () => {
   it('calcula o saldo da conta sem duplicar transferencias no total', () => {
@@ -55,5 +55,33 @@ describe('cashReconciliationService', () => {
 
     expect(result.calculatedTotal).toBe(1000);
     expect(result.differenceTotal).toBe(0);
+  });
+
+  it('acha despesa paga, aluguel recebido e movimento pessoal confirmado sem conta vinculada', () => {
+    const unlinked = findUnlinkedTransactions({
+      expenses: [
+        { id: 'e1', date: '2026-07-05', description: 'Água', value: 100, status: 'pago' },
+        { id: 'e2', date: '2026-07-06', description: 'Pendente não conta', value: 200, status: 'pendente' },
+        { id: 'e3', date: '2026-07-07', description: 'Já vinculada', value: 300, status: 'pago', bank_account_id: 'a' },
+      ],
+      payments: [
+        { id: 'p1', receivable_id: 'r1', payment_date: '2026-07-08', paid_value: 800 },
+      ],
+      personal: [
+        { id: 'i1', type: 'income', date: '2026-07-09', value: 500, status: 'pago', description: 'Salário' },
+        { id: 'i2', type: 'card_transaction', date: '2026-07-10', value: 50, status: 'pago' },
+      ],
+    });
+
+    expect(unlinked).toHaveLength(3);
+    expect(unlinked.map((row) => row.id)).toEqual(['e1', 'p1', 'i1']);
+  });
+
+  it('não conta compra no cartão como lançamento sem conta (ela não sai do banco)', () => {
+    const unlinked = findUnlinkedTransactions({
+      personal: [{ id: 'c1', type: 'card_transaction', date: '2026-07-10', value: 50, status: 'pago' }],
+    });
+
+    expect(unlinked).toHaveLength(0);
   });
 });

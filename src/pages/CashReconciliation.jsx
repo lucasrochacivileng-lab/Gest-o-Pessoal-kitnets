@@ -1,9 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Landmark, Scale } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertCircle, CheckCircle2, Landmark, Scale, Unlink } from 'lucide-react';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { repository } from '../repository/index.js';
-import { buildCashReconciliation } from '../services/cashReconciliationService.js';
+import { buildCashReconciliation, findUnlinkedTransactions } from '../services/cashReconciliationService.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
+
+const SOURCE_LINKS = {
+  Despesas: '/despesas',
+  Recebimentos: '/recebimentos',
+  'Finanças pessoais': '/financas-pessoais',
+};
 
 const currency = (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -47,6 +54,8 @@ export default function CashReconciliation() {
 
   const reconciliation = useMemo(() => buildCashReconciliation(data), [data]);
   const reconciled = Math.abs(reconciliation.differenceTotal) < 0.01;
+  const unlinked = useMemo(() => findUnlinkedTransactions(data), [data]);
+  const unlinkedTotal = unlinked.reduce((sum, row) => sum + row.value, 0);
 
   return (
     <div className="space-y-8">
@@ -59,6 +68,32 @@ export default function CashReconciliation() {
       </div>
 
       {reconciliation.accounts.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{reconciliation.accounts.map((account) => <div key={account.id} className="ds-card"><div className="flex items-center gap-2"><Landmark className="h-4 w-4 text-blue-600" /><p className="font-semibold">{account.name}</p></div><div className="mt-3 grid grid-cols-3 gap-2 text-sm"><div><p className="text-xs text-slate-500">Calculado</p><p className="font-semibold">{currency(account.calculatedBalance)}</p></div><div><p className="text-xs text-slate-500">Real</p><p className="font-semibold">{currency(account.actualBalance)}</p></div><div><p className="text-xs text-slate-500">Diferença</p><p className={Math.abs(account.difference) < 0.01 ? 'font-semibold text-emerald-600' : 'font-semibold text-amber-700'}>{currency(account.difference)}</p></div></div></div>)}</div> : null}
+
+      {unlinked.length ? (
+        <div className="ds-card border-amber-200 bg-amber-50">
+          <div className="flex items-start gap-3">
+            <Unlink className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-700" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-900">{unlinked.length} lançamento(s) sem conta vinculada — {currency(unlinkedTotal)}</p>
+              <p className="mt-1 text-sm text-amber-800">Não entram no "Saldo calculado" acima porque o app não sabe de qual conta saíram (ou em qual entraram). Abra cada um e defina a "Conta de pagamento".</p>
+              <ul className="mt-3 space-y-1 text-sm text-amber-900">
+                {unlinked.slice(0, 6).map((row) => (
+                  <li key={`${row.source}-${row.id}`} className="flex items-center justify-between gap-3 rounded bg-white/60 px-3 py-1.5">
+                    <span className="truncate">{row.description} <span className="text-amber-700">· {row.source}</span></span>
+                    <span className="flex-shrink-0 font-medium">{currency(row.value)}</span>
+                  </li>
+                ))}
+              </ul>
+              {unlinked.length > 6 ? <p className="mt-2 text-xs text-amber-700">+ {unlinked.length - 6} outro(s).</p> : null}
+              <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium">
+                {[...new Set(unlinked.map((row) => row.source))].map((source) => (
+                  <Link key={source} to={SOURCE_LINKS[source] || '/despesas'} className="text-blue-700 hover:underline">Ir para {source} →</Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <section className="border-t border-slate-200 pt-8">
         <EntityPage title="Contas e saldos" subtitle="Para começar hoje, informe o mesmo saldo de partida e saldo real, ambos com a data de hoje." entity="BankAccount" fields={accountFields} cardFields={['name', 'institution']} columns={[{ field: 'name', label: 'Conta' }, { field: 'opening_date', label: 'Início', format: 'date' }, { field: 'opening_balance', label: 'Saldo inicial', format: 'currency' }, { field: 'actual_balance', label: 'Saldo real', format: 'currency' }]} onRowsChange={(accounts) => setData((current) => ({ ...current, accounts }))} />

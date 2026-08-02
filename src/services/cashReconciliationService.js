@@ -74,4 +74,27 @@ export const buildCashReconciliation = ({
   };
 };
 
+// Lançamentos que JÁ contariam pro saldo calculado (mesmos filtros de
+// buildCashReconciliation) mas ficam de fora porque não têm bank_account_id
+// — silenciosamente, sem aparecer em lugar nenhum. Isso alimenta um aviso na
+// tela de Caixa pra achar o que falta vincular em vez de a diferença ficar
+// sem explicação.
+export const findUnlinkedTransactions = ({ payments = [], expenses = [], personal = [] } = {}) => {
+  const items = [];
+
+  expenses
+    .filter((row) => row.status === 'pago' && !row.bank_account_id)
+    .forEach((row) => items.push({ id: row.id, date: row.date, description: row.description || 'Despesa', value: money(row.value), source: 'Despesas' }));
+
+  rentPaymentsOnly(payments)
+    .filter((row) => !row.bank_account_id)
+    .forEach((row) => items.push({ id: row.id, date: row.payment_date, description: 'Aluguel recebido', value: money(row.net_value ?? row.paid_value), source: 'Recebimentos' }));
+
+  personal
+    .filter((row) => confirmed(row) && !row.bank_account_id && (row.type === 'income' || leavesBankAccount(row)))
+    .forEach((row) => items.push({ id: row.id, date: row.date, description: row.description || (row.type === 'income' ? 'Receita pessoal' : 'Despesa pessoal'), value: money(row.value), source: 'Finanças pessoais' }));
+
+  return items;
+};
+
 export default buildCashReconciliation;
