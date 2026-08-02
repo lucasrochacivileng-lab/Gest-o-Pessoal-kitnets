@@ -18,4 +18,17 @@ export const formatCompetenceBR = (competence) => {
   return `${match[2]}/${match[1]}`;
 };
 
-export default { formatDateBR, formatCompetenceBR };
+/**
+ * 'Hoje' no fuso LOCAL (Brasil, UTC-3), não em UTC.
+ * `new Date().toISOString()` usa o dia em UTC: entre 21h e meia-noite no
+ * horário local, o UTC já virou o dia seguinte e um aluguel com vencimento
+ * hoje passaria a comparar como atrasado ~3h antes da hora.
+ */
+export const todayLocalISO = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export default { formatDateBR, formatCompetenceBR, todayLocalISO };

@@ -78,6 +78,7 @@ describe('receivableService', () => {
 
     const result = receivableService.filterReceivables(receivables, {
       statusFilter: RECEIVABLE_FILTERS.PARTIAL,
+      asOfDate: '2026-07-15',
     });
 
     expect(result[0].payments).toHaveLength(1);

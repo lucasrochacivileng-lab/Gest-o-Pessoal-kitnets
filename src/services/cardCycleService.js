@@ -11,10 +11,10 @@
 const pad = (value) => String(value).padStart(2, '0');
 const isoDate = (year, month, day) => `${year}-${pad(month)}-${pad(day)}`;
 
-const daysInMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getUTCDate();
+export const daysInMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getUTCDate();
 
 // Dia que existe no mês: fechamento dia 31 em fevereiro vira o dia 28/29.
-const clampDay = (year, month, day) => Math.min(Math.max(Number(day) || 1, 1), daysInMonth(year, month));
+export const clampDay = (year, month, day) => Math.min(Math.max(Number(day) || 1, 1), daysInMonth(year, month));
 
 const addMonths = ({ year, month }, offset) => {
   const date = new Date(Date.UTC(year, month - 1 + offset, 1));

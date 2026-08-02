@@ -5,6 +5,7 @@ import { categoryLabel } from './categoryReportService.js';
 import { financialService } from './financialService';
 import { rentPaymentsOnly } from './paymentClassifier.js';
 import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
+import { todayLocalISO } from './dateUtils.js';
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const moneyValue = (value) => Number(value || 0);
@@ -73,7 +74,7 @@ export const dashboardService = {
 
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const today = now.toISOString().split('T')[0];
+    const today = todayLocalISO(now);
 
     const rentPayments = rentPaymentsOnly(payments);
     const monthPayments = rentPayments.filter((payment) => payment.payment_date && payment.payment_date.startsWith(currentMonth));
@@ -107,7 +108,7 @@ export const dashboardService = {
 
     const alertDaysFromNow = new Date(now);
     alertDaysFromNow.setDate(alertDaysFromNow.getDate() + getContractAlertDays());
-    const alertDaysStr = alertDaysFromNow.toISOString().split('T')[0];
+    const alertDaysStr = todayLocalISO(alertDaysFromNow);
     const expiringContracts = contracts.filter((contract) => contract.status === 'ativo' && contract.end_date && contract.end_date <= alertDaysStr && contract.end_date >= today);
 
     const monthlyData = [];

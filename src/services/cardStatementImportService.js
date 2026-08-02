@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { applyRules } from './classificationRuleService.js';
 import { matchStatementAgainstNotifications } from './notificationPurchaseMatchService.js';
+import { clampDay } from './cardCycleService.js';
 
 const DEFAULT_CATEGORY = 'outros';
 const DEFAULT_CONTEXT = 'pessoal';
@@ -150,7 +151,10 @@ const addMonths = (monthKey, offset) => {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 
-const buildDueDate = (monthKey, dueDay) => `${monthKey}-${String(Math.min(Math.max(Number(dueDay) || 10, 1), 28)).padStart(2, '0')}`;
+const buildDueDate = (monthKey, dueDay) => {
+  const [year, month] = String(monthKey).split('-').map(Number);
+  return `${monthKey}-${String(clampDay(year, month, Number(dueDay) || 10)).padStart(2, '0')}`;
+};
 
 const matchKitnetId = (description, kitnets = []) => {
   const text = normalize(description);

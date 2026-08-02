@@ -1,8 +1,8 @@
 import { repository } from '../../../repository/index.js';
 import notificationDeliveryService from './notificationDeliveryService.js';
-import receivableService from '../../receivables/services/receivableService.js';
+import receivableService, { calculateOutstandingValue } from '../../receivables/services/receivableService.js';
 import { buildWhatsAppLink } from '../../../services/whatsappService.js';
-import { formatDateBR } from '../../../services/dateUtils.js';
+import { formatDateBR, todayLocalISO } from '../../../services/dateUtils.js';
 import {
   NOTIFICATION_ENTITY,
   NOTIFICATION_EVENT,
@@ -21,7 +21,7 @@ export const defaultNotificationSettings = {
   pushEnabled: false,
 };
 
-const todayString = () => new Date().toISOString().slice(0, 10);
+const todayString = () => todayLocalISO();
 const addDays = (dateString, days) => {
   const date = new Date(`${dateString}T00:00:00`);
   date.setDate(date.getDate() + Number(days || 0));
@@ -281,9 +281,13 @@ const updateTargetAsPaid = async (entity, id) => {
     // Precisa passar pelo MESMO caminho do botão "Receber" (registerPayment),
     // não só marcar o recebível como pago: só assim cria o Pagamento que
     // Extrato, Visão Geral e Dashboard usam para somar a receita do mês.
-    // Confirmar aqui sem paid_value = recebeu o valor cheio (mesma regra
-    // do "??" em registerPayment).
-    const { receivable: updated } = await receivableService.registerPayment(receivable, {});
+    // Manda o valor EM ABERTO (não o expected_value cheio): se o recebível já
+    // tiver um pagamento parcial, confirmar com paid_value indefinido cairia
+    // no "??" de registerPayment e cobraria o aluguel inteiro de novo em cima
+    // do que já foi pago, inflando a receita do mês.
+    const { receivable: updated } = await receivableService.registerPayment(receivable, {
+      paid_value: calculateOutstandingValue(receivable),
+    });
     return updated;
   }
 

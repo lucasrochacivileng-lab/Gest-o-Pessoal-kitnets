@@ -2,7 +2,12 @@ import { repository } from '../repository/index.js';
 import { isSupabaseEnabled, supabase } from './supabaseClient.js';
 
 const DOCUMENTS_BUCKET = 'documents';
-const MAX_PDF_SIZE = 50 * 1024 * 1024;
+const MAX_PDF_SIZE_SUPABASE = 50 * 1024 * 1024;
+// Sem Supabase configurado, o PDF vira base64 e entra no MESMO localStorage
+// de todo o resto do app (limite real do navegador: uns 5-10 MB no total).
+// Um PDF de dezenas de MB estoura a cota e trava toda gravação seguinte
+// (pagamento, despesa, contrato) até alguém remover o anexo.
+const MAX_PDF_SIZE_LOCAL = 3 * 1024 * 1024;
 
 export const RENTAL_DOCUMENT_TYPES = {
   contract: 'contrato_pdf',
@@ -83,7 +88,16 @@ export const documentsForContract = (documents, contractId) => (
 export const upsertRentalDocument = async ({ documents = [], file, type, kitnet, contract, tenant, source = 'Locações' }) => {
   if (!file) return null;
   if (!isPdfFile(file)) throw new Error('Envie apenas arquivos PDF.');
-  if (Number(file.size || 0) > MAX_PDF_SIZE) throw new Error('O PDF deve ter no máximo 50 MB.');
+
+  const usingSupabase = Boolean(isSupabaseEnabled && supabase);
+  const maxSize = usingSupabase ? MAX_PDF_SIZE_SUPABASE : MAX_PDF_SIZE_LOCAL;
+  if (Number(file.size || 0) > maxSize) {
+    throw new Error(
+      usingSupabase
+        ? 'O PDF deve ter no máximo 50 MB.'
+        : 'O PDF deve ter no máximo 3 MB (sem o Supabase configurado, os anexos ficam guardados no navegador, que tem espaço bem limitado).',
+    );
+  }
   if (!contract?.id) throw new Error('Salve o contrato antes de anexar documentos.');
 
   const existing = documents.find((document) => (

@@ -36,8 +36,13 @@ const readStorage = () => {
   try {
     return JSON.parse(raw);
   } catch {
-    storage.setItem(STORAGE_KEY, JSON.stringify(seed));
-    return clone(seed);
+    // NAO reseta pra dados de demonstracao aqui: como nao existe backup,
+    // sobrescrever silenciosamente o banco real do usuario por um JSON
+    // corrompido apagaria tudo sem aviso. Guarda o conteudo bruto numa
+    // chave separada (pra dar chance de recuperacao manual) e propaga o
+    // erro, em vez de seguir escondendo o problema com dados fake.
+    storage.setItem(`${STORAGE_KEY}.corrupted-${Date.now()}`, raw);
+    throw new Error('Os dados salvos neste navegador estao corrompidos e nao puderam ser lidos. Nada foi apagado.');
   }
 };
 
@@ -49,7 +54,11 @@ const writeStorage = (value) => {
     return;
   }
 
-  storage.setItem(STORAGE_KEY, JSON.stringify(value));
+  try {
+    storage.setItem(STORAGE_KEY, JSON.stringify(value));
+  } catch (error) {
+    throw new Error('Não foi possível salvar: o navegador atingiu o limite de espaço para este site. Remova algum anexo (PDF) e tente novamente.');
+  }
 };
 
 const ensureEntity = (db, entity) => {

@@ -1,9 +1,10 @@
 import receivableRepository from '../repository/receivableRepository.js';
 import { RECEIVABLE_FILTERS, RECEIVABLE_STATUS } from '../types/receivable.types.js';
 import { addMoney, fromCents, subtractMoney, toCents } from '../../../services/money.js';
+import { todayLocalISO } from '../../../services/dateUtils.js';
 
 const formatDate = (value) => value || '';
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayLocalISO();
 const toMoney = (value) => Number(value || 0);
 
 export const getReceivableStatus = (receivable, currentDate = today()) => {
@@ -131,8 +132,9 @@ export const receivableService = {
       contractFilter = '',
       tenantFilter = '',
       competenceFilter = '',
+      asOfDate,
     } = filters;
-    const currentDate = today();
+    const currentDate = asOfDate || today();
 
     return receivables.filter((row) => {
       const status = getReceivableStatus(row, currentDate);
