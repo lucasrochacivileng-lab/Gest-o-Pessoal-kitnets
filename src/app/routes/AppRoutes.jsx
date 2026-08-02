@@ -1,31 +1,37 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '../../layouts/AppLayout.jsx';
 import Dashboard from '../../modules/dashboard/pages/index.jsx';
-import Recebimentos from '../../modules/receivables/pages/ReceivablesPage.jsx';
-import Kitnets from '../../modules/kitnets/pages/index.jsx';
-import Contratos from '../../modules/contracts/pages/index.jsx';
-import FinancialOverview from '../../pages/FinancialOverview.jsx';
-import Consolidated from '../../pages/Consolidated.jsx';
-import KitnetResult from '../../pages/KitnetResult.jsx';
-import Statement from '../../pages/Statement.jsx';
-import Income from '../../pages/Income.jsx';
-import Payments from '../../pages/Payments.jsx';
-import Expenses from '../../pages/Expenses.jsx';
-import ConstructionPage from '../../pages/ConstructionPage.jsx';
-import CreditCards from '../../pages/CreditCards.jsx';
-import ClassificationRules from '../../pages/ClassificationRules.jsx';
-import Documents from '../../pages/Documents.jsx';
-import Settings from '../../pages/Settings.jsx';
-import Reports from '../../pages/Reports.jsx';
-import PersonalFinances from '../../pages/PersonalFinances.jsx';
-import Forecast from '../../pages/Forecast.jsx';
-import CategoryReport from '../../pages/CategoryReport.jsx';
-import ComplementaryProjects from '../../pages/ComplementaryProjects.jsx';
-import ExpertReports from '../../pages/ExpertReports.jsx';
-import NotificationsPage from '../../modules/notifications/pages/NotificationsPage.jsx';
-import CashReconciliation from '../../pages/CashReconciliation.jsx';
-import FinancialInbox from '../../pages/FinancialInbox.jsx';
 import HubLayout from '../../components/ui/HubLayout.jsx';
+import StatePanel from '../../components/ui/StatePanel.jsx';
+
+// Cada tela vira um chunk carregado sob demanda (em vez de tudo num arquivo
+// só de 650kB+): quem abre o Dashboard não baixa o código de Cartões,
+// Relatórios etc. até entrar nessas telas — mais rápido no celular.
+const Recebimentos = lazy(() => import('../../modules/receivables/pages/ReceivablesPage.jsx'));
+const Kitnets = lazy(() => import('../../modules/kitnets/pages/index.jsx'));
+const Contratos = lazy(() => import('../../modules/contracts/pages/index.jsx'));
+const FinancialOverview = lazy(() => import('../../pages/FinancialOverview.jsx'));
+const Consolidated = lazy(() => import('../../pages/Consolidated.jsx'));
+const KitnetResult = lazy(() => import('../../pages/KitnetResult.jsx'));
+const Statement = lazy(() => import('../../pages/Statement.jsx'));
+const Income = lazy(() => import('../../pages/Income.jsx'));
+const Payments = lazy(() => import('../../pages/Payments.jsx'));
+const Expenses = lazy(() => import('../../pages/Expenses.jsx'));
+const ConstructionPage = lazy(() => import('../../pages/ConstructionPage.jsx'));
+const CreditCards = lazy(() => import('../../pages/CreditCards.jsx'));
+const ClassificationRules = lazy(() => import('../../pages/ClassificationRules.jsx'));
+const Documents = lazy(() => import('../../pages/Documents.jsx'));
+const Settings = lazy(() => import('../../pages/Settings.jsx'));
+const Reports = lazy(() => import('../../pages/Reports.jsx'));
+const PersonalFinances = lazy(() => import('../../pages/PersonalFinances.jsx'));
+const Forecast = lazy(() => import('../../pages/Forecast.jsx'));
+const CategoryReport = lazy(() => import('../../pages/CategoryReport.jsx'));
+const ComplementaryProjects = lazy(() => import('../../pages/ComplementaryProjects.jsx'));
+const ExpertReports = lazy(() => import('../../pages/ExpertReports.jsx'));
+const NotificationsPage = lazy(() => import('../../modules/notifications/pages/NotificationsPage.jsx'));
+const CashReconciliation = lazy(() => import('../../pages/CashReconciliation.jsx'));
+const FinancialInbox = lazy(() => import('../../pages/FinancialInbox.jsx'));
 
 // Abas dos hubs (fases 2 e 3): as URLs continuam as mesmas, só ganham uma
 // barra de abas no topo e uma única entrada no menu lateral. Recebimentos,
@@ -51,8 +57,11 @@ const REPORT_TABS = [
   { to: '/relatorios', label: 'Exportar' },
 ];
 
+const routeFallback = <StatePanel type="loading" title="Carregando..." />;
+
 export default function AppRoutes() {
   return (
+    <Suspense fallback={routeFallback}>
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
@@ -100,5 +109,6 @@ export default function AppRoutes() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }
