@@ -72,12 +72,17 @@ export const excludeReversedPix = (rows) => {
   return rows.filter((row) => !canceledIds.has(row.identificador));
 };
 
-// Linhas que são mecânica interna do banco, não um lançamento pra revisar:
-// aplicação/resgate em caixinha (não sabemos em qual das caixinhas cadastradas
-// caiu) e pagamento de fatura (já tem fluxo próprio em Despesas > Pagamento de
-// fatura, com o formato certo de registro — importar aqui criaria um tipo que
-// a tabela transactions nem aceita).
-const SKIP_PATTERNS = [/aplica[cç][aã]o rdb/i, /resgate rdb/i, /pagamento de fatura/i];
+// Pagamento de fatura já tem fluxo próprio em Despesas > Pagamento de fatura
+// (cria o tipo certo de registro pra abater o saldo do cartão) — importar
+// aqui criaria um "expense" genérico e a fatura pareceria paga duas vezes.
+const SKIP_PATTERNS = [/pagamento de fatura/i];
+
+// Aplicação/Resgate RDB é dinheiro indo pra uma caixinha ou voltando dela —
+// o extrato da CONTA não diz PRA QUAL caixinha, então isso vira uma
+// transferência interna pendente: quem sabe qual caixinha é o próprio
+// usuário, na hora de revisar (mesma tela/campos que já existem pra
+// transferência entre contas).
+const RDB_PATTERN = /aplica[cç][aã]o rdb|resgate rdb/i;
 
 const extractCounterparty = (descricao) => {
   const withoutPrefix = descricao.replace(
@@ -88,13 +93,28 @@ const extractCounterparty = (descricao) => {
   return (first || '').trim();
 };
 
-// Classifica 1 linha do extrato em pix_received/pix_sent (os únicos tipos que
-// fazem sentido pra um extrato de CONTA — compra de cartão e boleto emitido
-// são de outras origens). Devolve null pras linhas que devem ser ignoradas.
+// Classifica 1 linha do extrato. Devolve null pras linhas que devem ser
+// ignoradas (fatura de cartão, que já tem fluxo próprio).
 export const classifyStatementRow = (row) => {
   if (SKIP_PATTERNS.some((pattern) => pattern.test(row.descricao))) return null;
 
   const direction = row.value > 0 ? 'in' : 'out';
+
+  if (RDB_PATTERN.test(row.descricao)) {
+    return {
+      transactionType: 'internal_transfer',
+      direction,
+      amount: Math.abs(row.value),
+      merchant: 'Caixinha/CDB',
+      description: direction === 'out' ? 'Aplicação em caixinha' : 'Resgate de caixinha',
+      // Sabemos qual conta é a da CONTA CORRENTE (é a que está sendo
+      // importada) mas não qual caixinha é a outra ponta — deixa as duas em
+      // branco pra não sugerir errado (Aplicação e Resgate invertem quem é
+      // origem/destino) e forçar a escolha manual das duas contas.
+      needsBothAccounts: true,
+    };
+  }
+
   const transactionType = direction === 'in' ? 'pix_received' : 'pix_sent';
   const counterparty = extractCounterparty(row.descricao);
   const merchant = counterparty || (direction === 'in' ? 'Recebimento' : 'Pagamento');
@@ -127,7 +147,11 @@ export const buildStatementImportPlan = (rows, { rules = [], provider = 'nubank'
     const classified = classifyStatementRow(row);
     if (!classified) return plan;
 
-    const suggestion = suggestClassification(classified.description, rules);
+    // Transferência interna (caixinha) não tem categoria/segmento — quem
+    // confirma escolhe é a conta de origem e destino, não um gasto.
+    const suggestion = classified.transactionType === 'internal_transfer'
+      ? { category: null, costCenter: null }
+      : suggestClassification(classified.description, rules);
 
     plan.push({
       ...classified,
@@ -195,6 +219,8 @@ export const bankStatementImportService = {
         .single();
       if (notificationError) throw new Error(`Falha ao importar "${item.description}": ${notificationError.message}`);
 
+      const isTransfer = item.transactionType === 'internal_transfer';
+
       const { data: transaction, error: transactionError } = await supabase
         .from('transactions')
         .insert({
@@ -209,7 +235,13 @@ export const bankStatementImportService = {
           occurred_at: occurredAt,
           category_suggested: item.categorySuggested,
           cost_center_suggested: item.costCenterSuggested,
-          bank_account_id: bankAccountId,
+          // Aplicação/Resgate RDB inverte quem é origem e quem é destino —
+          // não dá pra pré-preencher sem risco de vir trocado, então essa
+          // conta some em branco e as duas (origem e destino) são escolhidas
+          // na hora de revisar.
+          bank_account_id: isTransfer ? null : bankAccountId,
+          transfer_group_id: isTransfer ? crypto.randomUUID() : null,
+          is_transfer_primary: isTransfer ? true : null,
           raw_parse: { ...item.raw, classification_source: 'bank_statement_import' },
         })
         .select('id')

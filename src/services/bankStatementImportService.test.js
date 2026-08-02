@@ -73,25 +73,34 @@ describe('classifyStatementRow', () => {
     expect(result).toMatchObject({ transactionType: 'pix_sent', direction: 'out', merchant: 'SP NET INTERNET GOIATUBA' });
   });
 
-  it('ignora Aplicação/Resgate RDB e Pagamento de fatura', () => {
-    expect(classifyStatementRow({ value: -831, descricao: 'Aplicação RDB' })).toBeNull();
-    expect(classifyStatementRow({ value: 350, descricao: 'Resgate RDB' })).toBeNull();
+  it('trata Aplicação/Resgate RDB como transferência interna pendente (as 2 pontas ficam pro usuário escolher)', () => {
+    const aplicacao = classifyStatementRow({ value: -831, descricao: 'Aplicação RDB' });
+    expect(aplicacao).toMatchObject({ transactionType: 'internal_transfer', direction: 'out', amount: 831, needsBothAccounts: true });
+
+    const resgate = classifyStatementRow({ value: 350, descricao: 'Resgate RDB' });
+    expect(resgate).toMatchObject({ transactionType: 'internal_transfer', direction: 'in', amount: 350 });
+  });
+
+  it('ignora Pagamento de fatura (já tem fluxo próprio em Despesas)', () => {
     expect(classifyStatementRow({ value: -5581.44, descricao: 'Pagamento de fatura' })).toBeNull();
   });
 });
 
 describe('buildStatementImportPlan', () => {
-  it('monta o plano final: sem RDB/fatura, sem o par estornado, com dedupe_key estável', () => {
+  it('monta o plano final: RDB vira transferência a revisar, fatura fica de fora, par estornado some, dedupe_key estável', () => {
     const rows = parseNubankStatementCsv(SAMPLE_CSV);
     const plan = buildStatementImportPlan(rows, { rules: [] });
 
-    expect(plan).toHaveLength(4);
+    expect(plan).toHaveLength(6);
     expect(plan.map((item) => item.dedupeKey)).toEqual([
       'nubank_csv:id-vidrosul',
+      'nubank_csv:id-resgate',
+      'nubank_csv:id-aplicacao',
       'nubank_csv:id-boleto',
       'nubank_csv:id-recebido',
       'nubank_csv:id-recebido2',
     ]);
+    expect(plan.find((item) => item.dedupeKey === 'nubank_csv:id-aplicacao').transactionType).toBe('internal_transfer');
   });
 
   it('regra do usuário tem prioridade sobre o classificador embutido', () => {
