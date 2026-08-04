@@ -429,6 +429,9 @@ describe('cardStatementImportService', () => {
     expect(refundTargetName('Estorno de Loja Qualquer')).toBe('Loja Qualquer');
     expect(merchantOf('Irmaossoares - Parcela 12/12')).toBe('irmaossoares');
     expect(merchantOf('Raia Drogasil - NuPay - Parcela 1/3')).toBe('raia drogasil - nupay');
+    // Bradescard/Amazon escreve a parcela entre parenteses, colada no nome.
+    expect(merchantOf('AMAZONMKTPLC*MMSCOMERC SAO PAULO(05/10)')).toBe('amazonmktplc*mmscomerc sao paulo');
+    expect(merchantOf('AMAZON MARKETPLACE CC SAO PAULO(04/10)')).toBe('amazon marketplace cc sao paulo');
     expect(buildInstallmentKey({
       card_name: 'Nubank', date: '2026-08-10', description: 'Fotus Energia Solar - Parcela 5/12', installment: '6/12',
     })).toBe(buildInstallmentKey({

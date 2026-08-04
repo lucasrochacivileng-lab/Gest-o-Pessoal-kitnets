@@ -265,9 +265,12 @@ export const buildOriginHash = ({ card_name, purchase_date, description, value, 
 // duas vezes.
 //
 // O que NÃO muda entre as duas leituras é: cartão + vencimento da parcela +
-// estabelecimento (a descrição sem o sufixo "- Parcela N/M") + o número da
-// parcela. É essa a chave estável que reconhece a reprojeção.
-const INSTALLMENT_LABEL = /\s*-\s*parcela\s+\d{1,3}\s*\/\s*\d{1,3}\s*$/;
+// estabelecimento (a descrição sem o rótulo da parcela) + o número da parcela.
+// É essa a chave estável que reconhece a reprojeção.
+//
+// Cada banco escreve o rótulo do seu jeito e os dois precisam sair: o Nubank
+// usa "Loja - Parcela 5/12" e o Bradescard/Amazon usa "LOJA SAO PAULO(05/10)".
+const INSTALLMENT_LABEL = /\s*(?:-\s*parcela\s+\d{1,3}\s*\/\s*\d{1,3}|\(\s*\d{1,3}\s*\/\s*\d{1,3}\s*\))\s*$/;
 
 export const merchantOf = (description = '') => normalize(description).replace(INSTALLMENT_LABEL, '').trim();
 
