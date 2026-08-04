@@ -293,8 +293,12 @@ export default function CreditCards() {
       }));
 
       setPreviewRows(preview);
+      const refunded = transactions.filter((row) => row.refunded).length;
+      const refundNote = refunded
+        ? ` ${refunded} compra(s) estornada(s) na própria fatura entram como "ignorar" e não somam no caixa.`
+        : '';
       setMessage(preview.length
-        ? `${transactions.length} compra(s) lida(s), gerando ${preview.length} parcela(s) para revisão.`
+        ? `${transactions.length} compra(s) lida(s), gerando ${preview.length} parcela(s) para revisão.${refundNote}`
         : 'Não encontrei lançamentos válidos na fatura. Confira se há colunas de data, descrição e valor.');
     } catch (error) {
       setPreviewRows([]);

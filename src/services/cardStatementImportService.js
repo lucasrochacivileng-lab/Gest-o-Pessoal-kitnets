@@ -79,10 +79,85 @@ export const parseMoney = (value) => {
   return Number.isFinite(parsed) ? Math.abs(parsed) : 0;
 };
 
-const isCreditRow = ({ description, value }) => {
-  const text = normalize(description);
-  const rawValue = String(value || '').trim();
-  return rawValue.startsWith('-') || ['pagamento recebido', 'estorno', 'credito', 'crédito'].some((term) => text.includes(normalize(term)));
+// Linhas de crédito da fatura — não são compras, mas não são a mesma coisa:
+//
+//   pagamento -> quita a fatura ANTERIOR. Não pertence a esta importação e
+//                simplesmente sai.
+//   estorno   -> devolve uma compra DESTA fatura. O banco lança a cobrança e a
+//                devolução na mesma fatura, então descartar só o estorno deixa
+//                a cobrança sozinha e infla o total. Precisa anular a compra
+//                correspondente (ver applyRefunds).
+const PAYMENT_TERMS = ['pagamento recebido', 'pagamento de fatura'];
+const REFUND_TERMS = ['estorno', 'reembolso', 'devolucao'];
+
+const hasTerm = (value, terms) => {
+  const text = normalize(value);
+  return terms.some((term) => text.includes(normalize(term)));
+};
+
+const isNegative = (value) => String(value ?? '').trim().startsWith('-') || Number(value) < 0;
+
+export const isPaymentRow = ({ description } = {}) => hasTerm(description, PAYMENT_TERMS);
+
+export const isRefundRow = ({ description, value } = {}) => (
+  !isPaymentRow({ description })
+  && (hasTerm(description, REFUND_TERMS) || isNegative(value))
+);
+
+// O Nubank escreve o estorno como:
+//   Estorno de "Google Claude By Anth" (Google Claude By Anth)
+// O nome entre aspas é o que casa com a linha da compra original.
+export const refundTargetName = (description = '') => {
+  const quoted = String(description).match(/["“]([^"”]+)["”]/);
+  if (quoted) return quoted[1].trim();
+
+  const after = String(description).match(/(?:estorno|reembolso|devolu[cç][aã]o)\s+(?:de\s+)?(.+)$/i);
+  return after ? after[1].replace(/\s*\([^)]*\)\s*$/, '').trim() : '';
+};
+
+const dayDistance = (a, b) => {
+  const first = Date.parse(`${a}T00:00:00Z`);
+  const second = Date.parse(`${b}T00:00:00Z`);
+  if (!Number.isFinite(first) || !Number.isFinite(second)) return Infinity;
+  return Math.abs(first - second) / 86400000;
+};
+
+// Casa cada estorno com a compra que ele devolve e marca a compra como
+// estornada. O consumo é 1-a-1: duas assinaturas de R$ 110 no mesmo mês com um
+// único estorno têm que deixar UMA cobrança de pé.
+const applyRefunds = (purchases = [], refunds = []) => {
+  const used = new Set();
+
+  refunds.forEach((refund) => {
+    const target = normalize(refundTargetName(refund.description));
+    const candidates = purchases.filter((purchase) => {
+      if (used.has(purchase.source_index)) return false;
+      if (Math.abs(purchase.value - refund.value) > 0.01) return false;
+      if (!target) return true;
+
+      const text = normalize(purchase.description);
+      return text.includes(target) || target.includes(text);
+    });
+
+    if (!candidates.length) return;
+
+    // O estorno devolve uma compra ANTERIOR a ele: entre as candidatas, a mais
+    // recente até a data do estorno. Sem nenhuma anterior, a mais próxima.
+    const previous = candidates.filter((purchase) => (
+      purchase.purchase_date && purchase.purchase_date <= refund.purchase_date
+    ));
+    const best = previous.length
+      ? previous.reduce((a, b) => (a.purchase_date >= b.purchase_date ? a : b))
+      : candidates.reduce((a, b) => (
+        dayDistance(a.purchase_date, refund.purchase_date) <= dayDistance(b.purchase_date, refund.purchase_date) ? a : b
+      ));
+
+    used.add(best.source_index);
+    best.refunded = true;
+    best.refund_date = refund.purchase_date;
+  });
+
+  return purchases;
 };
 
 const excelDateToIso = (serial) => {
@@ -181,6 +256,28 @@ export const buildOriginHash = ({ card_name, purchase_date, description, value, 
   installment || '',
 ].join('|');
 
+// O banco RE-ROTULA a parcela a cada fatura: a mesma compra sai como
+// "Loja - Parcela 5/12" na fatura de julho e "Loja - Parcela 6/12" na de
+// agosto, com purchase_date do ciclo novo e, às vezes, 1 ou 2 centavos de
+// diferença no arredondamento da parcela. Como a importação anterior já
+// PROJETOU as parcelas futuras, o origin_hash — que embute descrição,
+// purchase_date e valor exatos — não reconhece a projeção e a compra entra
+// duas vezes.
+//
+// O que NÃO muda entre as duas leituras é: cartão + vencimento da parcela +
+// estabelecimento (a descrição sem o sufixo "- Parcela N/M") + o número da
+// parcela. É essa a chave estável que reconhece a reprojeção.
+const INSTALLMENT_LABEL = /\s*-\s*parcela\s+\d{1,3}\s*\/\s*\d{1,3}\s*$/;
+
+export const merchantOf = (description = '') => normalize(description).replace(INSTALLMENT_LABEL, '').trim();
+
+export const buildInstallmentKey = ({ card_name, date, description, installment } = {}) => [
+  normalize(card_name),
+  date || '',
+  merchantOf(description),
+  installment || '',
+].join('|');
+
 export const rowsFromWorkbook = (workbook) => {
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   return XLSX.utils.sheet_to_json(firstSheet, { defval: '', raw: false });
@@ -190,7 +287,7 @@ export const parseStatementRows = (rows, { defaultCardName = '' } = {}) => {
   if (!rows.length) return [];
   const headers = Object.keys(rows[0]);
 
-  return rows.map((row, index) => {
+  const parsed = rows.map((row, index) => {
     const description = String(getField(row, headers, 'description') || '').trim();
     const rawValue = getField(row, headers, 'value');
     const value = parseMoney(rawValue);
@@ -203,8 +300,6 @@ export const parseStatementRows = (rows, { defaultCardName = '' } = {}) => {
       description,
     });
 
-    if (isCreditRow({ description, value: rawValue })) return null;
-
     return {
       source_index: index + 1,
       purchase_date: purchaseDate,
@@ -213,9 +308,17 @@ export const parseStatementRows = (rows, { defaultCardName = '' } = {}) => {
       card_name: cardName,
       installment_current: installment.current,
       installment_total: installment.total,
+      payment: isPaymentRow({ description }),
+      refund: isRefundRow({ description, value: rawValue }),
       raw: row,
     };
-  }).filter((row) => row?.value > 0 && row.description);
+  }).filter((row) => row.value > 0 && row.description);
+
+  const purchases = parsed.filter((row) => !row.payment && !row.refund);
+  const refunds = parsed.filter((row) => row.refund);
+
+  // eslint-disable-next-line no-unused-vars
+  return applyRefunds(purchases, refunds).map(({ payment, refund, ...row }) => row);
 };
 
 export const parseStatementFile = async (file, options = {}) => {
@@ -237,6 +340,44 @@ export const buildInstallmentPreview = ({
   rules = [],
 }) => {
   const existingHashes = new Set(existingTransactions.map((item) => item.origin_hash).filter(Boolean));
+
+  // Parcelas que uma importação ANTERIOR já projetou, indexadas pela chave
+  // estável (ver buildInstallmentKey). Cada balde é consumido 1-a-1: o mesmo
+  // estabelecimento pode ter várias compras caindo no mesmo vencimento com a
+  // mesma parcela (três compras "Irmaossoares - Parcela 5/6" no mesmo mês), e
+  // casar uma projeção com duas linhas apagaria um gasto real.
+  const projected = new Map();
+  existingTransactions.forEach((row) => {
+    if (!row?.installment || !row?.date) return;
+    if (row.status === 'ignorar') return;
+
+    const key = buildInstallmentKey(row);
+    if (!projected.has(key)) projected.set(key, []);
+    projected.get(key).push({ value: Number(row.value || 0), origin_hash: row.origin_hash, taken: false });
+  });
+
+  const alreadyImported = (item, totalInstallments) => {
+    const bucket = projected.get(buildInstallmentKey(item)) || [];
+    let hit = bucket.find((entry) => !entry.taken && entry.origin_hash && entry.origin_hash === item.origin_hash);
+
+    // A tolerância só vale para compra PARCELADA, a única que a importação
+    // anterior reprojeta. Uma compra à vista aparece numa fatura só: para ela
+    // vale o hash exato, senão dois pedágios de R$ 14,59 comprados em dias
+    // diferentes viravam "duplicata" um do outro. A folga cresce com o número
+    // de parcelas porque é aí que o arredondamento do banco escorrega.
+    if (!hit && totalInstallments > 1) {
+      const tolerance = Math.max(0.05, 0.01 * totalInstallments);
+      hit = bucket.find((entry) => !entry.taken && Math.abs(entry.value - Number(item.value || 0)) <= tolerance);
+    }
+
+    if (hit) {
+      hit.taken = true;
+      return true;
+    }
+
+    return existingHashes.has(item.origin_hash);
+  };
+
   // Compras que a notificação do banco já capturou (Caixa de Entrada). São a
   // MESMA compra desta linha da fatura — a fatura só sabe mais (parcelamento e
   // vencimento). Ao salvar, a notificação casada é aposentada para a compra não
@@ -277,16 +418,22 @@ export const buildInstallmentPreview = ({
         category,
         card_name: cardName,
         installment: installmentLabel,
-        status: 'revisar',
+        // Compra estornada entra IGNORADA, não some: o extrato mostra a
+        // cobrança e a devolução, e sumir com ela faria a fatura importada
+        // divergir da fatura do banco sem explicação. Ignorada, ela aparece na
+        // lista mas fica fora do total (ver isCardTransaction).
+        status: transaction.refunded ? 'ignorar' : 'revisar',
         recurring: false,
         kitnet_id: matchKitnetId(transaction.description, kitnets),
         expert_report_id: '',
         project_id: '',
-        notes: 'Importado de fatura de cartao. Revisar segmento/categoria antes de confirmar no caixa.',
+        notes: transaction.refunded
+          ? `Estornada na propria fatura${transaction.refund_date ? ` em ${transaction.refund_date}` : ''}. Ignorada para nao somar no caixa.`
+          : 'Importado de fatura de cartao. Revisar segmento/categoria antes de confirmar no caixa.',
       };
 
       item.origin_hash = buildOriginHash(item);
-      item.duplicate = existingHashes.has(item.origin_hash);
+      item.duplicate = alreadyImported(item, totalInstallments);
 
       // Só a PRIMEIRA parcela carrega o vínculo: a notificação é uma só (o
       // valor cheio da compra), e quem a aposenta ao salvar é uma linha só.
@@ -313,6 +460,7 @@ export default {
   parseStatementFile,
   parseStatementRows,
   buildInstallmentPreview,
+  buildInstallmentKey,
   summarizeByCategory,
   classifyTransaction,
 };
