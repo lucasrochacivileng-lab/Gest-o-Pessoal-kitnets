@@ -31,4 +31,12 @@ export const todayLocalISO = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-export default { formatDateBR, formatCompetenceBR, todayLocalISO };
+/**
+ * Competência do mês corrente ('2026-08') no fuso LOCAL, pelo mesmo motivo do
+ * `todayLocalISO`. A janela de erro aqui é menor mas mais traiçoeira: só no
+ * ÚLTIMO dia do mês, entre 21h e meia-noite, o UTC já virou o mês — e a tela
+ * abre no mês seguinte, vazia, parecendo que os lançamentos sumiram.
+ */
+export const currentMonthLocal = (date = new Date()) => todayLocalISO(date).slice(0, 7);
+
+export default { formatDateBR, formatCompetenceBR, todayLocalISO, currentMonthLocal };

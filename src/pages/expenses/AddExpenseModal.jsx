@@ -6,8 +6,9 @@ import { repository } from '../../repository/index.js';
 import { EXPENSE_CATEGORY_OPTIONS } from '../../services/categoryCatalog.js';
 import { buildCardBalances } from '../../services/cardBalanceService.js';
 import { CARD_PAYMENT_TYPE } from '../../services/personalMovementClassifier.js';
+import { todayLocalISO } from '../../services/dateUtils.js';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayLocalISO();
 const inputClass = 'ds-input';
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 

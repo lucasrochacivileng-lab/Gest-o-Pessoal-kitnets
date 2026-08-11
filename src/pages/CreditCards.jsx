@@ -10,6 +10,7 @@ import {
 import { CLASSIFICATION_RULE_ENTITY } from '../services/classificationRuleService.js';
 import { CARD_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
 import { SEGMENTS } from '../services/segmentConsolidationService.js';
+import { todayLocalISO } from '../services/dateUtils.js';
 import { findSiblingTransactions } from '../services/cardInvoiceService.js';
 import { buildCardBalances } from '../services/cardBalanceService.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
@@ -123,7 +124,7 @@ const currentMonth = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayLocalISO();
 
 function pickRow(row) {
   // `supersedes_*` são só da prévia (dizem qual notificação esta linha

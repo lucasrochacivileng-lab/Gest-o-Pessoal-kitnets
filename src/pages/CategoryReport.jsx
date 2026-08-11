@@ -4,9 +4,10 @@ import { repository } from '../repository/index.js';
 import { buildCategoryReport, buildCategoryTrend, categoryLabel } from '../services/categoryReportService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import PageHeader from '../components/ui/PageHeader.jsx';
+import { currentMonthLocal } from '../services/dateUtils.js';
 
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const currentMonthKey = () => new Date().toISOString().slice(0, 7);
+const currentMonthKey = () => currentMonthLocal();
 const shortMonth = (key) => {
   const [year, month] = key.split('-').map(Number);
   return new Date(year, month - 1, 1).toLocaleString('pt-BR', { month: 'short' });

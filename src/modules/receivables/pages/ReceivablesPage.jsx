@@ -15,7 +15,7 @@ import { repository } from '../../../repository/index.js';
 import { useEntitySync } from '../../../hooks/useEntitySync.js';
 import { buildExtraIncomeRows, buildExtraIncomeSummary } from '../services/extraIncomeService.js';
 import { financialService } from '../../../services/financialService';
-import { formatDateBR } from '../../../services/dateUtils.js';
+import { formatDateBR, currentMonthLocal } from '../../../services/dateUtils.js';
 import PageHeader from '../../../components/ui/PageHeader.jsx';
 import StatePanel from '../../../components/ui/StatePanel.jsx';
 
@@ -108,7 +108,7 @@ export default function ReceivablesPage() {
   const [editingReceivable, setEditingReceivable] = useState(null);
   const [historyReceivable, setHistoryReceivable] = useState(null);
   const [notificationReceivable, setNotificationReceivable] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(() => currentMonthLocal());
   const [generateMessage, setGenerateMessage] = useState('');
   const [generating, setGenerating] = useState(false);
   const [projects, setProjects] = useState([]);

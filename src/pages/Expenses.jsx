@@ -15,7 +15,7 @@ import { categoryLabel } from '../services/categoryReportService.js';
 import { CLASSIFICATION_OPTIONS } from '../services/classificationRuleService.js';
 import { EXPENSE_CATEGORY_OPTIONS } from '../services/categoryCatalog.js';
 import { financialService } from '../services/financialService';
-import { formatDateBR } from '../services/dateUtils.js';
+import { formatDateBR, currentMonthLocal } from '../services/dateUtils.js';
 
 // Segmento (centro de resultado) da despesa — é o que o Consolidado usa para
 // separar o custo por frente. Mesmas chaves do segmentConsolidationService.
@@ -427,7 +427,7 @@ function SegmentFilter({ segments, selected, onSelect }) {
 export default function Expenses() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { id } = useParams();
-  const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
+  const [competence, setCompetence] = useState(() => currentMonthLocal());
   const [message, setMessage] = useState('');
   const [generating, setGenerating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);

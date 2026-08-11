@@ -7,9 +7,10 @@ import {
   NOTIFICATION_STATUS,
   notificationTypeLabels,
 } from '../types/notification.types.js';
+import { todayLocalISO } from '../../../services/dateUtils.js';
 
 const LAST_SHOWN_KEY = '@kitmanager/daily-inbox-date';
-const todayString = () => new Date().toISOString().slice(0, 10);
+const todayString = () => todayLocalISO();
 
 const wasShownToday = () => {
   try {

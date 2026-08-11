@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import NotificationActionDialog from '../../modules/notifications/components/NotificationActionDialog.jsx';
 import notificationService from '../../modules/notifications/services/notificationService.js';
 import { useEntitySync } from '../../hooks/useEntitySync.js';
-import { formatCompetenceBR, formatDateBR } from '../../services/dateUtils.js';
+import { formatCompetenceBR, formatDateBR, todayLocalISO } from '../../services/dateUtils.js';
 import { financialService } from '../../services/financialService';
 import PageHeader from './PageHeader.jsx';
 import StatePanel from './StatePanel.jsx';
@@ -256,7 +256,7 @@ export default function EntityPage({
   const computeCreateDefaults = () => fields.reduce((acc, field) => {
     if (field.default === undefined) return acc;
     const fieldName = getFieldName(field);
-    acc[fieldName] = field.default === 'today' ? new Date().toISOString().slice(0, 10) : field.default;
+    acc[fieldName] = field.default === 'today' ? todayLocalISO() : field.default;
     return acc;
   }, {});
 

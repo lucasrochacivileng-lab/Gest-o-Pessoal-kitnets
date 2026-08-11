@@ -3,6 +3,7 @@ import EntityPage from '../components/ui/EntityPage.jsx';
 import { findPersonalDuplicateOf } from '../services/duplicateCheckService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { recurringIncomeService } from '../services/recurringIncomeService.js';
+import { currentMonthLocal } from '../services/dateUtils.js';
 
 const fields = [
   { name: 'date', label: 'Data', type: 'date', default: 'today' },
@@ -60,7 +61,7 @@ export const filterByCompetence = (rows = [], competence = '') => (
 );
 
 export default function PersonalFinances() {
-  const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
+  const [competence, setCompetence] = useState(() => currentMonthLocal());
   const [message, setMessage] = useState('');
   const [generating, setGenerating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);

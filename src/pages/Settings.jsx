@@ -3,6 +3,7 @@ import { Download, RotateCcw, Save, Upload, Wrench } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { applyPaymentMethodFix } from '../services/paymentMethodFixService.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
+import { todayLocalISO } from '../services/dateUtils.js';
 
 const SETTINGS_KEY = '@kitmanager/settings';
 
@@ -52,7 +53,7 @@ export default function Settings() {
 
   const exportBackup = async () => {
     const backup = await repository.exportBackup();
-    downloadBackupFile(backup, `kitmanager-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    downloadBackupFile(backup, `kitmanager-backup-${todayLocalISO()}.json`);
     setMessage('Backup exportado.');
   };
 

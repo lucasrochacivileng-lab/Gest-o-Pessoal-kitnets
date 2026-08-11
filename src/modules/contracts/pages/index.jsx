@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { repository } from '../../../repository/index.js';
 import { financialService } from '../../../services/financialService';
-import { formatDateBR } from '../../../services/dateUtils.js';
+import { formatDateBR, todayLocalISO } from '../../../services/dateUtils.js';
 import { contractService, calculateBreakFine } from '../services/contractService.js';
 import { useEntitySync } from '../../../hooks/useEntitySync.js';
 import NotificationActionDialog from '../../notifications/components/NotificationActionDialog.jsx';
@@ -38,7 +38,7 @@ import {
 } from '../../../services/rentalDocumentService.js';
 
 const inputClass = 'ds-input';
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayLocalISO();
 
 const emptyForm = {
   tenantMode: 'novo',

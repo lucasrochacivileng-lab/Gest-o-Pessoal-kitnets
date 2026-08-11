@@ -1,12 +1,13 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { currentMonthLocal } from '../../services/dateUtils.js';
 
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 // Seletor de competência em um clique: ano com setas + meses como botões.
 export function MonthChips({ value, onChange }) {
-  const fallback = new Date().toISOString().slice(0, 7);
+  const fallback = currentMonthLocal();
   const [year, month] = String(value || fallback).split('-').map(Number);
-  const currentKey = new Date().toISOString().slice(0, 7);
+  const currentKey = currentMonthLocal();
 
   const set = (nextYear, nextMonth) => onChange(`${nextYear}-${String(nextMonth).padStart(2, '0')}`);
 
