@@ -4,9 +4,10 @@ import { repository } from '../repository/index.js';
 import { buildForecast } from '../services/forecastService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import PageHeader from '../components/ui/PageHeader.jsx';
+import { currentMonthLocal } from '../services/dateUtils.js';
 
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const currentMonthKey = () => new Date().toISOString().slice(0, 7);
+const currentMonthKey = () => currentMonthLocal();
 
 const dayOf = (date) => {
   const day = String(date || '').slice(8, 10);

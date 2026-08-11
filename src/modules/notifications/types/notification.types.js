@@ -4,6 +4,11 @@ export const NOTIFICATION_STATUS = {
   CONFIRMED: 'confirmada',
   ERROR: 'erro',
   IGNORED: 'ignorada',
+  // Fechada sozinha porque o dado cadastrado já resolveu a pendência: o aluguel
+  // foi recebido pela tela de Recebimentos, a conta foi paga em Despesas, o
+  // contrato foi encerrado. Diferente de CONFIRMED, que é o usuário respondendo
+  // "sim, foi pago" na caixa de pendências.
+  RESOLVED: 'resolvida',
 };
 
 export const NOTIFICATION_TYPE = {
@@ -22,6 +27,10 @@ export const NOTIFICATION_EVENT = {
   SNOOZED: 'snoozed',
   IGNORED: 'ignored',
   ERROR: 'error',
+  RESOLVED: 'resolved',
+  // O texto do alerta foi reescrito a partir do dado atual (o valor ou a data
+  // mudaram depois que a notificação foi criada).
+  REFRESHED: 'refreshed',
 };
 
 export const NOTIFICATION_ENTITY = {
@@ -38,6 +47,7 @@ export const notificationStatusLabels = {
   [NOTIFICATION_STATUS.CONFIRMED]: 'Confirmada',
   [NOTIFICATION_STATUS.ERROR]: 'Erro',
   [NOTIFICATION_STATUS.IGNORED]: 'Ignorada',
+  [NOTIFICATION_STATUS.RESOLVED]: 'Resolvida',
 };
 
 export const notificationTypeLabels = {

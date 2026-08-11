@@ -5,8 +5,9 @@ import ModalShell from '../../components/ui/ModalShell.jsx';
 import { repository } from '../../repository/index.js';
 import { receivableService } from '../../modules/receivables/services/receivableService.js';
 import { ReceivePaymentDialog } from '../../modules/receivables/components/ReceivePaymentDialog.jsx';
+import { todayLocalISO } from '../../services/dateUtils.js';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayLocalISO();
 const contractLabel = (contract, kitnetById, tenantById) => {
   const kitnet = kitnetById.get(contract.kitnet_id);
   const tenant = tenantById.get(contract.tenant_id);

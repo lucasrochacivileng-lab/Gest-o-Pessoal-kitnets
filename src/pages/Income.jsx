@@ -7,14 +7,14 @@ import { receivableService } from '../modules/receivables/services/receivableSer
 import { ReceivePaymentDialog } from '../modules/receivables/components/ReceivePaymentDialog.jsx';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { financialService } from '../services/financialService';
-import { formatDateBR } from '../services/dateUtils.js';
+import { formatDateBR, todayLocalISO, currentMonthLocal } from '../services/dateUtils.js';
 import AddIncomeModal from './income/AddIncomeModal.jsx';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import StatePanel from '../components/ui/StatePanel.jsx';
 
 const money = (value) => financialService.formatCurrency(value);
-const currentMonthKey = () => new Date().toISOString().slice(0, 7);
-const today = () => new Date().toISOString().slice(0, 10);
+const currentMonthKey = () => currentMonthLocal();
+const today = () => todayLocalISO();
 
 const TYPE_LABELS = { aluguel: 'Aluguel', pericia: 'Perícia', projeto: 'Projeto', salario: 'Salário', pessoal: 'Pessoal' };
 const ENTITIES = ['Payment', 'Receivable', 'Contract', 'Kitnet', 'Tenant', 'ComplementaryProject', 'ExpertReport', 'PersonalIncome'];

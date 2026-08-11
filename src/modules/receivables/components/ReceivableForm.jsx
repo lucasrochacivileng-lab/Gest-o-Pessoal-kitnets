@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { calculateOutstandingValue } from '../services/receivableService.js';
 import { repository } from '../../../repository/index.js';
+import { todayLocalISO } from '../../../services/dateUtils.js';
 
 const initialValues = {
   contract_id: '',
@@ -9,7 +10,7 @@ const initialValues = {
   due_date: '',
   status: 'pendente',
   notes: '',
-  payment_date: new Date().toISOString().slice(0, 10),
+  payment_date: todayLocalISO(),
   payment_method: 'pix',
   destination_account: '',
   bank_account_id: '',
@@ -62,7 +63,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       due_date: receivable.due_date || '',
       status: receivable.status || 'pendente',
       notes: receivable.notes || '',
-      payment_date: new Date().toISOString().slice(0, 10),
+      payment_date: todayLocalISO(),
       paid_value: paidValue,
       fine: suggestedFine,
       net_value: Number(paidValue || 0) + suggestedFine,

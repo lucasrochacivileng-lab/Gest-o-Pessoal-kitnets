@@ -5,12 +5,13 @@ import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { financialService } from '../services/financialService';
 import { buildKitnetResults } from '../services/kitnetResultService.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
+import { currentMonthLocal } from '../services/dateUtils.js';
 
 const money = (value) => financialService.formatCurrency(value);
 const resultTone = (value) => (value < 0 ? 'text-red-600' : 'text-slate-900');
 
 export default function KitnetResult() {
-  const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
+  const [competence, setCompetence] = useState(() => currentMonthLocal());
   const [data, setData] = useState(null);
 
   const load = async () => {

@@ -3,12 +3,12 @@ import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Building2, Cl
 import { repository } from '../repository/index.js';
 import { buildStatement } from '../services/statementService.js';
 import { findAllDuplicates } from '../services/duplicateCheckService.js';
-import { formatDateBR } from '../services/dateUtils.js';
+import { formatDateBR, currentMonthLocal } from '../services/dateUtils.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import PageHeader from '../components/ui/PageHeader.jsx';
 
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const currentMonthKey = () => new Date().toISOString().slice(0, 7);
+const currentMonthKey = () => currentMonthLocal();
 
 const FILTERS = [
   { key: 'todos', label: 'Todos' },

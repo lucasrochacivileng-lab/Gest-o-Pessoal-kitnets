@@ -4,7 +4,7 @@ import { useEntitySync } from '../hooks/useEntitySync.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { financialService } from '../services/financialService';
 import { buildSegmentConsolidation } from '../services/segmentConsolidationService.js';
-import { formatDateBR } from '../services/dateUtils.js';
+import { formatDateBR, currentMonthLocal } from '../services/dateUtils.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
 
 const money = (value) => financialService.formatCurrency(value);
@@ -23,7 +23,7 @@ function ResultValue({ value }) {
 }
 
 export default function Consolidated() {
-  const [competence, setCompetence] = useState(() => new Date().toISOString().slice(0, 7));
+  const [competence, setCompetence] = useState(() => currentMonthLocal());
   const [data, setData] = useState(null);
   const [selectedSegment, setSelectedSegment] = useState('');
 
