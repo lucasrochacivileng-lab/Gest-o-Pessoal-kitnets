@@ -45,12 +45,19 @@ export function DailyInbox() {
 
       try {
         await notificationService.generateDueNotifications();
+        // loadCenterData confere as notificações gravadas contra o dado atual:
+        // o que já foi pago/recebido sai daqui como 'resolvida' e não chega a
+        // ser perguntado de novo.
         const { notifications } = await notificationService.loadCenterData();
         const current = todayString();
         const actionable = notifications.filter((notification) => (
           notification.active !== false
           && (notification.status === NOTIFICATION_STATUS.PENDING || notification.status === NOTIFICATION_STATUS.SENT)
           && String(notification.scheduled_for || current) <= current
+          // Só entra o que tem um cadastro por trás para responder "já foi
+          // pago?". Nota avulsa (sem alvo) não tem o que confirmar nem como
+          // ser adiada — ela vive na Central de notificações.
+          && Boolean(notification.entity && notification.entity_id)
         ));
 
         // Uma pergunta por alvo: descarta notificações repetidas do mesmo item.

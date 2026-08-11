@@ -89,13 +89,23 @@ const getTenantById = (tenants, tenantId) => tenants.find((tenant) => tenant.id 
 const getKitnetById = (kitnets, kitnetId) => kitnets.find((kitnet) => kitnet.id === kitnetId) || null;
 const getContractById = (contracts, contractId) => contracts.find((contract) => contract.id === contractId) || null;
 
+// Estados que ENCERRAM o assunto: uma notificação nesses estados não bloqueia
+// a criação de uma nova se a pendência voltar a existir (ex.: a conta foi
+// estornada e ficou pendente de novo).
+const CLOSED_STATUSES = [
+  NOTIFICATION_STATUS.CONFIRMED,
+  NOTIFICATION_STATUS.IGNORED,
+  NOTIFICATION_STATUS.RESOLVED,
+];
+
+const isClosed = (notification) => CLOSED_STATUSES.includes(notification.status);
+
 const findExistingNotification = (notifications, candidate) => {
   return notifications.find((notification) => (
     notification.type === candidate.type
     && notification.entity === candidate.entity
     && notification.entity_id === candidate.entity_id
-    && notification.status !== NOTIFICATION_STATUS.CONFIRMED
-    && notification.status !== NOTIFICATION_STATUS.IGNORED
+    && !isClosed(notification)
     && notification.active !== false
   ));
 };
@@ -260,12 +270,50 @@ const buildProjectPaymentCandidate = (row, entity, settings, currentDate) => {
 };
 
 const findNotificationsForTarget = async (entity, id) => {
+  // Sem alvo não há o que casar. Sem essa guarda, um item sem entity/entity_id
+  // (nota avulsa) casaria com TODAS as outras notas avulsas — adiar uma
+  // adiaria todas de uma vez.
+  if (!entity || !id) return [];
+
   const notifications = await repository.list('Notification');
   return notifications.filter((notification) => (
     notification.entity === entity
     && notification.entity_id === id
     && notification.active !== false
   ));
+};
+
+/**
+ * A chave de um alerta: o mesmo alvo + o mesmo motivo.
+ * É o que liga a notificação GRAVADA ao candidato recalculado a partir do dado
+ * de hoje.
+ */
+const candidateKey = (row) => `${row.entity}|${row.entity_id}|${row.type}`;
+
+/**
+ * Recalcula, a partir dos dados cadastrados AGORA, tudo o que merece alerta.
+ * É a única fonte da verdade: `generateDueNotifications` usa para criar, e
+ * `syncWithRegisteredData` usa para conferir o que já está gravado.
+ */
+const collectCandidates = async (settings, currentDate) => {
+  const [expenses, receivables, contracts, tenants, kitnets, projects, expertReports] = await Promise.all([
+    repository.list('Expense'),
+    repository.list('Receivable'),
+    repository.list('Contract'),
+    repository.list('Tenant'),
+    repository.list('Kitnet'),
+    repository.list('ComplementaryProject'),
+    repository.list('ExpertReport'),
+  ]);
+
+  return [
+    ...expenses.map((expense) => buildExpenseCandidate(expense, settings, currentDate)),
+    ...receivables.map((receivable) => buildReceivableCandidate(receivable, contracts, tenants, kitnets, settings, currentDate)),
+    ...contracts.map((contract) => buildContractCandidate(contract, tenants, kitnets, settings, currentDate)),
+    ...contracts.map((contract) => buildContractAdjustCandidate(contract, tenants, kitnets, settings, currentDate)),
+    ...projects.map((project) => buildProjectPaymentCandidate(project, NOTIFICATION_ENTITY.PROJECT, settings, currentDate)),
+    ...expertReports.map((report) => buildProjectPaymentCandidate(report, NOTIFICATION_ENTITY.EXPERT_REPORT, settings, currentDate)),
+  ].filter(Boolean);
 };
 
 const updateTargetAsPaid = async (entity, id) => {
@@ -306,6 +354,10 @@ export const notificationService = {
   },
 
   async loadCenterData() {
+    // Confere antes de listar: sem isso, a Central mostraria como "pendente"
+    // um aluguel que já foi recebido por outra tela.
+    await this.syncWithRegisteredData();
+
     const [notifications, events] = await Promise.all([
       repository.list('Notification'),
       repository.list('NotificationEvent'),
@@ -326,25 +378,10 @@ export const notificationService = {
 
   async generateDueNotifications(currentDate = todayString()) {
     const settings = readNotificationSettings();
-    const [expenses, receivables, contracts, tenants, kitnets, notifications, projects, expertReports] = await Promise.all([
-      repository.list('Expense'),
-      repository.list('Receivable'),
-      repository.list('Contract'),
-      repository.list('Tenant'),
-      repository.list('Kitnet'),
+    const [candidates, notifications] = await Promise.all([
+      collectCandidates(settings, currentDate),
       repository.list('Notification'),
-      repository.list('ComplementaryProject'),
-      repository.list('ExpertReport'),
     ]);
-
-    const candidates = [
-      ...expenses.map((expense) => buildExpenseCandidate(expense, settings, currentDate)),
-      ...receivables.map((receivable) => buildReceivableCandidate(receivable, contracts, tenants, kitnets, settings, currentDate)),
-      ...contracts.map((contract) => buildContractCandidate(contract, tenants, kitnets, settings, currentDate)),
-      ...contracts.map((contract) => buildContractAdjustCandidate(contract, tenants, kitnets, settings, currentDate)),
-      ...projects.map((project) => buildProjectPaymentCandidate(project, NOTIFICATION_ENTITY.PROJECT, settings, currentDate)),
-      ...expertReports.map((report) => buildProjectPaymentCandidate(report, NOTIFICATION_ENTITY.EXPERT_REPORT, settings, currentDate)),
-    ].filter(Boolean);
 
     const created = [];
     const skipped = [];
@@ -368,6 +405,78 @@ export const notificationService = {
     }
 
     return { created, skipped, totalCandidates: candidates.length };
+  },
+
+  /**
+   * Confere o que está GRAVADO contra o que os dados dizem HOJE.
+   *
+   * O alerta é uma fotografia do momento em que foi criado. Quando o aluguel é
+   * recebido pela tela de Recebimentos (ou a conta é paga em Despesas), nada
+   * voltava aqui para fechar a notificação — e ela continuava aparecendo em
+   * "Pendências de hoje" mesmo com o dado já cadastrado.
+   *
+   * Regra: um alerta gravado só continua de pé se o recálculo de hoje ainda
+   * produzir o mesmo alerta. Se não produzir, o assunto acabou (pago, recebido,
+   * contrato encerrado, item apagado) e ele é fechado como 'resolvida'. Se
+   * produzir com outro texto (valor ou data mudaram), o texto é reescrito.
+   *
+   * Notas avulsas (sem entity/entity_id) não têm dado para conferir — ficam
+   * como estão, intocadas.
+   */
+  async syncWithRegisteredData(currentDate = todayString()) {
+    const settings = readNotificationSettings();
+    const [candidates, notifications] = await Promise.all([
+      collectCandidates(settings, currentDate),
+      repository.list('Notification'),
+    ]);
+
+    const candidateByKey = new Map(candidates.map((candidate) => [candidateKey(candidate), candidate]));
+    const open = notifications.filter((notification) => (
+      notification.active !== false
+      && !isClosed(notification)
+      && notification.status !== NOTIFICATION_STATUS.ERROR
+      && notification.entity
+      && notification.entity_id
+    ));
+
+    const resolved = [];
+    const refreshed = [];
+
+    for (const notification of open) {
+      const candidate = candidateByKey.get(candidateKey(notification));
+
+      if (!candidate) {
+        const updated = await repository.update('Notification', notification.id, {
+          status: NOTIFICATION_STATUS.RESOLVED,
+          resolved_at: new Date().toISOString(),
+        });
+        await createEvent(
+          notification.id,
+          NOTIFICATION_EVENT.RESOLVED,
+          'Fechada automaticamente: o dado cadastrado já resolveu esta pendência.',
+        );
+        resolved.push(updated);
+        continue;
+      }
+
+      // Mesmo alerta, texto velho: o valor ou a data mudaram depois que a
+      // notificação foi criada (ex.: "a vencer" virou "vencido").
+      const changed = notification.title !== candidate.title
+        || notification.message !== candidate.message
+        || notification.due_date !== candidate.due_date;
+
+      if (!changed) continue;
+
+      const updated = await repository.update('Notification', notification.id, {
+        title: candidate.title,
+        message: candidate.message,
+        due_date: candidate.due_date,
+      });
+      await createEvent(notification.id, NOTIFICATION_EVENT.REFRESHED, 'Texto atualizado com o dado atual do cadastro.');
+      refreshed.push(updated);
+    }
+
+    return { resolved, refreshed };
   },
 
   // Resolve o link wa.me da notificação (telefone do locatário + mensagem).
