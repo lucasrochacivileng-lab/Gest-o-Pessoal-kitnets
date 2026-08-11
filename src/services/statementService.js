@@ -13,6 +13,15 @@ const paymentValue = financialService.netPaymentValue;
 const isConfirmed = (row) => ['pago', 'recebido'].includes(row.status);
 const inMonth = (date, monthKey) => String(date || '').startsWith(monthKey);
 
+// Dia que o extrato mostra. Muita despesa é cadastrada com `date` no dia 01 do
+// mês (a competência), enquanto o dia real do pagamento fica em `paid_at`.
+// Mostrar 01/05 para duas contas pagas em 05/05 e 31/05 faz as duas parecerem
+// o MESMO lançamento repetido. O mês continua vindo de `date` (é ele que
+// agrupa), então só troca o dia exibido — e só quando cai no mesmo mês.
+const displayDate = (row, monthKey) => (
+  inMonth(row.paid_at, monthKey) ? row.paid_at : row.date
+);
+
 const PERSONAL_TYPE_LABELS = {
   income: 'Receita pessoal',
   expense: 'Despesa pessoal',
@@ -89,7 +98,7 @@ export const buildStatement = ({
       const kitnet = kitnetById.get(row.kitnet_id);
       return {
         id: `expense-${row.id}`,
-        date: row.date,
+        date: displayDate(row, monthKey),
         kind: 'saida',
         origin: 'kitnets',
         category: row.category || 'outro',

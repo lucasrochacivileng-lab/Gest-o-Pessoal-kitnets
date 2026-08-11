@@ -21,6 +21,54 @@ describe('duplicateCheckService', () => {
     expect(groups[0].items).toHaveLength(2);
   });
 
+  // Caso real do Lucas: duas contas da Equatorial caíram em maio/2026 porque a
+  // referência 04/2026 foi paga em 05/05 e a 05/2026 em 31/05. São contas
+  // DIFERENTES, e o app avisava "duplicidade" só porque dividem o nome do
+  // fornecedor — convite a apagar uma conta legítima.
+  it('nao aponta duas contas do mesmo fornecedor pagas no mesmo mes', () => {
+    const expenses = [
+      { id: 'e1', date: '2026-05-01', paid_at: '2026-05-05', description: 'Equatorial/energia', category: 'Energia', value: 896.76, kitnet_id: 'geral', active: true },
+      { id: 'e2', date: '2026-05-01', paid_at: '2026-05-31', description: 'Equatorial/energia', category: 'Energia', value: 672.14, kitnet_id: 'geral', active: true },
+    ];
+
+    expect(findDuplicateExpenses(expenses)).toHaveLength(0);
+  });
+
+  it('nao aponta duas compras no mesmo estabelecimento dentro do mes', () => {
+    const personal = [
+      { id: 'p1', date: '2026-07-10', purchase_date: '2026-07-03', description: 'IFOOD', category: 'alimentacao', context: 'pessoal', value: 45, type: 'card_transaction', active: true },
+      { id: 'p2', date: '2026-07-10', purchase_date: '2026-07-19', description: 'IFOOD', category: 'alimentacao', context: 'pessoal', value: 87.9, type: 'card_transaction', active: true },
+    ];
+
+    expect(findDuplicatePersonalEntries(personal)).toHaveLength(0);
+  });
+
+  // A tolerância separa os dois casos: a conta repetida erra por centavos, as
+  // contas distintas erram por centenas.
+  it('ainda aponta quando o valor difere so por centavos (erro de digitacao)', () => {
+    const expenses = [
+      { id: 'e1', date: '2026-05-01', paid_at: '2026-05-05', description: 'Equatorial/energia', value: 896.76, kitnet_id: 'geral', active: true },
+      { id: 'e2', date: '2026-05-01', paid_at: '2026-05-06', description: 'Equatorial/energia', value: 896.70, kitnet_id: 'geral', active: true },
+    ];
+
+    const groups = findDuplicateExpenses(expenses);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].items).toHaveLength(2);
+  });
+
+  it('separa em grupos distintos quando o mes tem par repetido e conta avulsa', () => {
+    const expenses = [
+      { id: 'a', date: '2026-05-01', description: 'Equatorial/energia', value: 100, kitnet_id: 'geral', active: true },
+      { id: 'b', date: '2026-05-01', description: 'Equatorial/energia', value: 100.5, kitnet_id: 'geral', active: true },
+      { id: 'c', date: '2026-05-01', description: 'Equatorial/energia', value: 890, kitnet_id: 'geral', active: true },
+    ];
+
+    const groups = findDuplicateExpenses(expenses);
+    // Só o par de R$ 100 é suspeito; a de R$ 890 fica de fora.
+    expect(groups).toHaveLength(1);
+    expect(groups[0].items.map((item) => item.id).sort()).toEqual(['a', 'b']);
+  });
+
   it('detecta mesma descrição com valor digitado diferente', () => {
     const expenses = [
       { id: 'e1', date: '2026-07-10', description: 'Internet SPNET', value: 129.9, kitnet_id: 'k1', active: true },
