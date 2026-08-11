@@ -250,6 +250,18 @@ export const receivableService = {
       bankAccountId = contracts.find((contract) => contract.id === receivable.contract_id)?.bank_account_id || '';
     }
 
+    // O rótulo da conta vem SEMPRE do id resolvido acima. Antes, id e rótulo
+    // saíam de cadeias de fallback independentes: o id podia terminar na conta
+    // padrão do contrato enquanto o rótulo herdava um texto antigo do
+    // recebível. O pagamento era gravado com a conta certa no id e o nome de
+    // OUTRA conta no texto — e como a tela de Pagamentos e o recibo mostram o
+    // texto, o histórico mentia sobre onde o dinheiro caiu.
+    const resolvedAccountName = await receivableRepository.getBankAccountName(bankAccountId);
+    const destinationAccount = resolvedAccountName
+      || paymentPayload.destination_account
+      || receivable.destination_account
+      || '';
+
     const payload = {
       ...paymentPayload,
       receivable_id: receivable.id,
@@ -266,7 +278,7 @@ export const receivableService = {
       payment_date: formatDate(paymentPayload.payment_date || today()),
       payment_method: paymentPayload.payment_method || 'pix',
       bank_account_id: bankAccountId,
-      destination_account: paymentPayload.destination_account || receivable.destination_account || '',
+      destination_account: destinationAccount,
       notes: paymentPayload.notes || '',
       discount,
       interest,

@@ -196,4 +196,35 @@ describe('receivableService', () => {
 
     expect(result.payment.bank_account_id).toBe('conta-inter');
   });
+
+  it('grava o rótulo da conta pelo id resolvido, ignorando texto antigo do recebível', async () => {
+    const conta = await repository.create('BankAccount', {
+      name: 'Banco Inter - Lucas',
+      active: true,
+    });
+    const contract = await repository.create('Contract', {
+      kitnet_id: 'k-rotulo',
+      tenant_id: 't-rotulo',
+      bank_account_id: conta.id,
+      status: 'ativo',
+      active: true,
+    });
+    // O recebível carrega um rótulo velho, de quando o aluguel caía em outra
+    // conta. Ele não pode vencer o nome da conta que o id aponta.
+    const receivable = await repository.create('Receivable', {
+      contract_id: contract.id,
+      competence: '2026-09',
+      expected_value: 950,
+      due_date: '2026-09-10',
+      status: 'pendente',
+      destination_account: 'Mercado Pago',
+      paid_value: 0,
+      active: true,
+    });
+
+    const result = await receivableService.registerPayment(receivable, { paid_value: 950 });
+
+    expect(result.payment.bank_account_id).toBe(conta.id);
+    expect(result.payment.destination_account).toBe('Banco Inter - Lucas');
+  });
 });

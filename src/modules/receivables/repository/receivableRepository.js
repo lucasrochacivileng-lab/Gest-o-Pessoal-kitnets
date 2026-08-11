@@ -5,6 +5,7 @@ const PAYMENT_ENTITY = 'Payment';
 const CONTRACT_ENTITY = 'Contract';
 const KITNET_ENTITY = 'Kitnet';
 const TENANT_ENTITY = 'Tenant';
+const BANK_ACCOUNT_ENTITY = 'BankAccount';
 
 const normalize = (row = {}) => ({ ...row });
 
@@ -82,6 +83,12 @@ export const receivableRepository = {
     const [rows, contracts] = await Promise.all([this.list(), appRepository.list(CONTRACT_ENTITY)]);
     const contractIds = contracts.filter((contract) => contract.tenant_id === tenantId).map((contract) => contract.id);
     return rows.filter((row) => contractIds.includes(row.contract_id));
+  },
+
+  async getBankAccountName(bankAccountId) {
+    if (!bankAccountId) return '';
+    const accounts = await appRepository.list(BANK_ACCOUNT_ENTITY);
+    return accounts.find((account) => account.id === bankAccountId)?.name || '';
   },
 
   async getContext() {
