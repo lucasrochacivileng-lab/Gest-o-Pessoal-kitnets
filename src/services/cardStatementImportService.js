@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { applyRules } from './classificationRuleService.js';
 import { matchStatementAgainstNotifications } from './notificationPurchaseMatchService.js';
 import { clampDay } from './cardCycleService.js';
+import { parseMoneyInput } from './money.js';
 
 const DEFAULT_CATEGORY = 'outros';
 const DEFAULT_CONTEXT = 'pessoal';
@@ -64,20 +65,11 @@ const getField = (row, headers, key) => {
 // quando seguido de exatamente 3 dígitos + vírgula/fim — falhava (e
 // devolvia 0 em silêncio) para qualquer valor com dois separadores de
 // milhar, ex.: "1.234.567,89" (valores >= R$ 1 milhão).
-export const parseMoney = (value) => {
-  if (typeof value === 'number') return Math.abs(value);
-
-  const text = String(value || '').replace(/[^\d,.-]/g, '');
-  if (!text) return 0;
-
-  const lastSeparator = Math.max(text.lastIndexOf(','), text.lastIndexOf('.'));
-  const normalized = lastSeparator === -1
-    ? text
-    : `${text.slice(0, lastSeparator).replace(/[.,]/g, '')}.${text.slice(lastSeparator + 1).replace(/[.,]/g, '')}`;
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? Math.abs(parsed) : 0;
-};
+//
+// A conversão em si vive em money.js (parseMoneyInput), usada por todo o app.
+// O que é específico da FATURA é o módulo: a fatura lista o valor da compra
+// sem sinal, e o sinal do estorno vem da descrição da linha, não do número.
+export const parseMoney = (value) => Math.abs(parseMoneyInput(value));
 
 // Linhas de crédito da fatura — não são compras, mas não são a mesma coisa:
 //

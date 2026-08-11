@@ -1,11 +1,14 @@
 import receivableRepository from '../repository/receivableRepository.js';
 import { RECEIVABLE_FILTERS, RECEIVABLE_STATUS } from '../types/receivable.types.js';
-import { addMoney, fromCents, subtractMoney, toCents } from '../../../services/money.js';
+import { addMoney, fromCents, parseMoneyInput, subtractMoney, toCents } from '../../../services/money.js';
 import { todayLocalISO } from '../../../services/dateUtils.js';
 
 const formatDate = (value) => value || '';
 const today = () => todayLocalISO();
-const toMoney = (value) => Number(value || 0);
+// Valor pago, desconto, multa e juros chegam do formulário como texto. Com
+// `Number()` cru, '1.234,56' vira NaN, e o NaN atravessa Math.max e é gravado
+// como null no banco — o pagamento perde o valor sem erro nenhum.
+const toMoney = (value) => parseMoneyInput(value);
 
 export const getReceivableStatus = (receivable, currentDate = today()) => {
   if (receivable.status === RECEIVABLE_STATUS.PAID) return RECEIVABLE_STATUS.PAID;
