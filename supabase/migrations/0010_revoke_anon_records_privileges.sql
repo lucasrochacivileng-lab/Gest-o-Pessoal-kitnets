@@ -1,0 +1,17 @@
+-- Remove os privilegios residuais de `anon` sobre public.records.
+--
+-- Contexto: a migration 0005 revogou os grants de tabela de `anon` para
+-- public.profiles e public.audit_log, mas public.records ficou com os grants
+-- default do Supabase (SELECT/INSERT/UPDATE/DELETE para `anon`). O RLS ja
+-- bloqueia `anon` na pratica -- a policy records_role_access (0001) e apenas
+-- `to authenticated`, entao um visitante nao logado nao satisfaz nenhuma
+-- policy e nao le/escreve linha nenhuma. Ainda assim, os grants de tabela sao
+-- removidos como defesa em profundidade: sem eles, uma eventual desabilitacao
+-- acidental do RLS nao expoe os dados a `anon`.
+--
+-- Esta migration:
+--   * NAO altera nenhum registro (apenas privilegios de role);
+--   * NAO mexe nos privilegios de `authenticated`, `service_role` nem do owner;
+--   * NAO altera RLS, policies, funcoes ou a migration 0005;
+--   * e idempotente (REVOKE de privilegio inexistente e no-op).
+revoke all privileges on table public.records from anon;

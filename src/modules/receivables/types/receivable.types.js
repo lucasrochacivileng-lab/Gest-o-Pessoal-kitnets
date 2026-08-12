@@ -24,6 +24,4 @@ export const createReceivableDraft = (contract = {}) => ({
   active: true,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
-  created_by: 'local-user',
-  updated_by: 'local-user',
 });

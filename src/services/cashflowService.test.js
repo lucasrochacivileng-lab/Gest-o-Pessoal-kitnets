@@ -111,4 +111,16 @@ describe('buildCashflow', () => {
     expect(result.extraIn).toBe(2000);
     expect(result.finalResult).toBe(2950);
   });
+  it('soma centavos sem erro binario no caixa', () => {
+    const result = buildCashflow({
+      monthKey,
+      personal: [
+        { type: 'income', date: '2026-07-01', value: 0.1, status: 'recebido' },
+        { type: 'income', date: '2026-07-02', value: 0.2, status: 'recebido' },
+      ],
+    });
+
+    expect(result.personalIn).toBe(0.3);
+    expect(result.finalResult).toBe(0.3);
+  });
 });

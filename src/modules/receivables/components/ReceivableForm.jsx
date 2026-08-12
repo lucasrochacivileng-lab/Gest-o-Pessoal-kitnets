@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { calculateOutstandingValue } from '../services/receivableService.js';
 import { repository } from '../../../repository/index.js';
 import { todayLocalISO } from '../../../services/dateUtils.js';
+import { addMoney, subtractMoney, fromCents, toCents } from '../../../services/money.js';
 
 const initialValues = {
   contract_id: '',
@@ -21,25 +22,36 @@ const initialValues = {
   net_value: 0,
 };
 
-const calculateNetValue = (values) => {
-  const paidValue = Number(values.paid_value || 0);
-  const discount = Number(values.discount || 0);
-  const fine = Number(values.fine || 0);
-  const interest = Number(values.interest || 0);
+const createPaymentId = () => globalThis.crypto?.randomUUID?.()
+  || `payment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  return paidValue - discount + fine + interest;
+const calculateNetValue = (values) => {
+  return addMoney(subtractMoney(values.paid_value, values.discount), values.fine, values.interest);
 };
 
 export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode = 'payment', onSubmit, onCancel }) {
   const [values, setValues] = useState(initialValues);
   const [bankAccounts, setBankAccounts] = useState([]);
+  const [bankAccountsError, setBankAccountsError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [paymentId, setPaymentId] = useState(createPaymentId);
   const isPaymentMode = mode === 'payment';
 
   useEffect(() => {
-    repository.list('BankAccount').then(setBankAccounts).catch(() => setBankAccounts([]));
+    repository.list('BankAccount')
+      .then((rows) => {
+        setBankAccounts(rows);
+        setBankAccountsError('');
+      })
+      .catch(() => {
+        setBankAccounts([]);
+        setBankAccountsError('Nao foi possivel carregar as contas de destino.');
+      });
   }, []);
 
   useEffect(() => {
+    setPaymentId(createPaymentId());
     if (!receivable) {
       setValues(initialValues);
       return;
@@ -50,7 +62,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
     // Contrato prevê multa de 10% sobre o valor devido em caso de atraso — sugerida
     // automaticamente para recebíveis vencidos (o valor continua editável).
     const suggestedFine = mode === 'payment' && receivable.status === 'vencido'
-      ? Math.round(Number(paidValue || 0) * 0.10 * 100) / 100
+      ? fromCents(Math.round(toCents(paidValue) * 0.10))
       : 0;
 
     const contract = contracts.find((item) => item.id === receivable.contract_id);
@@ -66,7 +78,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       payment_date: todayLocalISO(),
       paid_value: paidValue,
       fine: suggestedFine,
-      net_value: Number(paidValue || 0) + suggestedFine,
+      net_value: addMoney(paidValue, suggestedFine),
       destination_account: receivable.destination_account || initialValues.destination_account,
       bank_account_id: receivable.bank_account_id || contract?.bank_account_id || '',
     });
@@ -104,24 +116,40 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
     }
   }, [selectedValue]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    const bankAccount = bankAccounts.find((account) => account.id === values.bank_account_id);
-    onSubmit({
-      ...values,
-      destination_account: bankAccount?.name || values.destination_account || '',
-      expected_value: Number(values.expected_value || 0),
-      paid_value: Number(values.paid_value || 0),
-      discount: Number(values.discount || 0),
-      fine: Number(values.fine || 0),
-      interest: Number(values.interest || 0),
-      net_value: Number(values.net_value || 0),
-    });
+    // O rótulo da conta NÃO é montado aqui: registerPayment resolve
+    // destination_account a partir do bank_account_id, para o texto nunca
+    // divergir do id (era o que gravava "Mercado Pago" em pagamento que caiu
+    // no Itaú).
+    setSaving(true);
+    setSubmitError('');
+    try {
+      await onSubmit({
+        ...values,
+        ...(isPaymentMode ? { payment_id: paymentId } : {}),
+        expected_value: fromCents(toCents(values.expected_value)),
+        paid_value: fromCents(toCents(values.paid_value)),
+        discount: fromCents(toCents(values.discount)),
+        fine: fromCents(toCents(values.fine)),
+        interest: fromCents(toCents(values.interest)),
+        net_value: fromCents(toCents(values.net_value)),
+      });
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Nao foi possivel concluir a operacao.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="space-y-6">
+        {submitError ? (
+          <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {submitError}
+          </div>
+        ) : null}
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Dados do aluguel</h3>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -192,6 +220,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
                 <option value="">Selecione</option>
                 {bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
               </select>
+              {bankAccountsError ? <span className="mt-1 block text-xs text-red-600">{bankAccountsError}</span> : null}
             </label>
             <label className="text-sm text-slate-600">
               Comprovante
@@ -211,8 +240,8 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       </div>
 
       <div className="mt-6 flex gap-3">
-        <button type="submit" className="rounded-[var(--radius-lg)] bg-emerald-600 px-4 py-3 text-sm font-semibold text-white">
-          {isPaymentMode ? 'Confirmar pagamento' : 'Salvar alterações'}
+        <button type="submit" disabled={saving} className="rounded-[var(--radius-lg)] bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
+          {saving ? 'Salvando...' : (isPaymentMode ? 'Confirmar pagamento' : 'Salvar alterações')}
         </button>
         <button type="button" onClick={onCancel} className="rounded-[var(--radius-lg)] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">Cancelar</button>
       </div>

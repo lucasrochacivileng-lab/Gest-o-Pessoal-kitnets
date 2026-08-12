@@ -2,8 +2,8 @@ import { financialService } from './financialService';
 import { rentPaymentsOnly } from './paymentClassifier.js';
 import { buildExtraIncomeRows } from '../modules/receivables/services/extraIncomeService.js';
 import { isPersonalExpense } from './personalMovementClassifier.js';
+import { addMoney, subtractMoney, sumMoney } from './money.js';
 
-const toMoney = (value) => Number(value || 0);
 const paymentValue = financialService.netPaymentValue;
 const isConfirmed = (row) => ['pago', 'recebido'].includes(row.status);
 const inMonth = (date, monthKey) => String(date || '').startsWith(monthKey);
@@ -20,35 +20,35 @@ const isBusinessContext = (row) => [PERSONAL_CONTEXTS.KITNETS, PERSONAL_CONTEXTS
 // Transações de cartão importadas ('card_transaction') ficam fora até serem
 // revisadas e classificadas como despesa confirmada.
 export const buildCashflow = ({ payments = [], expenses = [], personal = [], projects = [], expertReports = [], monthKey }) => {
-  const kitnetsIn = rentPaymentsOnly(payments)
+  const kitnetsIn = sumMoney(rentPaymentsOnly(payments)
     .filter((row) => inMonth(row.payment_date, monthKey))
-    .reduce((sum, row) => sum + paymentValue(row), 0);
+    .map(paymentValue));
 
-  const extraIn = buildExtraIncomeRows({ projects, expertReports, month: monthKey })
+  const extraIn = sumMoney(buildExtraIncomeRows({ projects, expertReports, month: monthKey })
     .filter((row) => row.status === 'recebido')
-    .reduce((sum, row) => sum + toMoney(row.value), 0);
+    .map((row) => row.value));
 
-  const kitnetsOut = expenses
+  const kitnetsOut = sumMoney(expenses
     .filter((row) => row.status === 'pago' && inMonth(row.date, monthKey))
-    .reduce((sum, row) => sum + toMoney(row.value), 0);
+    .map((row) => row.value));
 
-  const personalIn = personal
+  const personalIn = sumMoney(personal
     .filter((row) => row.type === 'income' && isConfirmed(row) && inMonth(row.date, monthKey))
-    .reduce((sum, row) => sum + toMoney(row.value), 0);
+    .map((row) => row.value));
 
   // Inclui compras no cartão pessoal (card_transaction) já confirmadas: a
   // própria importação de fatura diz que a parcela "fica em revisão antes de
   // contar no caixa" — depois de revisada e marcada como paga, é gasto
   // realizado. As em 'revisar'/'sugerido'/'ignorar' não são isConfirmed e
   // continuam fora (viram só o aviso pendingCardReview).
-  const personalOut = personal
+  const personalOut = sumMoney(personal
     .filter((row) => isPersonalExpense(row) && isConfirmed(row) && inMonth(row.date, monthKey))
-    .reduce((sum, row) => sum + toMoney(row.value), 0);
+    .map((row) => row.value));
 
   // Quanto das contas PESSOAIS foi investido nas kitnets/obra (acumulado, todos os meses).
-  const investedInBusiness = personal
+  const investedInBusiness = sumMoney(personal
     .filter((row) => isPersonalExpense(row) && isConfirmed(row) && isBusinessContext(row))
-    .reduce((sum, row) => sum + toMoney(row.value), 0);
+    .map((row) => row.value));
 
   const pendingCardReview = personal.filter((row) => row.type === 'card_transaction' && ['revisar', 'sugerido'].includes(row.status)).length;
 
@@ -56,11 +56,11 @@ export const buildCashflow = ({ payments = [], expenses = [], personal = [], pro
     kitnetsIn,
     extraIn,
     kitnetsOut,
-    kitnetsResult: kitnetsIn - kitnetsOut,
+    kitnetsResult: subtractMoney(kitnetsIn, kitnetsOut),
     personalIn,
     personalOut,
-    personalResult: personalIn - personalOut,
-    finalResult: kitnetsIn + extraIn - kitnetsOut + personalIn - personalOut,
+    personalResult: subtractMoney(personalIn, personalOut),
+    finalResult: subtractMoney(addMoney(kitnetsIn, extraIn, personalIn), kitnetsOut, personalOut),
     investedInBusiness,
     pendingCardReview,
   };

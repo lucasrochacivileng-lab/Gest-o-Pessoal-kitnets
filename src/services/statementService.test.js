@@ -112,4 +112,16 @@ describe('statementService', () => {
     const result = buildStatement({ expenses, monthKey: '2026-07' });
     expect(result.movements).toHaveLength(0);
   });
+  it('fecha saldo de centavos sem residuo de ponto flutuante', () => {
+    const result = buildStatement({
+      personal: [
+        { id: 'i1', date: '2026-07-01', type: 'income', status: 'recebido', value: 0.3 },
+        { id: 'e1', date: '2026-07-02', type: 'expense', status: 'pago', value: 0.1 },
+        { id: 'e2', date: '2026-07-03', type: 'expense', status: 'pago', value: 0.2 },
+      ],
+      monthKey: '2026-07',
+    });
+
+    expect(result.balance).toBe(0);
+  });
 });

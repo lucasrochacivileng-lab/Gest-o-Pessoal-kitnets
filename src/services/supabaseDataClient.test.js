@@ -6,6 +6,8 @@ const state = vi.hoisted(() => ({
   insertCalls: 0,
   failInsertAt: null,
   rpcCalls: [],
+  rpcError: null,
+  rpcData: null,
 }));
 
 vi.mock('./supabaseClient.js', () => {
@@ -42,12 +44,14 @@ vi.mock('./supabaseClient.js', () => {
       rpc: async (name, params) => {
         state.rpcCalls.push({ name, params });
         return {
-          data: {
-            payment: { ...params.p_payment_data, receipt_number: '2026-0007' },
+          data: state.rpcData || {
+            schema_version: 1,
+            payment: { ...params.p_payment_data, id: params.p_payment_id, receipt_number: '2026-0007' },
             receivable: { id: params.p_receivable_id, paid_value: 800, status: 'pago' },
             receipt_number: '2026-0007',
+            outstanding_value: 0,
           },
-          error: null,
+          error: state.rpcError,
         };
       },
     },
@@ -70,6 +74,8 @@ describe('supabaseDataClient.importBackup', () => {
     state.insertCalls = 0;
     state.failInsertAt = null;
     state.rpcCalls = [];
+    state.rpcError = null;
+    state.rpcData = null;
   });
 
   it('substitui os dados pelos do backup quando a importação dá certo', async () => {
@@ -110,5 +116,52 @@ describe('supabaseDataClient.importBackup', () => {
     expect(state.rpcCalls[0].params.p_receivable_id).toBe('recebivel-1');
     expect(result.receiptNumber).toBe('2026-0007');
     expect(result.receivable.status).toBe('pago');
+  });
+
+  it('rejeita resposta incompleta da RPC em vez de exibir falso sucesso', async () => {
+    state.rpcData = { schema_version: 1, payment: { id: 'p1' } };
+
+    await expect(supabaseDataClient.payReceivable(
+      { id: 'recebivel-1' },
+      { paid_value: 800 },
+    )).rejects.toThrow(/resposta de pagamento incompleta|nao foi confirmado/i);
+  });
+
+  it('traduz erro de pagamento acima do saldo sem expor SQL', async () => {
+    state.rpcError = { message: 'PAYMENT_EXCEEDS_OUTSTANDING', code: '22023' };
+
+    await expect(supabaseDataClient.payReceivable(
+      { id: 'recebivel-1' },
+      { paid_value: 900 },
+    )).rejects.toThrow('O valor pago nao pode ser maior que o saldo restante.');
+  });
+
+  it('informa replay idempotente retornado pelo banco', async () => {
+    state.rpcData = {
+      schema_version: 1,
+      payment: { id: 'p-retry', receipt_number: '2026-0008' },
+      receivable: { id: 'recebivel-1', paid_value: 100, status: 'parcial' },
+      receipt_number: '2026-0008',
+      outstanding_value: 700,
+      idempotent_replay: true,
+    };
+
+    const result = await supabaseDataClient.payReceivable(
+      { id: 'recebivel-1' },
+      { paid_value: 100 },
+    );
+
+    expect(result.idempotentReplay).toBe(true);
+    expect(result.receiptNumber).toBe('2026-0008');
+  });
+
+  it('reutiliza a chave de idempotencia e nao a inclui nos dados editaveis', async () => {
+    await supabaseDataClient.payReceivable(
+      { id: 'recebivel-1' },
+      { payment_id: 'retry-estavel-1', paid_value: 100 },
+    );
+
+    expect(state.rpcCalls[0].params.p_payment_id).toBe('retry-estavel-1');
+    expect(state.rpcCalls[0].params.p_payment_data.payment_id).toBeUndefined();
   });
 });

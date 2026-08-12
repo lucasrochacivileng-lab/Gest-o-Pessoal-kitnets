@@ -22,6 +22,43 @@ const throwIfError = (error, context) => {
   }
 };
 
+const PAYMENT_ERROR_MESSAGES = {
+  PAYMENT_AUTH_REQUIRED: 'Sua sessao expirou. Entre novamente para registrar o pagamento.',
+  PAYMENT_INVALID_PAYLOAD: 'Os dados do pagamento estao incompletos.',
+  PAYMENT_INVALID_AMOUNT: 'Informe valores monetarios validos.',
+  PAYMENT_NEGATIVE_AMOUNT: 'Pagamento, desconto, multa e juros nao podem ser negativos.',
+  PAYMENT_INVALID_RECEIVABLE_BALANCE: 'O recebivel possui um saldo inconsistente e precisa ser revisado.',
+  PAYMENT_EXCEEDS_OUTSTANDING: 'O valor pago nao pode ser maior que o saldo restante.',
+  PAYMENT_INVALID_DATE: 'Informe uma data de pagamento valida.',
+  PAYMENT_RECEIVABLE_NOT_FOUND: 'O recebivel nao existe, esta inativo ou voce nao tem permissao para acessa-lo.',
+  PAYMENT_IDEMPOTENCY_CONFLICT: 'Este identificador de pagamento ja foi usado com dados diferentes. Atualize a tela e confira o historico.',
+  PAYMENT_NEGATIVE_NET_VALUE: 'O desconto nao pode tornar o valor liquido do pagamento negativo.',
+};
+
+export const validatePaymentRpcResponse = (value) => {
+  if (!value || typeof value !== 'object' || value.schema_version !== 1) {
+    throw new Error('O banco retornou uma resposta de pagamento incompleta. Atualize a tela e confira o historico.');
+  }
+  if (!value.payment?.id || !value.receivable?.id || !value.receipt_number) {
+    throw new Error('O pagamento nao foi confirmado de forma verificavel. Atualize a tela e confira o historico.');
+  }
+  if (value.payment.receipt_number !== value.receipt_number) {
+    throw new Error('O recibo retornado pelo banco esta inconsistente. Atualize a tela e confira o historico.');
+  }
+  return value;
+};
+
+const throwPaymentError = (error) => {
+  if (!error) return;
+  const message = PAYMENT_ERROR_MESSAGES[error.message]
+    || (/fetch|network/i.test(error.message || '')
+      ? 'Nao foi possivel conectar ao banco. Nenhum pagamento foi confirmado.'
+      : 'Nao foi possivel registrar o pagamento. Nenhuma confirmacao foi exibida.');
+  const safeError = new Error(message);
+  safeError.code = error.message || error.code || 'PAYMENT_UNKNOWN_ERROR';
+  throw safeError;
+};
+
 const validateDb = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Backup inválido: o conteúdo precisa ser um objeto.');
@@ -98,18 +135,22 @@ export const supabaseDataClient = {
   },
 
   async payReceivable(receivable, paymentPayload) {
-    const paymentId = createId();
+    const paymentId = paymentPayload.payment_id || createId();
+    const { payment_id: _paymentId, ...editablePaymentData } = paymentPayload;
     const { data, error } = await supabase.rpc('register_receivable_payment', {
       p_receivable_id: String(receivable.id),
       p_payment_id: String(paymentId),
-      p_payment_data: { id: paymentId, active: true, ...paymentPayload },
+      p_payment_data: editablePaymentData,
     });
 
-    throwIfError(error, 'Falha ao registrar pagamento');
+    throwPaymentError(error);
+    const result = validatePaymentRpcResponse(data);
     return {
-      payment: data.payment,
-      receivable: data.receivable,
-      receiptNumber: data.receipt_number,
+      payment: result.payment,
+      receivable: result.receivable,
+      receiptNumber: result.receipt_number,
+      outstandingValue: result.outstanding_value,
+      idempotentReplay: result.idempotent_replay === true,
     };
   },
 
