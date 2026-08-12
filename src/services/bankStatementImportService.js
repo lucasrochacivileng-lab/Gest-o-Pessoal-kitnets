@@ -75,7 +75,27 @@ export const excludeReversedPix = (rows) => {
 // Pagamento de fatura já tem fluxo próprio em Despesas > Pagamento de fatura
 // (cria o tipo certo de registro pra abater o saldo do cartão) — importar
 // aqui criaria um "expense" genérico e a fatura pareceria paga duas vezes.
+//
+// "Pagamento de fatura" é como o Nubank descreve a fatura DELE. A fatura dos
+// outros cartões sai como Pix ou boleto para o EMISSOR, com nomes que não
+// lembram o cartão: o Bradescard/Amazon cobra como "BANCO IBI S A" e o
+// Santander recebe como "BANCO SANTANDER (BRASIL) S.A.".
 const SKIP_PATTERNS = [/pagamento de fatura/i];
+
+// Emissores de cartão. Quando a CONTRAPARTE do lançamento é o próprio emissor,
+// aquilo é quitação de fatura, não uma despesa nova.
+//
+// Casar pela contraparte, e não pela descrição inteira, é essencial: o nome do
+// banco aparece no fim de TODO Pix indicando a instituição de destino, então
+// um Pix de R$ 50 para uma pessoa que banca no Santander também traz
+// "BCO SANTANDER (BRASIL) S.A. (0033)" na descrição. Pela contraparte, só
+// casa quando o dinheiro foi mesmo PARA o banco.
+const CARD_ISSUER_PATTERNS = [
+  /banco\s+ibi\b/i,
+  /bradescard/i,
+  /banco\s+santander/i,
+  /ita[uú]\s+unibanco\s+holding/i,
+];
 
 // Aplicação/Resgate RDB é dinheiro indo pra uma caixinha ou voltando dela —
 // o extrato da CONTA não diz PRA QUAL caixinha, então isso vira uma
@@ -93,10 +113,20 @@ const extractCounterparty = (descricao) => {
   return (first || '').trim();
 };
 
+/** A contraparte do lançamento é uma emissora de cartão? */
+export const isCardIssuerPayment = (descricao = '') => {
+  const counterparty = extractCounterparty(String(descricao));
+  if (!counterparty) return false;
+  return CARD_ISSUER_PATTERNS.some((pattern) => pattern.test(counterparty));
+};
+
 // Classifica 1 linha do extrato. Devolve null pras linhas que devem ser
 // ignoradas (fatura de cartão, que já tem fluxo próprio).
 export const classifyStatementRow = (row) => {
   if (SKIP_PATTERNS.some((pattern) => pattern.test(row.descricao))) return null;
+  // Só saída: crédito vindo de um banco emissor é estorno/cashback, que é
+  // dinheiro de verdade entrando e precisa ser classificado normalmente.
+  if (row.value < 0 && isCardIssuerPayment(row.descricao)) return null;
 
   const direction = row.value > 0 ? 'in' : 'out';
 

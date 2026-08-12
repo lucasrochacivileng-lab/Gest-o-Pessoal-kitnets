@@ -84,6 +84,52 @@ describe('classifyStatementRow', () => {
   it('ignora Pagamento de fatura (já tem fluxo próprio em Despesas)', () => {
     expect(classifyStatementRow({ value: -5581.44, descricao: 'Pagamento de fatura' })).toBeNull();
   });
+
+  // "Pagamento de fatura" é só como o Nubank descreve a fatura DELE. A dos
+  // outros cartões sai como Pix/boleto para o emissor, e passava batido: virava
+  // despesa comum, dobrando compras que a importação da fatura já tinha
+  // lançado. Descrições reais do extrato de 10/08/2026.
+  it('ignora a fatura de cartão de OUTROS emissores (Santander via Pix, Bradescard via boleto)', () => {
+    expect(classifyStatementRow({
+      value: -3019.38,
+      descricao: 'Transferência enviada pelo Pix - BANCO SANTANDER (BRASIL) S.A. - 90.400.888/0001-42 - BCO SANTANDER (BRASIL) S.A. (0033) Agência: 2271 Conta: 71001206-9',
+    })).toBeNull();
+
+    expect(classifyStatementRow({
+      value: -765.61,
+      descricao: 'Pagamento de boleto efetuado - BANCO IBI S A',
+    })).toBeNull();
+
+    expect(classifyStatementRow({
+      value: -43.81,
+      descricao: 'Pagamento de boleto efetuado - ITAU UNIBANCO HOLDING S.A.',
+    })).toBeNull();
+  });
+
+  // O nome do banco aparece no fim de TODO Pix, indicando a instituição de
+  // DESTINO. Se o filtro olhasse a descrição inteira, qualquer pagamento a
+  // quem banca no Santander sumiria do extrato.
+  it('NÃO ignora Pix para pessoa física que banca num desses bancos', () => {
+    const row = classifyStatementRow({
+      value: -17.92,
+      descricao: 'Transferência enviada pelo Pix - STEFANY SOARES VIEIRA - •••.537.021-•• - BCO SANTANDER (BRASIL) S.A. (0033) Agência: 972 Conta: 1002183-1',
+    });
+
+    expect(row).not.toBeNull();
+    expect(row.merchant).toBe('STEFANY SOARES VIEIRA');
+    expect(row.amount).toBe(17.92);
+  });
+
+  it('NÃO ignora crédito vindo de um emissor (estorno/cashback é dinheiro entrando)', () => {
+    const row = classifyStatementRow({
+      value: 150.00,
+      descricao: 'Transferência recebida pelo Pix - BANCO SANTANDER (BRASIL) S.A. - 90.400.888/0001-42 - BCO SANTANDER (BRASIL) S.A. (0033) Agência: 2271 Conta: 71001206-9',
+    });
+
+    expect(row).not.toBeNull();
+    expect(row.direction).toBe('in');
+    expect(row.amount).toBe(150);
+  });
 });
 
 describe('buildStatementImportPlan', () => {
