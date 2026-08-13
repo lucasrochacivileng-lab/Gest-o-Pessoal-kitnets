@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Building2, Clock, Search, User } from 'lucide-react';
 import { repository } from '../repository/index.js';
 import { buildStatement } from '../services/statementService.js';
@@ -83,8 +84,16 @@ function MovementRow({ movement }) {
   );
 }
 
+const MONTH_PARAM = /^\d{4}-\d{2}$/;
+
 export default function Statement() {
-  const [month, setMonth] = useState(currentMonthKey);
+  const [searchParams] = useSearchParams();
+  // `?mes=YYYY-MM` abre o extrato já no mês pedido — é assim que o clique numa
+  // barra do dashboard cai no mês certo em vez de sempre no mês atual.
+  const [month, setMonth] = useState(() => {
+    const requested = searchParams.get('mes') || '';
+    return MONTH_PARAM.test(requested) ? requested : currentMonthKey();
+  });
   const [filter, setFilter] = useState('todos');
   const [search, setSearch] = useState('');
   const [data, setData] = useState(null);

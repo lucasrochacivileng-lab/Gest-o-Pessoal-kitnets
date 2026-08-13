@@ -427,7 +427,13 @@ function SegmentFilter({ segments, selected, onSelect }) {
 export default function Expenses() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { id } = useParams();
-  const [competence, setCompetence] = useState(() => currentMonthLocal());
+  // `?mes=YYYY-MM` e `?tag=<categoria>` deixam a tela ser aberta já filtrada —
+  // é o que faz o clique numa barra do gráfico do dashboard cair exatamente
+  // nos gastos daquela categoria, naquele mês.
+  const [competence, setCompetence] = useState(() => {
+    const requested = searchParams.get('mes') || '';
+    return /^\d{4}-\d{2}$/.test(requested) ? requested : currentMonthLocal();
+  });
   const [message, setMessage] = useState('');
   const [generating, setGenerating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -437,7 +443,7 @@ export default function Expenses() {
   const [selectedCard, setSelectedCard] = useState('');
   const [selectedInvoiceView, setSelectedInvoiceView] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('tag') || '');
   const [selectedSegment, setSelectedSegment] = useState('');
 
   useEffect(() => {
@@ -557,17 +563,23 @@ export default function Expenses() {
 
   // Trocou de mês e a categoria filtrada não existe mais nele: limpa, para não
   // deixar a lista presa num filtro que resultaria sempre vazio.
+  // O `expenseRows.length` é o que impede limpar cedo demais: as despesas
+  // chegam depois da primeira renderização, e sem essa guarda um filtro vindo
+  // da URL (?tag=energia, o clique no gráfico do dashboard) era apagado no
+  // instante em que a tela abria, antes de existir dado para conferir.
   useEffect(() => {
+    if (!expenseRows.length) return;
     if (selectedCategory && !categorySummary.some((item) => item.category === selectedCategory)) {
       setSelectedCategory('');
     }
-  }, [categorySummary, selectedCategory]);
+  }, [categorySummary, selectedCategory, expenseRows.length]);
 
   useEffect(() => {
+    if (!expenseRows.length) return;
     if (selectedSegment && !segmentSummary.some((item) => item.segment === selectedSegment)) {
       setSelectedSegment('');
     }
-  }, [segmentSummary, selectedSegment]);
+  }, [segmentSummary, selectedSegment, expenseRows.length]);
 
   const handleGenerate = async () => {
     setGenerating(true);

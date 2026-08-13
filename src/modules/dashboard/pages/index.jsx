@@ -73,6 +73,11 @@ export default function Dashboard() {
 				</div>
 			</div>
 
+			{/* Fora do bloco de gráficos de propósito: no celular os gráficos ficam
+			    atrás de um toque, e "quem já me pagou este mês" é justamente o que
+			    não pode ficar escondido. */}
+			<OccupancyChart units={data.unitStatus} occupied={data.occupied} vacant={data.vacant} totalKitnets={data.totalKitnets} />
+
 			<button
 				type="button"
 				onClick={() => setShowCharts((state) => !state)}
@@ -86,8 +91,7 @@ export default function Dashboard() {
 				<div className="grid gap-6 lg:grid-cols-2">
 					<RevenueChart data={data.monthlyData} />
 					<ProfitChart data={data.monthlyData} />
-					<ExpenseChart data={data.categoryData} />
-					<OccupancyChart occupied={data.occupied} vacant={data.vacant} totalKitnets={data.totalKitnets} />
+					<ExpenseChart data={data.categoryData} month={data.currentMonth} />
 				</div>
 			) : null}
 		</div>

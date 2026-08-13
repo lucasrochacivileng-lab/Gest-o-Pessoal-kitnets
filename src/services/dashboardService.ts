@@ -125,6 +125,9 @@ export const dashboardService = {
 
       monthlyData.push({
         month: MONTH_NAMES[date.getMonth()],
+        // Mês no formato 'YYYY-MM': é o que permite clicar na barra e cair no
+        // extrato DAQUELE mês. Sem ele, o rótulo ("Jan") não diz o ano.
+        monthKey: key,
         receitas: receipts + extraReceipts,
         despesas: expensesValue,
         lucro: receipts + extraReceipts - expensesValue,
@@ -144,8 +147,12 @@ export const dashboardService = {
 
     // Rótulos vêm do categoryReportService (fonte única), senão categorias
     // novas como "energia_solar"/"moveis" apareciam com o código cru no gráfico.
+    // `category` guarda a chave crua junto com o rótulo: o gráfico mostra
+    // "Energia" mas precisa de "energia" para abrir a tela de Despesas já
+    // filtrada nessa tag.
     const categoryData = Object.entries(catMap).map(([key, value]) => ({
       name: categoryLabel(key),
+      category: key,
       value,
     }));
 
@@ -160,6 +167,30 @@ export const dashboardService = {
       occupied,
       vacant,
       totalKitnets: kitnets.length,
+      // Mês que os cartões e o gráfico de categorias representam — vai junto no
+      // link para a tela de destino abrir no mesmo mês que está sendo olhado.
+      currentMonth,
+      // Como está o aluguel de CADA unidade neste mês. Substitui o donut de
+      // "ocupadas x vagas", que só repetia os cartões de cima. A pergunta real
+      // do dia a dia é "quem já me pagou?", e a resposta aqui é por unidade,
+      // clicável, e cobre também as vagas (que não têm aluguel a receber).
+      unitStatus: kitnets
+        .map((kitnet) => {
+          const receivable = currentMonthReceivables.find((row) => row.kitnet_id === kitnet.id);
+          const rentStatus = receivable ? getReceivableStatus(receivable, today) : '';
+
+          return {
+            id: kitnet.id,
+            name: kitnet.name,
+            occupancy: kitnet.status,
+            // '' quando a unidade está vaga ou sem recebível gerado no mês.
+            rentStatus,
+            outstanding: receivable ? outstandingValue(receivable) : 0,
+            dueDate: receivable?.due_date || '',
+            receivableId: receivable?.id || '',
+          };
+        })
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR', { numeric: true })),
       expiringContracts: expiringContracts.length,
       monthlyData,
       categoryData,
