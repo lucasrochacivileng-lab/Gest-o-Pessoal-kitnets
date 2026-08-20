@@ -1,0 +1,53 @@
+name: Supabase Database Checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/supabase-database.yml'
+  push:
+    branches:
+      - main
+      - 'codex/**'
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/supabase-database.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.115.0
+
+      - name: Start local database
+        run: supabase db start
+
+      - name: Rebuild from migrations and seed
+        run: supabase db reset --local
+
+      - name: Verify reproducible baseline
+        run: supabase db query --local --file supabase/tests/reproducible_baseline.sql
+
+      - name: Verify authenticated financial core
+        run: supabase db query --local --file supabase/tests/financial_core_authenticated.sql
+
+      - name: Verify anonymous privileges
+        run: supabase db query --local --file supabase/tests/0015_anon_records_privileges.sql
+
+      - name: Lint public schema
+        run: supabase db lint --local --schema public --fail-on error
+
+      - name: Run security and performance advisors
+        run: supabase db advisors --local --type all --level error --fail-on error
