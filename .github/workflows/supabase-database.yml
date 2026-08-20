@@ -37,24 +37,8 @@ jobs:
       - name: Rebuild from migrations and seed
         run: supabase db reset --local
 
-      - name: Verify reproducible baseline
-        shell: bash
-        run: |
-          set +e
-          output="$(supabase db query --local --file supabase/tests/reproducible_baseline.sql 2>&1)"
-          status=$?
-          printf '%s\n' "$output"
-          if [ "$status" -ne 0 ]; then
-            encoded="$(printf '%s' "$output" | base64 -w 0)"
-            echo "::error title=Supabase baseline query failed::base64:$encoded"
-            exit "$status"
-          fi
-
-      - name: Verify authenticated financial core
-        run: supabase db query --local --file supabase/tests/financial_core_authenticated.sql
-
-      - name: Verify anonymous privileges
-        run: supabase db query --local --file supabase/tests/0015_anon_records_privileges.sql
+      - name: Run database regression suite
+        run: supabase test db supabase/tests/database.test.sql --local
 
       - name: Lint public schema
         run: supabase db lint --local --schema public --fail-on error
