@@ -31,8 +31,10 @@ no repositório:
 
 `realtime` e `security_hardening` haviam sido aplicadas pelo SQL Editor, sem
 entrada em `supabase_migrations.schema_migrations`; receberam versões locais
-imediatamente posteriores a `records`. As migrations de 19/08 são idempotentes
-e registram no histórico os grants que já eram necessários em produção.
+imediatamente posteriores a `records`. As migrations de permissões usam as
+versões efetivamente registradas em produção: `20260812132029` para a
+revogação de `anon` em `records` e `20260820112443` para a reconciliação dos
+grants da Data API.
 
 ## Reconstrução local
 
