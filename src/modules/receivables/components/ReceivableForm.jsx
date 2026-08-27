@@ -4,6 +4,8 @@ import { repository } from '../../../repository/index.js';
 import { todayLocalISO } from '../../../services/dateUtils.js';
 import { addMoney, subtractMoney, fromCents, toCents } from '../../../services/money.js';
 
+const formatCurrency = (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 const initialValues = {
   contract_id: '',
   competence: '',
@@ -25,6 +27,15 @@ const initialValues = {
 const createPaymentId = () => globalThis.crypto?.randomUUID?.()
   || `payment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+// Dias entre o vencimento e hoje, para a oferta de multa dizer o tamanho do
+// atraso em vez de só afirmar que existe um.
+const daysBetweenDueAndToday = (dueDate) => {
+  const due = Date.parse(`${dueDate}T00:00:00`);
+  const today = Date.parse(`${todayLocalISO()}T00:00:00`);
+  if (!Number.isFinite(due) || !Number.isFinite(today)) return 0;
+  return Math.max(0, Math.round((today - due) / 86400000));
+};
+
 const calculateNetValue = (values) => {
   return addMoney(subtractMoney(values.paid_value, values.discount), values.fine, values.interest);
 };
@@ -36,6 +47,10 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
   const [submitError, setSubmitError] = useState('');
   const [saving, setSaving] = useState(false);
   const [paymentId, setPaymentId] = useState(createPaymentId);
+  // Multa que o contrato permitiria cobrar e quantos dias o pagamento
+  // atrasou — só para OFERECER a cobrança; nada disso entra no total
+  // enquanto a caixinha não for marcada.
+  const [fineOffer, setFineOffer] = useState({ value: 0, daysLate: 0 });
   const isPaymentMode = mode === 'payment';
 
   useEffect(() => {
@@ -59,11 +74,16 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
 
     const outstandingValue = calculateOutstandingValue(receivable);
     const paidValue = outstandingValue || receivable.expected_value || '';
-    // Contrato prevê multa de 10% sobre o valor devido em caso de atraso — sugerida
-    // automaticamente para recebíveis vencidos (o valor continua editável).
+    // A multa de 10% do contrato fica OFERECIDA, nunca aplicada sozinha.
+    // Antes ela era somada ao total automaticamente sempre que o recebível
+    // estava vencido: quem confirmasse o pagamento sem reparar no campo
+    // gravava um valor que o inquilino nunca pagou (um aluguel de R$ 1.100
+    // entrava como R$ 1.210) e o caixa nunca fechava com o extrato do banco.
+    // Agora ela só entra quando o botão de multa é marcado.
     const suggestedFine = mode === 'payment' && receivable.status === 'vencido'
       ? fromCents(Math.round(toCents(paidValue) * 0.10))
       : 0;
+    setFineOffer({ value: suggestedFine, daysLate: daysBetweenDueAndToday(receivable.due_date) });
 
     const contract = contracts.find((item) => item.id === receivable.contract_id);
 
@@ -77,8 +97,8 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       notes: receivable.notes || '',
       payment_date: todayLocalISO(),
       paid_value: paidValue,
-      fine: suggestedFine,
-      net_value: addMoney(paidValue, suggestedFine),
+      fine: 0,
+      net_value: paidValue,
       destination_account: receivable.destination_account || initialValues.destination_account,
       bank_account_id: receivable.bank_account_id || contract?.bank_account_id || '',
     });
@@ -93,6 +113,15 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
       return;
     }
   }, [receivable]);
+
+  // A caixinha preenche o valor sozinha — o usuário não precisa digitar nada,
+  // e desmarcar devolve o total ao valor do aluguel.
+  const applyFine = (checked) => {
+    setValues((current) => {
+      const next = { ...current, fine: checked ? fineOffer.value : 0 };
+      return { ...next, net_value: calculateNetValue(next) };
+    });
+  };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -195,8 +224,30 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
               <input name="discount" type="number" value={values.discount} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
-              Multa (10% sugerida em atrasos)
-              <input name="fine" type="number" value={values.fine} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
+              Multa por atraso
+              {fineOffer.value > 0 ? (
+                <span className="mt-2 flex items-start gap-2 rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 p-3">
+                  <input
+                    type="checkbox"
+                    checked={Number(values.fine) > 0}
+                    onChange={(event) => applyFine(event.target.checked)}
+                    className="mt-0.5 h-5 w-5 flex-shrink-0 accent-amber-600"
+                  />
+                  <span className="text-sm text-amber-900">
+                    <span className="block font-medium">
+                      Cobrar multa de 10% — {formatCurrency(fineOffer.value)}
+                    </span>
+                    <span className="block text-xs">
+                      {fineOffer.daysLate > 0
+                        ? `Pagamento com ${fineOffer.daysLate} dia(s) de atraso.`
+                        : 'Recebível vencido.'}
+                      {' '}Só entra no total se você marcar.
+                    </span>
+                  </span>
+                </span>
+              ) : (
+                <input name="fine" type="number" value={values.fine} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
+              )}
             </label>
             <label className="text-sm text-slate-600">
               Juros
