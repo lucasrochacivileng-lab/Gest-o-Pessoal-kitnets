@@ -34,13 +34,15 @@ describe('cardStatementImportService', () => {
     ]);
   });
 
-  it('normaliza cartao adicional para o titular (Santander 7535 -> 7909)', () => {
+  it('unifica titular e adicional do Santander num cartao so', () => {
     const rows = parseStatementRows([
       { Data: '10/07/2026', Descricao: 'CLARO FLEX', Valor: '39,99', Cartao: 'Santander 7535' },
       { Data: '10/07/2026', Descricao: 'Compra qualquer', Valor: '100,00', Cartao: 'Santander 7909' },
     ]);
 
-    expect(rows.map((row) => row.card_name)).toEqual(['Santander 7909', 'Santander 7909']);
+    // As duas variantes caem no nome cadastrado no app, senao o titular
+    // entraria como um terceiro cartao e dividiria a fatura de novo.
+    expect(rows.map((row) => row.card_name)).toEqual(['Santander 7535/7909', 'Santander 7535/7909']);
   });
 
   it('interpreta CSV do Nubank e ignora pagamentos recebidos', () => {
@@ -444,6 +446,10 @@ describe('cardStatementImportService', () => {
     expect(classifyTransaction('NuTag*QQP8C28')).toEqual({ category: 'transporte', context: 'pessoal' });
     expect(classifyTransaction('Casa das Tintas')).toEqual({ category: 'material de construcao', context: 'obra' });
     expect(classifyTransaction('Ki Kitandas')).toEqual({ category: 'mercado', context: 'pessoal' });
+    expect(classifyTransaction('Pao de Acucar-2379')).toEqual({ category: 'mercado', context: 'pessoal' });
+    // Marketplace nao pode virar supermercado so porque contem "mercado".
+    expect(classifyTransaction('Mercadolivre*Mercadol')).toEqual({ category: 'outros', context: 'pessoal' });
+    expect(classifyTransaction('Mercado Livre - Parcela 4/5')).toEqual({ category: 'outros', context: 'pessoal' });
     expect(classifyTransaction('Marcaobarbearia')).toEqual({ category: 'lazer', context: 'pessoal' });
     expect(classifyTransaction('Fotus Energia Solar')).toEqual({ category: 'investimento kitnets', context: 'obra' });
 

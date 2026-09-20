@@ -12,7 +12,12 @@ const CATEGORY_RULES = [
   { category: 'transporte', context: 'pessoal', patterns: ['nutag', 'pedagio', 'sem parar', 'conectcar', 'estacionamento'] },
   { category: 'investimento kitnets', context: 'obra', patterns: ['ar condicionado', 'ar-condicionado', 'split', 'fotovoltaico', 'solar', 'soollar', 'fotus', 'kitnet', 'kit 08', 'kit08'] },
   { category: 'material de construcao', context: 'obra', patterns: ['material', 'construcao', 'cimento', 'telha', 'hidraul', 'eletric', 'leroy', 'casa construtor', 'ferragista', 'ferragens', 'casa das tintas', 'mundo das utilidad', 'telascup', 'irmaossoares', 'cioneyrodriguesfe'] },
-  { category: 'mercado', context: 'pessoal', patterns: ['supermercado', 'mercado', 'atacadao', 'assai', 'carrefour', 'extra', 'kitandas', 'tatico', 'primavera supermercado', 'supermercado reis'] },
+  // Marketplace NÃO é mercado de comida, e precisa vir ANTES da regra de
+  // 'mercado': o padrão solto "mercado" casa com "Mercadolivre" e fazia toda
+  // compra de marketplace virar supermercado. Cai em 'outros' porque ali se
+  // compra qualquer coisa — o usuário reclassifica na revisão.
+  { category: 'outros', context: 'pessoal', patterns: ['mercadolivre', 'mercado livre'] },
+  { category: 'mercado', context: 'pessoal', patterns: ['supermercado', 'mercado', 'atacadao', 'assai', 'carrefour', 'extra', 'kitandas', 'tatico', 'primavera supermercado', 'supermercado reis', 'pao de acucar'] },
   { category: 'alimentacao', context: 'pessoal', patterns: ['ifood', 'restaurante', 'lanche', 'lanchon', 'pizz', 'burger', 'padaria', 'panificadora', 'acai'] },
   { category: 'farmacia', context: 'pessoal', patterns: ['farmacia', 'drogaria', 'raia', 'drogasil', 'medic'] },
   { category: 'lazer', context: 'pessoal', patterns: ['barbearia', 'nuuvem', 'youtube member'] },
@@ -44,7 +49,12 @@ const normalize = (value) => String(value || '')
 // adicional (como vem no extrato) para o nome do titular. Chave sempre em
 // min\u00fasculas/sem acento (comparada via normalize).
 const CARD_NAME_ALIASES = {
-  'santander 7535': 'Santander 7909',
+  // Titular (7909) e adicional (7535) dividem UMA fatura, e no app o cartão é
+  // um só, cadastrado como "Santander 7535/7909". As duas variantes precisam
+  // apontar para esse nome: mapear só o adicional deixaria o titular entrar
+  // como um terceiro cartão e dividir a fatura de novo.
+  'santander 7535': 'Santander 7535/7909',
+  'santander 7909': 'Santander 7535/7909',
 };
 
 export const normalizeCardName = (value) => {
