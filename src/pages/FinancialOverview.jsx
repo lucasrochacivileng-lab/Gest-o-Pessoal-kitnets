@@ -75,7 +75,14 @@ export default function FinancialOverview() {
       // antigo só via 'vencido'/'pendente' e subestimava os atrasos.
       const overdueReceivables = receivables.filter((item) => getReceivableStatus(item, today) === RECEIVABLE_STATUS.OVERDUE);
       const upcomingReceivables = receivables.filter((item) => getReceivableStatus(item, today) === RECEIVABLE_STATUS.PENDING && item.due_date && item.due_date >= today);
-      const pendingValue = receivables.filter((item) => ['pendente', 'vencido', 'parcial'].includes(item.status)).reduce((sum, item) => sum + outstandingValue(item), 0);
+      // Mesmo motivo do filtro acima: a lista manual de status deixava de fora
+      // qualquer recebível cujo status gravado não fosse do vocabulário oficial
+      // (dados antigos trazem 'previsto'/'não alugada'), escondendo o valor em
+      // aberto desses meses. getReceivableStatus normaliza qualquer valor, então
+      // "tudo que não está pago" é o recorte correto.
+      const pendingValue = receivables
+        .filter((item) => getReceivableStatus(item, today) !== RECEIVABLE_STATUS.PAID)
+        .reduce((sum, item) => sum + outstandingValue(item), 0);
       const overdueValue = overdueReceivables.reduce((sum, item) => sum + outstandingValue(item), 0);
 
       const months = [];
