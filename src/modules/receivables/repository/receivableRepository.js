@@ -1,4 +1,5 @@
 import { repository as appRepository } from '../../../repository/index.js';
+import { RECEIVABLE_STATUS } from '../types/receivable.types.js';
 
 const ENTITY = 'Receivable';
 const PAYMENT_ENTITY = 'Payment';
@@ -8,6 +9,24 @@ const TENANT_ENTITY = 'Tenant';
 const BANK_ACCOUNT_ENTITY = 'BankAccount';
 
 const normalize = (row = {}) => ({ ...row });
+
+const VALID_STATUS = Object.values(RECEIVABLE_STATUS);
+
+// Guarda de escrita. O `status` é gravado dentro de um jsonb livre, sem
+// constraint no banco, então qualquer string entrava: foi assim que 'previsto'
+// (vocabulário de PersonalIncome) e 'não alugada' contaminaram 27% dos
+// registros. Como getReceivableStatus normaliza valores desconhecidos para
+// "pendente", o erro ficava invisível na tela e só aparecia nos totais que
+// filtram pelo campo cru. Falhar aqui é a única forma de não recair.
+const assertValidStatus = (payload = {}) => {
+  if (payload.status === undefined || payload.status === null) return payload;
+  if (!VALID_STATUS.includes(payload.status)) {
+    throw new Error(
+      `Status de recebível inválido: "${payload.status}". Valores aceitos: ${VALID_STATUS.join(', ')}.`,
+    );
+  }
+  return payload;
+};
 
 export const receivableRepository = {
   async list() {
@@ -21,11 +40,11 @@ export const receivableRepository = {
   },
 
   async create(payload) {
-    return appRepository.create(ENTITY, payload);
+    return appRepository.create(ENTITY, assertValidStatus(payload));
   },
 
   async update(id, payload) {
-    return appRepository.update(ENTITY, id, payload);
+    return appRepository.update(ENTITY, id, assertValidStatus(payload));
   },
 
   async softDelete(id) {

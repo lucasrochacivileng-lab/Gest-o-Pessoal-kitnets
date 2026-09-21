@@ -81,7 +81,10 @@ export default function FinancialOverview() {
       // aberto desses meses. getReceivableStatus normaliza qualquer valor, então
       // "tudo que não está pago" é o recorte correto.
       const pendingValue = receivables
-        .filter((item) => getReceivableStatus(item, today) !== RECEIVABLE_STATUS.PAID)
+        .filter((item) => {
+          const status = getReceivableStatus(item, today);
+          return status !== RECEIVABLE_STATUS.PAID && status !== RECEIVABLE_STATUS.CANCELLED;
+        })
         .reduce((sum, item) => sum + outstandingValue(item), 0);
       const overdueValue = overdueReceivables.reduce((sum, item) => sum + outstandingValue(item), 0);
 

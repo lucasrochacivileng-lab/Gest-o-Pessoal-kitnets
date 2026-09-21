@@ -59,7 +59,12 @@ export const buildIncomeInbox = ({
   // em aberto — um parcial aparece como recebido no Payment + previsto no resto).
   receivables
     .filter((receivable) => inMonth(receivable.competence, month))
-    .filter((receivable) => getReceivableStatus(receivable) !== RECEIVABLE_STATUS.PAID)
+    // Cancelado fica de fora junto com o pago: é um mês que não será cobrado,
+    // então não há nada a receber para entrar na caixa de entrada.
+    .filter((receivable) => {
+      const status = getReceivableStatus(receivable);
+      return status !== RECEIVABLE_STATUS.PAID && status !== RECEIVABLE_STATUS.CANCELLED;
+    })
     .forEach((receivable) => {
       const outstanding = calculateOutstandingValue(receivable);
       if (outstanding <= 0) return;

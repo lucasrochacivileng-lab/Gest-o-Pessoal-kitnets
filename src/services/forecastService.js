@@ -1,4 +1,5 @@
 import { isPersonalTransfer } from './personalMovementClassifier.js';
+import { RECEIVABLE_STATUS } from '../modules/receivables/types/receivable.types.js';
 
 const toMoney = (value) => Number(value || 0);
 const monthOf = (date) => String(date || '').slice(0, 7);
@@ -55,7 +56,13 @@ export const buildForecast = ({
 
       const kitnet = kitnets.find((item) => item.id === contract.kitnet_id);
       const label = `Aluguel ${kitnet?.name || contract.id}`;
-      const receivable = receivables.find((row) => row.contract_id === contract.id && row.competence === month && row.status !== 'cancelado');
+      const receivable = receivables.find((row) => row.contract_id === contract.id && row.competence === month);
+
+      // Mês cancelado (unidade vaga, mês perdoado) não gera receita nenhuma.
+      // Antes o próprio `find` descartava o cancelado, e o mês caía no ramo
+      // "sem recebível" logo abaixo — devolvendo o aluguel CHEIO à previsão,
+      // exatamente o oposto do pretendido.
+      if (receivable?.status === RECEIVABLE_STATUS.CANCELLED) return;
 
       const contractDueDate = dayInMonth(month, `0000-00-${String(contract.due_day || 10).padStart(2, '0')}`, 10);
 

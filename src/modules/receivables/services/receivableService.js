@@ -11,6 +11,10 @@ const today = () => todayLocalISO();
 const toMoney = (value) => parseMoneyInput(value);
 
 export const getReceivableStatus = (receivable, currentDate = today()) => {
+  // Cancelado vem ANTES da checagem de vencimento: um mês que não será cobrado
+  // (unidade vaga, mês perdoado) não pode virar "vencido" só porque a data
+  // passou, nem entrar nos totais de atraso.
+  if (receivable.status === RECEIVABLE_STATUS.CANCELLED) return RECEIVABLE_STATUS.CANCELLED;
   if (receivable.status === RECEIVABLE_STATUS.PAID) return RECEIVABLE_STATUS.PAID;
   if (receivable.due_date && receivable.due_date < currentDate) return RECEIVABLE_STATUS.OVERDUE;
   if (receivable.status === RECEIVABLE_STATUS.PARTIAL) return RECEIVABLE_STATUS.PARTIAL;

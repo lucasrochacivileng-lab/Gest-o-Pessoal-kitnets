@@ -3,6 +3,11 @@ export const RECEIVABLE_STATUS = {
   PARTIAL: 'parcial',
   PAID: 'pago',
   OVERDUE: 'vencido',
+  // Mês que não será cobrado: unidade vaga, mês perdoado ou contrato encerrado
+  // antes do fim. Sem esse status não havia como registrar uma vacância — o que
+  // levou alguém a inventar "não alugada", que era inerte (virava "pendente" na
+  // tela e ainda entrava como receita esperada na Previsão).
+  CANCELLED: 'cancelado',
 };
 
 export const RECEIVABLE_FILTERS = {

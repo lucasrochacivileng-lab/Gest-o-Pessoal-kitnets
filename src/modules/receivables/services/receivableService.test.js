@@ -18,6 +18,22 @@ describe('receivableService', () => {
     expect(status).toBe(RECEIVABLE_STATUS.OVERDUE);
   });
 
+  it('mantem o recebivel cancelado fora de vencido mesmo com a data passada', () => {
+    // Mes vago/perdoado nao pode virar atraso so porque o vencimento passou.
+    const status = getReceivableStatus(
+      { status: RECEIVABLE_STATUS.CANCELLED, due_date: '2026-07-01' },
+      '2026-09-21',
+    );
+
+    expect(status).toBe(RECEIVABLE_STATUS.CANCELLED);
+  });
+
+  it('normaliza status desconhecido para pendente, sem virar cancelado', () => {
+    // Dados antigos gravaram 'previsto'/'nao alugada'; devem cair em pendente.
+    expect(getReceivableStatus({ status: 'previsto', due_date: '2026-12-01' }, '2026-09-21'))
+      .toBe(RECEIVABLE_STATUS.PENDING);
+  });
+
   it('calculates net payment with discounts, fines and interest', () => {
     expect(calculatePaymentNetValue({ paid_value: 800, discount: 50, fine: 20, interest: 10 })).toBe(780);
   });

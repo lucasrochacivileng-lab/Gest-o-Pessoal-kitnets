@@ -26,6 +26,21 @@ describe('buildForecast', () => {
     expect(result.incomes).toHaveLength(0);
   });
 
+  it('não projeta nada quando o mês está cancelado (unidade vaga / mês perdoado)', () => {
+    // Regressão: o filtro antigo descartava o cancelado no `find`, o mês caía
+    // no ramo "sem recebível" e o aluguel CHEIO voltava para a previsão.
+    const result = buildForecast({
+      ...base,
+      month: '2026-07',
+      contracts: [{ id: 'c1', kitnet_id: 'k1', rent_value: 950, status: 'ativo', start_date: '2026-07-01', end_date: '2027-07-31' }],
+      kitnets: [{ id: 'k1', name: 'Kit 01' }],
+      receivables: [{ contract_id: 'c1', competence: '2026-07', expected_value: 950, paid_value: 0, status: 'cancelado' }],
+    });
+
+    expect(result.incomes).toHaveLength(0);
+    expect(result.totalIn).toBe(0);
+  });
+
   it('usa o valor restante quando o recebível do mês já existe', () => {
     const result = buildForecast({
       ...base,
