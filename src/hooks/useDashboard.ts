@@ -18,7 +18,7 @@ export function useDashboard() {
   }, [load]);
 
   useEntitySync(
-    ['Kitnet', 'Receivable', 'Payment', 'Expense', 'Contract'],
+    ['Kitnet', 'Receivable', 'Payment', 'Expense', 'Contract', 'PersonalIncome', 'ComplementaryProject', 'ExpertReport'],
     () => load({ silent: true }),
   );
 

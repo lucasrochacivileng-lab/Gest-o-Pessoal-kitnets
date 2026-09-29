@@ -26,7 +26,7 @@ import { useAuth } from '../app/providers/AuthProvider.jsx';
 
 const menuSections = [
   { title: 'Início', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+    { label: 'Meu mês', icon: LayoutDashboard, path: '/' },
   ] },
   { title: 'Dinheiro', items: [
     {
@@ -39,10 +39,11 @@ const menuSections = [
       label: 'Relatórios',
       icon: BarChart3,
       path: '/visao-geral',
-      match: ['/visao-geral', '/consolidado', '/resultado-kitnets', '/gastos-categoria', '/previsao', '/relatorios'],
+      match: ['/visao-geral', '/consolidado', '/resultado-kitnets', '/gastos-categoria', '/previsao', '/relatorios', '/patrimonio'],
     },
   ] },
   { title: 'Imóveis', items: [
+    { label: 'Operação das locações', icon: LayoutDashboard, path: '/operacao' },
     { label: 'Kitnets', icon: Building2, path: '/kitnets' },
     {
       label: 'Locações',

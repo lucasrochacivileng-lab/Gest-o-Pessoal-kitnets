@@ -8,6 +8,7 @@ import {
   notificationTypeLabels,
 } from '../types/notification.types.js';
 import { todayLocalISO } from '../../../services/dateUtils.js';
+import { useEntitySync } from '../../../hooks/useEntitySync.js';
 
 const LAST_SHOWN_KEY = '@kitmanager/daily-inbox-date';
 const todayString = () => todayLocalISO();
@@ -36,6 +37,16 @@ export function DailyInbox() {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState('');
+  useEntitySync(['Notification', 'Payment', 'Receivable', 'Expense', 'Contract'], async () => {
+    if (!open) return;
+    try {
+      const { notifications } = await notificationService.loadCenterData();
+      const byId = new Map(notifications.map((row) => [row.id, row]));
+      setItems((current) => current.map((row) => byId.get(row.id)).filter((row) => row
+        && ['pendente', 'enviada'].includes(row.status) && String(row.scheduled_for || todayString()) <= todayString()));
+    } catch { setError('Não foi possível atualizar as pendências. Confira sua conexão.'); }
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +120,8 @@ export function DailyInbox() {
     try {
       await notificationService.confirmTarget(item.entity, item.entity_id);
       removeItem(item.id);
+    } catch (failure) {
+      setError(failure.message || 'Não foi possível confirmar o recebimento.');
     } finally {
       setBusyId(null);
     }
@@ -119,6 +132,8 @@ export function DailyInbox() {
     try {
       await notificationService.snoozeTarget(item.entity, item.entity_id);
       removeItem(item.id);
+    } catch (failure) {
+      setError(failure.message || 'Não foi possível adiar o alerta.');
     } finally {
       setBusyId(null);
     }
@@ -152,6 +167,7 @@ export function DailyInbox() {
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto p-6 pt-4">
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           {items.map((item) => (
             <div key={item.id} className="rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-normal text-slate-400">

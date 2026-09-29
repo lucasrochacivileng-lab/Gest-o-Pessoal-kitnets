@@ -252,7 +252,7 @@ export const receivableService = {
     }
 
     const [paidValue, discount, fine, interest] = rawValues.map((value) => fromCents(toCents(value)));
-    if (toCents(paidValue) > toCents(calculateOutstandingValue(receivable))) {
+    if (!paymentPayload.payment_id && toCents(paidValue) > toCents(calculateOutstandingValue(receivable))) {
       throw new Error('O valor pago nao pode ser maior que o saldo restante.');
     }
     const netValue = calculatePaymentNetValue({ paid_value: paidValue, discount, fine, interest });

@@ -5,6 +5,8 @@
 \ir reproducible_baseline.sql
 \ir financial_core_authenticated.sql
 \ir 0015_anon_records_privileges.sql
+\ir financial_operations.sql
+\ir wealth_positions.sql
 
 select plan(1);
 select pass('baseline, RLS, auditoria e privilégios validados');

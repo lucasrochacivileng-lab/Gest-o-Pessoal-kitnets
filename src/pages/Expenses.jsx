@@ -1,3 +1,4 @@
+import { useReportFilters } from '../hooks/useReportFilters.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
@@ -36,10 +37,10 @@ const fields = [
   { name: 'date', label: 'Data', type: 'date', default: 'today' },
   { name: 'segment', label: 'Segmento', type: 'select', options: SEGMENT_OPTIONS },
   // Vínculo do custo — condicional ao segmento. Kitnets aceita "Geral"
-  // (rateado entre as unidades); Perícias/Projetos apontam para o item; o
+  // (sem rateio); Perícias/Projetos apontam para o item; o
   // vínculo é opcional (dá para lançar um custo genérico do segmento).
   { name: 'kitnet_id', label: 'Kitnet', type: 'select', optionsEntity: 'Kitnet', extraOptions: [
-    { value: 'geral', label: 'Geral (rateado entre as unidades)' },
+    { value: 'geral', label: 'Geral (sem rateio)' },
   ], visibleWhen: (form) => !form.segment || form.segment === 'kitnets' },
   { name: 'expert_report_id', label: 'Perícia', type: 'select', optionsEntity: 'ExpertReport',
     optionLabel: (o) => [o.client, o.process_number].filter(Boolean).join(' — ') || o.report_type || o.id,
@@ -430,10 +431,7 @@ export default function Expenses() {
   // `?mes=YYYY-MM` e `?tag=<categoria>` deixam a tela ser aberta já filtrada —
   // é o que faz o clique numa barra do gráfico do dashboard cair exatamente
   // nos gastos daquela categoria, naquele mês.
-  const [competence, setCompetence] = useState(() => {
-    const requested = searchParams.get('mes') || '';
-    return /^\d{4}-\d{2}$/.test(requested) ? requested : currentMonthLocal();
-  });
+  const { month: competence, setMonth: setCompetence } = useReportFilters();
   const [message, setMessage] = useState('');
   const [generating, setGenerating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);

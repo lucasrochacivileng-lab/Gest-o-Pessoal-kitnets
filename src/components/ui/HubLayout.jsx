@@ -1,3 +1,4 @@
+import { useReportFilters } from '../../hooks/useReportFilters.js';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 
 // Layout de "hub": uma barra de abas no topo + a tela ativa embaixo (Outlet).
@@ -5,6 +6,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 // rota real, então deep links, botões e notificações continuam funcionando.
 // Reduz N itens do menu lateral a UMA entrada, com a navegação fina nas abas.
 export default function HubLayout({ tabs }) {
+  const { month, segment } = useReportFilters();
   const { pathname } = useLocation();
   const isActive = (to) => pathname === to || pathname.startsWith(`${to}/`);
   const active = tabs.find((tab) => isActive(tab.to)) || tabs[0];
@@ -18,7 +20,7 @@ export default function HubLayout({ tabs }) {
           return (
             <Link
               key={tab.to}
-              to={tab.to}
+              to={`${tab.to}?month=${month}&segment=${segment}`}
               className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition ${
                 current
                   ? 'border-blue-600 bg-blue-600 text-white'

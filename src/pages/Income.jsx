@@ -1,3 +1,5 @@
+import { useReportFilters } from '../hooks/useReportFilters.js';
+import { useEntitySync } from '../hooks/useEntitySync.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, ArrowUpCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -30,7 +32,7 @@ function SummaryCard({ label, value, tone = 'text-slate-900' }) {
 
 export default function Income() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [month, setMonth] = useState(currentMonthKey);
+  const { month, setMonth } = useReportFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -45,6 +47,7 @@ export default function Income() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEntitySync(ENTITIES, load);
 
   useEffect(() => {
     if (searchParams.get('novo') !== '1') return;

@@ -12,6 +12,7 @@
 // Rótulos por chave normalizada (slug) — usados pelo relatório de gastos por
 // categoria e por qualquer tela que precise exibir uma categoria "crua".
 export const CATEGORY_LABELS = {
+  salario: 'Salário',
   agua: 'Água',
   luz: 'Luz',
   energia_solar: 'Energia solar',

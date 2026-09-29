@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { repository } from '../repository/index.js';
-import { useEntitySync } from '../hooks/useEntitySync.js';
+import { useReportFilters } from '../hooks/useReportFilters.js';
+import { useFinancialData } from '../hooks/useFinancialData.js';
+import MovementDetails from '../components/financial/MovementDetails.jsx';
+import React, { useMemo } from 'react';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { financialService } from '../services/financialService';
 import { buildSegmentConsolidation } from '../services/segmentConsolidationService.js';
-import { formatDateBR, currentMonthLocal } from '../services/dateUtils.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
 
 const money = (value) => financialService.formatCurrency(value);
@@ -23,26 +23,11 @@ function ResultValue({ value }) {
 }
 
 export default function Consolidated() {
-  const [competence, setCompetence] = useState(() => currentMonthLocal());
-  const [data, setData] = useState(null);
-  const [selectedSegment, setSelectedSegment] = useState('');
+  const { month: competence, setMonth: setCompetence, segment: selectedSegment, setSegment: setSelectedSegment } = useReportFilters();
+  const { data, error, reload } = useFinancialData();
 
-  const load = async () => {
-    const [payments, expenses, personal, projects, expertReports] = await Promise.all([
-      repository.list('Payment'),
-      repository.list('Expense'),
-      repository.list('PersonalIncome'),
-      repository.list('ComplementaryProject'),
-      repository.list('ExpertReport'),
-    ]);
-    setData({ payments, expenses, personal, projects, expertReports });
-  };
 
-  useEffect(() => {
-    load();
-  }, []);
 
-  useEntitySync(['Payment', 'Expense', 'PersonalIncome', 'ComplementaryProject', 'ExpertReport'], load);
 
   const consolidation = useMemo(
     () => (data ? buildSegmentConsolidation({ ...data, monthKey: competence }) : null),
@@ -54,11 +39,12 @@ export default function Consolidated() {
       <PageHeader title="Consolidado por segmento" description={(
         <>
           Resultado de cada frente — kitnets, projetos, perícias, trabalho e pessoal — com entradas e saídas separadas,
-          mais o total global. Regime de caixa: só entra o que foi efetivamente pago/recebido.
+          mais o total global. Lançamentos confirmados, sem duplicar transferências ou quitação de faturas.
         </>
       )} />
 
       <MonthChips value={competence} onChange={setCompetence} />
+      {error && <p role="alert">{error} <button onClick={reload}>Tentar novamente</button></p>}
 
       {!consolidation ? (
         <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">Carregando consolidado...</div>
@@ -122,40 +108,7 @@ export default function Consolidated() {
                   </button>
                 </div>
 
-                {segment.items.length === 0 ? (
-                  <p className="mt-3 text-sm text-slate-500">Nenhum lançamento neste segmento no mês.</p>
-                ) : (
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="text-xs uppercase tracking-wide text-slate-400">
-                        <tr>
-                          <th className="py-2 pr-4">Data</th>
-                          <th className="py-2 pr-4">Descrição</th>
-                          <th className="py-2 pr-4">Origem</th>
-                          <th className="py-2 pr-4">Tipo</th>
-                          <th className="py-2 text-right">Valor</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {segment.items.map((item, index) => (
-                          <tr key={`${item.date}-${item.description}-${index}`} className="border-t border-slate-100">
-                            <td className="py-2 pr-4 text-slate-600">{formatDateBR(item.date)}</td>
-                            <td className="py-2 pr-4 text-slate-900">{item.description}</td>
-                            <td className="py-2 pr-4 text-slate-500">{item.source}</td>
-                            <td className="py-2 pr-4">
-                              <span className={item.kind === 'entrada' ? 'text-emerald-700' : 'text-red-600'}>
-                                {item.kind === 'entrada' ? 'Entrada' : 'Saída'}
-                              </span>
-                            </td>
-                            <td className={`py-2 text-right font-semibold tabular-nums ${item.kind === 'entrada' ? 'text-emerald-700' : 'text-red-600'}`}>
-                              {money(item.value)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <MovementDetails items={segment.items} month={competence} segment={selectedSegment} />
               </div>
             );
           })() : null}
@@ -164,7 +117,7 @@ export default function Consolidated() {
             <p className="font-semibold text-slate-600">Como cada segmento é montado</p>
             <ul className="mt-2 space-y-1">
               <li><strong>Kitnets</strong>: aluguéis recebidos − despesas diretas pagas (e gastos pessoais marcados como kitnets/obra).</li>
-              <li><strong>Projetos / Perícias</strong>: valor efetivamente recebido no mês (status "Recebido").</li>
+              <li><strong>Projetos / Perícias</strong>: recebimentos confirmados menos gastos atribuídos ao segmento.</li>
               <li><strong>Trabalho</strong>: renda pessoal com contexto "Trabalho/Servidor" já confirmada (salário previsto ainda não conta).</li>
               <li><strong>Pessoal</strong>: demais rendas e despesas pessoais confirmadas.</li>
             </ul>

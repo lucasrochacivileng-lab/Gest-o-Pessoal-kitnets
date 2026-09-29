@@ -11,6 +11,7 @@ import StatePanel from '../../components/ui/StatePanel.jsx';
 const Recebimentos = lazy(() => import('../../modules/receivables/pages/ReceivablesPage.jsx'));
 const Kitnets = lazy(() => import('../../modules/kitnets/pages/index.jsx'));
 const Contratos = lazy(() => import('../../modules/contracts/pages/index.jsx'));
+const Wealth = lazy(() => import('../../pages/Wealth.jsx'));
 const FinancialOverview = lazy(() => import('../../pages/FinancialOverview.jsx'));
 const Consolidated = lazy(() => import('../../pages/Consolidated.jsx'));
 const KitnetResult = lazy(() => import('../../pages/KitnetResult.jsx'));
@@ -49,12 +50,13 @@ const FINANCE_TABS = [
 ];
 
 const REPORT_TABS = [
-  { to: '/visao-geral', label: 'Visão Geral' },
+  { to: '/visao-geral', label: 'Meu mês' },
   { to: '/consolidado', label: 'Consolidado' },
   { to: '/resultado-kitnets', label: 'Por kitnet' },
   { to: '/gastos-categoria', label: 'Categorias' },
   { to: '/previsao', label: 'Previsão' },
   { to: '/relatorios', label: 'Exportar' },
+  { to: '/patrimonio', label: 'Patrimônio' },
 ];
 
 const routeFallback = <StatePanel type="loading" title="Carregando..." />;
@@ -64,7 +66,8 @@ export default function AppRoutes() {
     <Suspense fallback={routeFallback}>
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<FinancialOverview />} />
+        <Route path="/operacao" element={<Dashboard />} />
 
         {/* Hub Financeiro (abas no topo, mesmas URLs) */}
         <Route element={<HubLayout tabs={FINANCE_TABS} />}>
@@ -82,6 +85,7 @@ export default function AppRoutes() {
 
         {/* Hub Relatórios (só análise) */}
         <Route element={<HubLayout tabs={REPORT_TABS} />}>
+          <Route path="/patrimonio" element={<Wealth />} />
           <Route path="/visao-geral" element={<FinancialOverview />} />
           <Route path="/consolidado" element={<Consolidated />} />
           <Route path="/resultado-kitnets" element={<KitnetResult />} />

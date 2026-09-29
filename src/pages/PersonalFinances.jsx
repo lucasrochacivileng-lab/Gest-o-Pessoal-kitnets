@@ -1,9 +1,11 @@
+import { SEGMENTS } from '../services/financialClassification.js';
+import { CATEGORY_LABELS } from '../services/categoryCatalog.js';
+import { useReportFilters } from '../hooks/useReportFilters.js';
 import React, { useCallback, useState } from 'react';
 import EntityPage from '../components/ui/EntityPage.jsx';
 import { findPersonalDuplicateOf } from '../services/duplicateCheckService.js';
 import { MonthChips } from '../components/ui/MonthChips.jsx';
 import { recurringIncomeService } from '../services/recurringIncomeService.js';
-import { currentMonthLocal } from '../services/dateUtils.js';
 
 const fields = [
   { name: 'date', label: 'Data', type: 'date', default: 'today' },
@@ -15,13 +17,14 @@ const fields = [
   ] },
   { name: 'description', label: 'Descrição', type: 'text', placeholder: 'Ex: Salário servidor, parcela sistema solar, mercado' },
   { name: 'value', label: 'Valor', type: 'number', placeholder: '9000' },
+  { name: 'segment', label: 'Segmento', type: 'select', options: SEGMENTS.map(s=>({value:s.key,label:s.label})) },
   { name: 'context', label: 'Contexto', type: 'select', options: [
     { value: 'pessoal', label: 'Pessoal (casa, família)' },
     { value: 'trabalho', label: 'Trabalho / Servidor (salário)' },
     { value: 'kitnets', label: 'Kitnets (custo do negócio)' },
     { value: 'obra', label: 'Obra / investimento nas kitnets' },
   ] },
-  { name: 'category', label: 'Categoria', placeholder: 'Ex: salário, energia solar, alimentação' },
+  { name: 'category', label: 'Categoria', type: 'select', options: [...Object.entries(CATEGORY_LABELS).filter(([key]) => !['sem_categoria', 'luz'].includes(key)).map(([value, label]) => ({ value, label }))] },
   { name: 'card_name', label: 'Cartão / Conta', placeholder: 'Nubank, Santander, Pix Mercado Pago' },
   { name: 'bank_account_id', label: 'Conta bancária', type: 'relation', entity: 'BankAccount' },
   { name: 'installment', label: 'Parcela', placeholder: 'Ex: 12/24' },
@@ -61,7 +64,7 @@ export const filterByCompetence = (rows = [], competence = '') => (
 );
 
 export default function PersonalFinances() {
-  const [competence, setCompetence] = useState(() => currentMonthLocal());
+  const { month: competence, setMonth: setCompetence } = useReportFilters();
   const [message, setMessage] = useState('');
   const [generating, setGenerating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);

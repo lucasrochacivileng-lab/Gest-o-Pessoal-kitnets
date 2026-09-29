@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { repository } from '../../repository/index.js';
 import { PencilLine, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import NotificationActionDialog from '../../modules/notifications/components/NotificationActionDialog.jsx';
 import notificationService from '../../modules/notifications/services/notificationService.js';
 import { useEntitySync } from '../../hooks/useEntitySync.js';
@@ -113,6 +113,9 @@ export default function EntityPage({
   // em vez de espremido no meio, abaixo dos controles.
   topContent = null,
   hideCreate = false,
+  saveRecord,
+  removeRecord,
+  removeLabel = 'Excluir',
 }) {
   const [rows, setRows] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -124,7 +127,12 @@ export default function EntityPage({
   const [errorMessage, setErrorMessage] = useState('');
   const [actionItem, setActionItem] = useState(null);
   const navigate = useNavigate();
+  const [recordParams] = useSearchParams();
+  const requestedRecord = recordParams.get("record");
+  const openedRecord = useRef(null);
   const formRef = useRef(null);
+  const originalRecord = useRef(null);
+  const requestId = useRef(null);
 
   useEffect(() => {
     loadData();
@@ -174,6 +182,7 @@ export default function EntityPage({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (saving) return;
     setSaving(true);
     setErrorMessage('');
 
@@ -222,7 +231,9 @@ export default function EntityPage({
     }
 
     try {
-      if (editingId) {
+      if (saveRecord) {
+        await saveRecord(payload, originalRecord.current, requestId.current);
+      } else if (editingId) {
         await repository.update(entity, editingId, payload);
       } else {
         await repository.create(entity, { ...defaultValues, ...payload, active: true });
@@ -240,6 +251,7 @@ export default function EntityPage({
   };
 
   const startEdit = (row) => {
+    originalRecord.current = { ...row };
     const values = fields.reduce((acc, field) => {
       const fieldName = getFieldName(field);
       acc[fieldName] = row[fieldName];
@@ -261,6 +273,8 @@ export default function EntityPage({
   }, {});
 
   const openCreate = () => {
+    originalRecord.current = null;
+    requestId.current = globalThis.crypto.randomUUID();
     setForm(computeCreateDefaults());
     setEditingId(null);
     setFormOpen(true);
@@ -274,11 +288,14 @@ export default function EntityPage({
 
   const handleRemove = async (row) => {
     const label = getCardTitle(row);
-    const confirmed = window.confirm(`Excluir "${label}"? O registro sai das telas, mas continua no backup.`);
+    const confirmed = window.confirm(`${removeLabel} "${label}"? ${removeRecord ? 'O saldo da cobrança será atualizado e o histórico será preservado.' : 'O registro sai das telas, mas continua no backup.'}`);
     if (!confirmed) return;
 
-    await repository.removeSoft(entity, row.id);
-    await loadData();
+    try {
+      if (removeRecord) await removeRecord(row);
+      else await repository.removeSoft(entity, row.id);
+      await loadData();
+    } catch (error) { setErrorMessage(error.message || 'Não foi possível concluir a operação.'); }
   };
 
   useEffect(() => {
@@ -290,6 +307,14 @@ export default function EntityPage({
     setActionItem(row);
     notificationService.markOpenedByTarget(deepLinkEntity, selectedId);
   }, [deepLinkEntity, loading, rows, selectedId]);
+
+  useEffect(() => {
+    if (loading || !requestedRecord || openedRecord.current === requestedRecord) return;
+    const row = rows.find(item => item.id === requestedRecord);
+    if (!row) return;
+    openedRecord.current = requestedRecord;
+    startEdit(row);
+  }, [loading, rows, requestedRecord]);
 
   const closeActionDialog = () => {
     setActionItem(null);
@@ -443,7 +468,7 @@ export default function EntityPage({
                       ))}
                       {(field.options || relationList || []).map((option, optionIndex) => (
                         <option key={`${fieldName}-${getOptionValue(option) || optionIndex}`} value={getOptionValue(option)}>
-                          {field.optionLabel ? field.optionLabel(option) : getOptionLabel(option)}
+                          {field.optionLabel ? field.optionLabel(option, relationOptions) : getOptionLabel(option)}
                         </option>
                       ))}
                     </select>
@@ -460,6 +485,7 @@ export default function EntityPage({
                   ) : (
                     <input
                       type={field.type || 'text'}
+                      step={field.type === 'number' ? 'any' : undefined}
                       value={fieldValue(form[fieldName], field.type)}
                       onChange={(event) => setForm((prev) => ({ ...prev, [fieldName]: event.target.value }))}
                       className={inputClass}
@@ -518,7 +544,7 @@ export default function EntityPage({
                         <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="ds-icon-btn hover:text-blue-600">
                           <PencilLine className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="ds-icon-btn hover:text-red-600">
+                        <button type="button" onClick={() => handleRemove(row)} title={removeLabel} aria-label={removeLabel} className="ds-icon-btn hover:text-red-600">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -555,7 +581,7 @@ export default function EntityPage({
                     <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="ds-icon-btn h-11 w-11 hover:text-blue-600">
                       <PencilLine className="h-5 w-5" />
                     </button>
-                    <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="ds-icon-btn h-11 w-11 hover:text-red-600">
+                    <button type="button" onClick={() => handleRemove(row)} title={removeLabel} aria-label={removeLabel} className="ds-icon-btn h-11 w-11 hover:text-red-600">
                       <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
@@ -603,7 +629,7 @@ export default function EntityPage({
                     <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="ds-icon-btn h-11 w-11 hover:text-blue-600">
                       <PencilLine className="h-5 w-5" />
                     </button>
-                    <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="ds-icon-btn h-11 w-11 hover:text-red-600">
+                    <button type="button" onClick={() => handleRemove(row)} title={removeLabel} aria-label={removeLabel} className="ds-icon-btn h-11 w-11 hover:text-red-600">
                       <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
@@ -614,7 +640,7 @@ export default function EntityPage({
                   <button type="button" onClick={() => startEdit(row)} title="Editar" aria-label="Editar registro" className="ds-icon-btn hover:text-blue-600">
                     <PencilLine className="h-4 w-4" />
                   </button>
-                  <button type="button" onClick={() => handleRemove(row)} title="Excluir" aria-label="Excluir registro" className="ds-icon-btn hover:text-red-600">
+                  <button type="button" onClick={() => handleRemove(row)} title={removeLabel} aria-label={removeLabel} className="ds-icon-btn hover:text-red-600">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

@@ -48,7 +48,7 @@ export const calculateBreakFine = (contract, exitDate) => {
   const start = toDate(contract.start_date);
   const end = toDate(contract.end_date);
   const exit = toDate(exitDate);
-  const fineMonths = Number(contract.fine_months) || DEFAULT_FINE_MONTHS;
+  const fineMonths = Number(contract.fine_months ?? DEFAULT_FINE_MONTHS);
   const baseFine = fineMonths * toMoney(contract.rent_value);
 
   if (!contract.start_date || !contract.end_date || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || Number.isNaN(exit.getTime())) {
@@ -128,7 +128,7 @@ export const contractService = {
       // inteiro de recebíveis NEGATIVOS, subtraindo da receita em todo o app.
       rent_value: Math.max(toMoney(contract.rent_value), 0),
       due_day: Math.min(Math.max(Number(contract.due_day) || 10, 1), 31),
-      fine_months: Math.max(Number(contract.fine_months) || DEFAULT_FINE_MONTHS, 0),
+      fine_months: Math.max(Number(contract.fine_months ?? DEFAULT_FINE_MONTHS), 0),
       status: 'ativo',
       active: true,
       created_at: new Date().toISOString(),
@@ -149,76 +149,13 @@ export const contractService = {
    * e, se for quebra com multa, lança a multa como recebível para cobrança.
    */
   async terminateContract(contract, { exitDate, launchFine = false }) {
-    const exitMonth = monthOf(exitDate);
-    // A multa usa as datas originais do contrato: calcula antes de alterar.
-    const fineInfo = calculateBreakFine(contract, exitDate);
-
-    const [receivables, contracts] = await Promise.all([
-      repository.list('Receivable'),
-      repository.list('Contract'),
-    ]);
-
-    // Encerra o contrato primeiro: é o estado mais importante e também
-    // impede que "Completar carnê" recrie meses se algo falhar no meio.
-    await repository.update('Contract', contract.id, {
-      status: 'encerrado',
-      end_date: String(exitDate).slice(0, 10),
-      terminated_at: new Date().toISOString(),
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(exitDate || '') || !Number.isFinite(Date.parse(exitDate))
+      || new Date(exitDate).toISOString().slice(0, 10) !== exitDate || exitDate < String(contract.start_date || '')) {
+      throw new Error('Informe uma data de saída válida, a partir do início do contrato.');
+    }
+    return repository.terminateContract(contract.id, {
+      exitDate, launchFine, fine: calculateBreakFine(contract, exitDate),
     });
-
-    const futureUnpaid = receivables.filter((row) => (
-      row.contract_id === contract.id
-      && monthOf(row.competence) > exitMonth
-      && !toMoney(row.paid_value)
-      && row.status !== 'pago'
-    ));
-
-    for (const row of futureUnpaid) {
-      await repository.removeSoft('Receivable', row.id);
-    }
-
-    // Libera a kitnet apenas se não houver outro contrato ativo nela.
-    if (contract.kitnet_id) {
-      const stillOccupied = contracts.some((row) => (
-        row.id !== contract.id
-        && row.kitnet_id === contract.kitnet_id
-        && row.status === 'ativo'
-      ));
-
-      if (!stillOccupied) {
-        await repository.update('Kitnet', contract.kitnet_id, { status: 'vaga' });
-      }
-    }
-
-    const tenantStillRents = contracts.some((row) => (
-      row.id !== contract.id
-      && row.tenant_id === contract.tenant_id
-      && row.status === 'ativo'
-    ));
-
-    if (contract.tenant_id && !tenantStillRents) {
-      await repository.update('Tenant', contract.tenant_id, { status: 'inativo', kitnet_id: '' });
-    }
-
-    let fineReceivable = null;
-
-    if (launchFine && fineInfo.fine > 0) {
-      fineReceivable = await repository.create('Receivable', {
-        contract_id: contract.id,
-        kitnet_id: contract.kitnet_id,
-        tenant_id: contract.tenant_id,
-        type: 'multa_quebra',
-        competence: exitMonth,
-        expected_value: fineInfo.fine,
-        due_date: String(exitDate).slice(0, 10),
-        status: 'pendente',
-        notes: `Multa por quebra de contrato: ${fineInfo.fineMonths} aluguel(éis) proporcional a ${fineInfo.remainingDays} de ${fineInfo.totalDays} dias restantes.`,
-        active: true,
-        created_at: new Date().toISOString(),
-      });
-    }
-
-    return { canceledReceivables: futureUnpaid.length, fine: fineInfo, fineReceivable };
   },
 };
 

@@ -50,6 +50,15 @@ describe('buildKitnetResults', () => {
     expect(totals.expense).toBe(120 + 230 + 260);
     expect(totals.result).toBe(totals.income - totals.expense);
   });
+  it('identifica a unidade pelo recebível e contrato sem perder pagamentos sem vínculo', () => {
+    const result = buildKitnetResults({ ...base,
+      payments: [{ receivable_id: 'r1', payment_date: '2026-07-10', net_value: 700 }, { receivable_id: 'missing', payment_date: '2026-07-10', net_value: 100 }],
+      receivables: [{ id: 'r1', contract_id: 'c1' }], contracts: [{ id: 'c1', kitnet_id: 'k1' }],
+    });
+    expect(byName(result, 'Kitnet 01').income).toBe(700);
+    expect(result.geral.income).toBe(100);
+    expect(result.totals.income).toBe(800);
+  });
 
   it('ignora pericias/projetos e lancamentos pessoais no P&L da kitnet', () => {
     const result = buildKitnetResults(base);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { calculateOutstandingValue } from '../services/receivableService.js';
 import { repository } from '../../../repository/index.js';
 import { todayLocalISO } from '../../../services/dateUtils.js';
@@ -41,6 +41,7 @@ const calculateNetValue = (values) => {
 };
 
 export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode = 'payment', onSubmit, onCancel }) {
+  const initializedForm = useRef(null);
   const [values, setValues] = useState(initialValues);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [bankAccountsError, setBankAccountsError] = useState('');
@@ -66,6 +67,9 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
   }, []);
 
   useEffect(() => {
+    const key = `${mode}:${receivable?.id || 'new'}`;
+    if (initializedForm.current === key) return;
+    initializedForm.current = key;
     setPaymentId(createPaymentId());
     if (!receivable) {
       setValues(initialValues);
@@ -108,12 +112,6 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
   const selectedKitnet = useMemo(() => kitnets.find((kitnet) => kitnet.id === selectedContract?.kitnet_id) || null, [kitnets, selectedContract]);
   const selectedTenant = useMemo(() => tenants.find((tenant) => tenant.id === selectedContract?.tenant_id) || null, [tenants, selectedContract]);
 
-  useEffect(() => {
-    if (!receivable) {
-      return;
-    }
-  }, [receivable]);
-
   // A caixinha preenche o valor sozinha — o usuário não precisa digitar nada,
   // e desmarcar devolve o total ao valor do aluguel.
   const applyFine = (checked) => {
@@ -147,6 +145,7 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (saving) return;
     // O rótulo da conta NÃO é montado aqui: registerPayment resolve
     // destination_account a partir do bank_account_id, para o texto nunca
     // divergir do id (era o que gravava "Mercado Pago" em pagamento que caiu
@@ -217,11 +216,11 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <label className="text-sm text-slate-600">
               Valor pago
-              <input name="paid_value" type="number" value={values.paid_value} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
+              <input name="paid_value" type="number" min="0" step="0.01" value={values.paid_value} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Desconto
-              <input name="discount" type="number" value={values.discount} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
+              <input name="discount" type="number" min="0" step="0.01" value={values.discount} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Multa por atraso
@@ -246,12 +245,12 @@ export function ReceivableForm({ receivable, contracts, kitnets, tenants, mode =
                   </span>
                 </span>
               ) : (
-                <input name="fine" type="number" value={values.fine} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
+                <input name="fine" type="number" min="0" step="0.01" value={values.fine} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
               )}
             </label>
             <label className="text-sm text-slate-600">
               Juros
-              <input name="interest" type="number" value={values.interest} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
+              <input name="interest" type="number" min="0" step="0.01" value={values.interest} onChange={handleChange} className="ds-input mt-2 bg-slate-50" />
             </label>
             <label className="text-sm text-slate-600">
               Total líquido recebido

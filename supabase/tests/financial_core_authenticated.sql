@@ -122,15 +122,15 @@ $$;
 
 insert into public.records (id, entity, active, data)
 values ('audit-test-hard-delete', 'Expense', true, '{"id":"audit-test-hard-delete","value":1}'::jsonb);
-delete from public.records where id='audit-test-hard-delete';
-
 do $$
+declare blocked boolean:=false;
 begin
-  assert exists (
-    select 1 from public.audit_log
-    where entity_id='audit-test-hard-delete' and action='delete'
-      and before_data is not null and after_data is null
-  ), 'DELETE fisico nao foi auditado';
+  begin
+    delete from public.records where id='audit-test-hard-delete';
+  exception when raise_exception then blocked:=true;
+  end;
+  assert blocked, 'DELETE físico pelo app deveria ser bloqueado';
+  assert exists(select 1 from public.records where id='audit-test-hard-delete'), 'Registro apagado sem recuperação';
 end;
 $$;
 

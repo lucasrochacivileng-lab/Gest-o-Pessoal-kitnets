@@ -1,8 +1,7 @@
 import { localClient } from '../services/localClient.js';
 import { supabaseDataClient } from '../services/supabaseDataClient.js';
 import { isSupabaseEnabled } from '../services/supabaseClient.js';
-import { addMoney, subtractMoney, toCents } from '../services/money.js';
-import { todayLocalISO } from '../services/dateUtils.js';
+import { notifyEntity } from '../services/realtimeSync.js';
 
 // Centraliza a persistência: usa Supabase quando VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY
 // estão configuradas; caso contrário, mantém o modo local (localStorage).
@@ -12,67 +11,54 @@ export const repository = {
   list(entity) {
     return client.list(entity);
   },
-  create(entity, payload) {
-    return client.create(entity, payload);
+  async create(entity, payload) {
+    const result = await client.create(entity, payload);
+    notifyEntity(entity);
+    return result;
   },
-  update(entity, id, payload) {
-    return client.update(entity, id, payload);
+  async update(entity, id, payload) {
+    const result = await client.update(entity, id, payload);
+    notifyEntity(entity);
+    return result;
   },
-  removeSoft(entity, id) {
-    return client.removeSoft(entity, id);
+  async removeSoft(entity, id) {
+    const result = await client.removeSoft(entity, id);
+    notifyEntity(entity);
+    return result;
   },
   async payReceivable(receivable, paymentPayload) {
-    if (client.payReceivable) {
-      return client.payReceivable(receivable, paymentPayload);
-    }
-
-    const paymentDate = paymentPayload.payment_date || todayLocalISO();
-    const receiptYear = paymentDate.slice(0, 4);
-    const payments = await client.list('Payment');
-    const nextReceipt = payments.reduce((maximum, row) => {
-      const match = String(row.receipt_number || '').match(new RegExp(`^${receiptYear}-(\\d+)$`));
-      return match ? Math.max(maximum, Number(match[1])) : maximum;
-    }, 0) + 1;
-    const { payment_id: paymentId, ...editablePaymentData } = paymentPayload;
-    const localPayment = {
-      ...editablePaymentData,
-      ...(paymentId ? { id: paymentId } : {}),
-      receivable_id: receivable.id,
-      contract_id: receivable.contract_id,
-      kitnet_id: receivable.kitnet_id,
-      tenant_id: receivable.tenant_id,
-      competence: receivable.competence,
-      net_value: addMoney(
-        subtractMoney(paymentPayload.paid_value, paymentPayload.discount),
-        paymentPayload.fine,
-        paymentPayload.interest,
-      ),
-      receipt_number: `${receiptYear}-${String(nextReceipt).padStart(4, '0')}`,
-    };
-    const payment = await client.create('Payment', localPayment);
-
-    try {
-      const paidValue = addMoney(receivable.paid_value, paymentPayload.paid_value);
-      const status = toCents(paidValue) >= toCents(receivable.expected_value) ? 'pago' : 'parcial';
-      const updatedReceivable = await client.update('Receivable', receivable.id, {
-        status,
-        updated_at: paymentPayload.updated_at,
-        paid_value: paidValue,
-      });
-      return { payment, receivable: updatedReceivable, receiptNumber: payment.receipt_number };
-    } catch (error) {
-      await client.removeSoft('Payment', payment.id).catch(() => {});
-      throw error;
-    }
+    const result = await client.payReceivable(receivable, paymentPayload);
+    ['Payment', 'Receivable', 'Notification'].forEach(notifyEntity);
+    return result;
   },
   exportBackup() {
     return client.exportBackup();
   },
-  importBackup(value) {
-    return client.importBackup(value);
+  async importBackup(value, options) {
+    const result = await client.importBackup(value, options);
+    notifyEntity();
+    return result;
   },
-  resetData() {
-    return client.resetData();
+  async resetData() {
+    if (isSupabaseEnabled) throw new Error('O reset local não pode apagar dados do Supabase.');
+    const result = await client.resetData();
+    notifyEntity();
+    return result;
+  },
+  async correctPayment(payment, values) {
+    const result = await client.correctPayment(payment, values);
+    ['Payment', 'Receivable', 'Notification'].forEach(notifyEntity);
+    return result;
+  },
+  async reversePayment(payment, justification) {
+    const result = await client.reversePayment(payment, justification);
+    ['Payment', 'Receivable', 'Notification'].forEach(notifyEntity);
+    return result;
+  },
+  async terminateContract(contractId, options) {
+    const result = await client.terminateContract(contractId, options);
+    ['Contract', 'Kitnet', 'Tenant', 'Receivable', 'Notification'].forEach(notifyEntity);
+    return result;
   },
 };
 

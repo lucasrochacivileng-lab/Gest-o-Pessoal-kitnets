@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import ReportFilters from '../components/financial/ReportFilters.jsx';
+import MovementDetails from '../components/financial/MovementDetails.jsx';
+import { useReportFilters } from '../hooks/useReportFilters.js';
+import { useFinancialData } from '../hooks/useFinancialData.js';
+import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { repository } from '../repository/index.js';
 import { buildCategoryReport, buildCategoryTrend, categoryLabel } from '../services/categoryReportService.js';
-import { MonthChips } from '../components/ui/MonthChips.jsx';
 import PageHeader from '../components/ui/PageHeader.jsx';
-import { currentMonthLocal } from '../services/dateUtils.js';
 
 const money = (value = 0) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const currentMonthKey = () => currentMonthLocal();
 const shortMonth = (key) => {
   const [year, month] = key.split('-').map(Number);
-  return new Date(year, month - 1, 1).toLocaleString('pt-BR', { month: 'short' });
+  return new Date(year, month - 1, 1).toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
 };
 
 const lastMonths = (count, endKey) => {
@@ -22,36 +22,35 @@ const lastMonths = (count, endKey) => {
 };
 
 export default function CategoryReport() {
-  const [month, setMonth] = useState(currentMonthKey);
+  const filters = useReportFilters();
+  const { month, setMonth, segment } = filters;
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [data, setData] = useState(null);
+  const { data, error, reload } = useFinancialData();
 
-  useEffect(() => {
-    Promise.all([repository.list('Expense'), repository.list('PersonalIncome')]).then(([expenses, personal]) => {
-      setData({ expenses, personal });
-    });
-  }, []);
+
 
   const report = useMemo(() => {
     if (!data) return null;
-    return buildCategoryReport({ ...data, month });
-  }, [data, month]);
+    return buildCategoryReport({ ...data, month, segment });
+  }, [data, month, segment]);
 
   const trend = useMemo(() => {
     if (!data) return [];
-    return buildCategoryTrend({ ...data, months: lastMonths(6, month), category: selectedCategory })
+    return buildCategoryTrend({ ...data, months: lastMonths(6, month), category: selectedCategory, segment })
       .map((row) => ({ ...row, label: shortMonth(row.month) }));
-  }, [data, month, selectedCategory]);
+  }, [data, month, selectedCategory, segment]);
 
   if (!report) {
-    return <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">Carregando gastos...</div>;
+    return <div role="status" className="ds-card">{error || "Carregando gastos..."}{error && <button onClick={reload}>Tentar novamente</button>}</div>;
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Gastos por categoria" description="Gastos pagos e parcelas de cartão no mês de vencimento, separados por classificação." />
+      <PageHeader title="Gastos por categoria" description="Gastos confirmados por segmento e categoria. Itens em revisão e quitação de faturas ficam fora." />
 
-      <MonthChips value={month} onChange={(value) => { setMonth(value); setSelectedCategory(null); }} />
+      <ReportFilters {...filters} setMonth={(value) => { setMonth(value); setSelectedCategory(null); }} />
+      {error && <p role="alert">{error} <button onClick={reload}>Tentar novamente</button></p>}
+      {selectedCategory && <section className="ds-card"><h2 className="font-semibold">Composição da categoria</h2><MovementDetails items={report.rows.find(r=>r.category===selectedCategory)?.items || []} month={month} segment={segment} /></section>}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <div className="flex items-center justify-between">
@@ -62,7 +61,7 @@ export default function CategoryReport() {
         {report.cardCount ? (
           <p className="mt-2 text-sm text-slate-600">
             Inclui {money(report.cardTotal)} de cartão em {report.cardCount} lançamento(s)
-            {report.cardReviewCount ? `; ${report.cardReviewCount} ainda com categoria a revisar` : ''}.
+            {report.cardReviewCount ? `; ${report.cardReviewCount} em revisão ficaram fora do total` : ''}.
           </p>
         ) : null}
 

@@ -1,6 +1,7 @@
 import { repository } from './index.js';
 
 export const dashboardRepository = {
+  getPersonal() { return repository.list('PersonalIncome'); },
   getKitnets() {
     return repository.list('Kitnet');
   },

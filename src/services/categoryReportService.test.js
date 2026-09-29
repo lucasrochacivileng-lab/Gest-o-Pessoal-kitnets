@@ -40,7 +40,7 @@ describe('buildCategoryReport', () => {
     expect(result.rows.find((r) => r.category === 'agua')).toBeUndefined();
   });
 
-  it('inclui transações de cartão no mês da fatura mesmo enquanto estão em revisão', () => {
+  it('exclui cartão em revisão do realizado e informa a pendência', () => {
     const result = buildCategoryReport({
       month: '2026-10',
       personal: [
@@ -49,9 +49,9 @@ describe('buildCategoryReport', () => {
       ],
     });
 
-    expect(result.grandTotal).toBe(1199);
-    expect(result.cardTotal).toBe(1199);
-    expect(result.cardCount).toBe(2);
+    expect(result.grandTotal).toBe(200);
+    expect(result.cardTotal).toBe(200);
+    expect(result.cardCount).toBe(1);
     expect(result.cardReviewCount).toBe(1);
   });
 

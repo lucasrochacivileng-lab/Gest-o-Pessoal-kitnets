@@ -1,4 +1,6 @@
 import { db as seed } from '../data/mockData.js';
+import { mutateLocalPayment, paymentSnapshot, syncLocalRentNotifications } from './financialMutations.js';
+import { validateRecordBackup } from './backupValidation.js';
 
 const STORAGE_KEY = '@kitmanager/db';
 // Microtarefa em vez de setTimeout: mantém a API assíncrona sem sofrer o
@@ -69,18 +71,6 @@ const ensureEntity = (db, entity) => {
   return db[entity];
 };
 
-const validateDb = (value) => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Backup inválido: o conteúdo precisa ser um objeto.');
-  }
-
-  Object.entries(value).forEach(([entity, rows]) => {
-    if (!Array.isArray(rows)) {
-      throw new Error(`Backup inválido: ${entity} precisa ser uma lista.`);
-    }
-  });
-};
-
 const createId = () => {
   if (globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
@@ -90,6 +80,58 @@ const createId = () => {
 };
 
 export const localClient = {
+  async payReceivable(receivable, values) {
+    const db = readStorage();
+    const result = mutateLocalPayment(db, { id: values.payment_id || createId(), receivableId: receivable.id, values });
+    writeStorage(db);
+    return clone(result);
+  },
+  async correctPayment(payment, values) {
+    const db = readStorage();
+    const result = mutateLocalPayment(db, { id: payment.id, values, previous: paymentSnapshot(payment), justification: values.justification });
+    writeStorage(db);
+    return clone(result);
+  },
+  async reversePayment(payment, justification) {
+    const db = readStorage();
+    const result = mutateLocalPayment(db, { id: payment.id, previous: paymentSnapshot(payment), reverse: true, justification });
+    writeStorage(db);
+    return clone(result);
+  },
+  async terminateContract(contractId, { exitDate, launchFine, fine }) {
+    const db = readStorage();
+    const contract = (db.Contract || []).find((row) => row.id === contractId && row.active !== false);
+    if (!contract) throw new Error('Contrato não encontrado.');
+    if (contract.status === 'encerrado') return clone(contract.termination_result || { canceledReceivables: 0, fine, fineReceivable: null });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(exitDate) || !Number.isFinite(Date.parse(exitDate)) || exitDate < contract.start_date) throw new Error('Informe uma data de saída válida, a partir do início do contrato.');
+    const future = (db.Receivable || []).filter((row) => row.active !== false && row.contract_id === contractId
+      && row.competence > exitDate.slice(0, 7) && !Number(row.paid_value) && row.status !== 'pago');
+    future.forEach((row) => { row.active = false; row.status = 'cancelado'; syncLocalRentNotifications(db, row); });
+    contract.original_end_date = contract.end_date;
+    contract.end_date = exitDate;
+    contract.status = 'encerrado';
+    contract.terminated_at = new Date().toISOString();
+    const others = db.Contract.filter((row) => row.id !== contractId && row.active !== false && row.status === 'ativo');
+    if (!others.some((row) => row.kitnet_id === contract.kitnet_id)) {
+      const kitnet = (db.Kitnet || []).find((row) => row.id === contract.kitnet_id);
+      if (kitnet) kitnet.status = 'vaga';
+    }
+    if (!others.some((row) => row.tenant_id === contract.tenant_id)) {
+      const tenant = (db.Tenant || []).find((row) => row.id === contract.tenant_id);
+      if (tenant) Object.assign(tenant, { status: 'inativo', kitnet_id: '' });
+    }
+    let fineReceivable = null;
+    if (launchFine && fine.fine > 0) {
+      fineReceivable = { id: createId(), active: true, contract_id: contractId, kitnet_id: contract.kitnet_id,
+        tenant_id: contract.tenant_id, bank_account_id: contract.bank_account_id || '', type: 'multa_quebra',
+        competence: exitDate.slice(0, 7), due_date: exitDate, expected_value: fine.fine, paid_value: 0, status: 'pendente' };
+      (db.Receivable ||= []).push(fineReceivable);
+    }
+    const result = { canceledReceivables: future.length, fine, fineReceivable };
+    contract.termination_result = result;
+    writeStorage(db);
+    return clone(result);
+  },
   async list(entity) {
     await delay();
     const db = readStorage();
@@ -137,7 +179,7 @@ export const localClient = {
 
   async importBackup(value) {
     await delay();
-    validateDb(value);
+    validateRecordBackup(value);
     writeStorage(value);
     return clone(value);
   },

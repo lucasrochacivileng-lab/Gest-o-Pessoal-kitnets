@@ -1,10 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { buildDeepLink, getNextAdjustmentDate, notificationService } from './notificationService.js';
+import { buildDeepLink, getNextAdjustmentDate, notificationService, withRecordedPayments } from './notificationService.js';
 import { NOTIFICATION_ENTITY, NOTIFICATION_STATUS, NOTIFICATION_TYPE } from '../types/notification.types.js';
 import { repository } from '../../../repository/index.js';
 import { RECEIVABLE_STATUS } from '../../receivables/types/receivable.types.js';
 
 describe('notificationService', () => {
+  it('confere pagamentos do recebível exato sem misturar competências ou estornos', () => {
+    const row = { id: 'october', paid_value: 0 };
+    expect(withRecordedPayments(row, [
+      { receivable_id: 'september', paid_value: 1000 },
+      { receivable_id: 'october', paid_value: 1000, status: 'estornado' },
+      { receivable_id: 'october', paid_value: 1000, active: false },
+      { receivable_id: 'october', paid_value: 300 },
+      { receivable_id: 'october', paid_value: 200 },
+    ]).paid_value).toBe(500);
+  });
+
+  it('resolve aviso antigo de aluguel quitado mesmo com resumo desatualizado, sem duplicar pagamento', async () => {
+    const r = await repository.create('Receivable', { competence: '2026-10', due_date: '2026-10-02', expected_value: 1000, paid_value: 0, status: 'pendente', active: true });
+    const generated = await notificationService.generateDueNotifications('2026-09-29');
+    const notice = generated.created.find(n => n.entity_id === r.id);
+    expect(notice.title).toContain('10/2026');
+    await repository.create('Payment', { receivable_id: r.id, paid_value: 1000, payment_date: '2026-09-29', active: true });
+    await notificationService.syncWithRegisteredData('2026-09-29');
+    expect((await repository.list('Notification')).find(n => n.id === notice.id).status).toBe(NOTIFICATION_STATUS.RESOLVED);
+    const before = (await repository.list('Payment')).length;
+    await notificationService.confirmTarget(NOTIFICATION_ENTITY.RECEIVABLE, r.id);
+    expect((await repository.list('Payment')).length).toBe(before);
+    expect((await notificationService.generateDueNotifications('2026-09-29')).created.some(n => n.entity_id === r.id)).toBe(false);
+  });
+
   it('builds deep links for supported notification targets', () => {
     expect(buildDeepLink(NOTIFICATION_ENTITY.EXPENSE, 'e1')).toBe('/despesas/e1');
     expect(buildDeepLink(NOTIFICATION_ENTITY.RECEIVABLE, 'r1')).toBe('/recebimentos/r1');

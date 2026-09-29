@@ -3,6 +3,7 @@ import notificationDeliveryService from './notificationDeliveryService.js';
 import receivableService, { calculateOutstandingValue } from '../../receivables/services/receivableService.js';
 import { buildWhatsAppLink } from '../../../services/whatsappService.js';
 import { formatDateBR, todayLocalISO } from '../../../services/dateUtils.js';
+import { sumMoney } from '../../../services/money.js';
 import {
   NOTIFICATION_ENTITY,
   NOTIFICATION_EVENT,
@@ -38,6 +39,14 @@ const parseDays = (value, fallback = [3]) => {
 };
 
 const getTargetDueDate = (row) => row.due_date || row.date || row.end_date || '';
+
+// Registros antigos podem ter Payment salvo sem atualizar o resumo do recebível.
+// Só cruza o vínculo exato: pagar setembro não quita outubro da mesma unidade.
+export const withRecordedPayments = (receivable, payments) => {
+  const paid = sumMoney(payments.filter(payment => payment.receivable_id === receivable.id
+    && payment.active !== false && payment.status !== 'estornado').map(payment => payment.paid_value));
+  return { ...receivable, paid_value: Math.max(Number(receivable.paid_value) || 0, paid) };
+};
 
 const isDateWithinAlertWindow = (date, days, currentDate = todayString()) => {
   if (!date || date < currentDate) return false;
@@ -141,16 +150,23 @@ const buildReceivableCandidate = (receivable, contracts, tenants, kitnets, setti
   const days = parseDays(settings.rentAlertDays, [5]);
   const isOverdue = Boolean(dueDate) && dueDate < currentDate;
 
-  if (receivable.status === 'pago' || (!isOverdue && !isDateWithinAlertWindow(dueDate, days, currentDate))) return null;
+  if (receivable.active === false || ['pago', 'cancelado'].includes(receivable.status)
+    || (receivable.expected_value !== undefined && calculateOutstandingValue(receivable) <= 0)
+    || (!isOverdue && !isDateWithinAlertWindow(dueDate, days, currentDate))) return null;
 
   const contract = getContractById(contracts, receivable.contract_id);
   const tenant = getTenantById(tenants, receivable.tenant_id || contract?.tenant_id);
   const kitnet = getKitnetById(kitnets, receivable.kitnet_id || contract?.kitnet_id);
   const label = kitnet?.name || receivable.competence || receivable.id;
-  const title = isOverdue ? `Aluguel vencido: ${label}` : `Aluguel a vencer: ${label}`;
-  const message = isOverdue
+  const competence = receivable.competence ? ` · ${receivable.competence.slice(5, 7)}/${receivable.competence.slice(0, 4)}` : '';
+  const title = (isOverdue ? `Aluguel vencido: ${label}` : `Aluguel a vencer: ${label}`) + competence;
+  let message = isOverdue
     ? `O aluguel de ${tenant?.name || 'locatário não informado'} venceu em ${formatDateBR(dueDate)} e ainda não foi registrado. Foi pago?`
     : `O aluguel de ${tenant?.name || 'locatário não informado'} vence em ${formatDateBR(dueDate)}. O pagamento já foi confirmado?`;
+  if (Number(receivable.paid_value) > 0) {
+    const balance = calculateOutstandingValue(receivable).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    message = `Pagamento parcial registrado para ${tenant?.name || 'o locatário'}. Saldo em aberto: ${balance}. Vencimento: ${formatDateBR(dueDate)}.`;
+  }
 
   return {
     type: NOTIFICATION_TYPE.RENT_DUE,
@@ -296,7 +312,7 @@ const candidateKey = (row) => `${row.entity}|${row.entity_id}|${row.type}`;
  * `syncWithRegisteredData` usa para conferir o que já está gravado.
  */
 const collectCandidates = async (settings, currentDate) => {
-  const [expenses, receivables, contracts, tenants, kitnets, projects, expertReports] = await Promise.all([
+  const [expenses, receivables, contracts, tenants, kitnets, projects, expertReports, payments] = await Promise.all([
     repository.list('Expense'),
     repository.list('Receivable'),
     repository.list('Contract'),
@@ -304,11 +320,12 @@ const collectCandidates = async (settings, currentDate) => {
     repository.list('Kitnet'),
     repository.list('ComplementaryProject'),
     repository.list('ExpertReport'),
+    repository.list('Payment'),
   ]);
 
   return [
     ...expenses.map((expense) => buildExpenseCandidate(expense, settings, currentDate)),
-    ...receivables.map((receivable) => buildReceivableCandidate(receivable, contracts, tenants, kitnets, settings, currentDate)),
+    ...receivables.map((receivable) => buildReceivableCandidate(withRecordedPayments(receivable, payments), contracts, tenants, kitnets, settings, currentDate)),
     ...contracts.map((contract) => buildContractCandidate(contract, tenants, kitnets, settings, currentDate)),
     ...contracts.map((contract) => buildContractAdjustCandidate(contract, tenants, kitnets, settings, currentDate)),
     ...projects.map((project) => buildProjectPaymentCandidate(project, NOTIFICATION_ENTITY.PROJECT, settings, currentDate)),
@@ -322,9 +339,14 @@ const updateTargetAsPaid = async (entity, id) => {
   }
 
   if (entity === NOTIFICATION_ENTITY.RECEIVABLE) {
-    const rows = await repository.list('Receivable');
-    const receivable = rows.find((row) => row.id === id);
+    const [rows, payments] = await Promise.all([repository.list('Receivable'), repository.list('Payment')]);
+    const stored = rows.find((row) => row.id === id);
+    const receivable = stored && withRecordedPayments(stored, payments);
     if (!receivable) return null;
+    if (['pago', 'cancelado'].includes(receivable.status) || calculateOutstandingValue(receivable) <= 0) return receivable;
+    if (receivable.paid_value !== (Number(stored.paid_value) || 0)) {
+      throw new Error('Há pagamento parcial registrado com resumo desatualizado. Confira o histórico em Recebimentos antes de confirmar outro pagamento.');
+    }
 
     // Precisa passar pelo MESMO caminho do botão "Receber" (registerPayment),
     // não só marcar o recebível como pago: só assim cria o Pagamento que
@@ -434,7 +456,6 @@ export const notificationService = {
     const open = notifications.filter((notification) => (
       notification.active !== false
       && !isClosed(notification)
-      && notification.status !== NOTIFICATION_STATUS.ERROR
       && notification.entity
       && notification.entity_id
     ));
@@ -482,6 +503,7 @@ export const notificationService = {
   // Resolve o link wa.me da notificação (telefone do locatário + mensagem).
   // Lança erro amigável quando não há locatário/telefone associado.
   async getWhatsAppLink(notificationId) {
+    await this.syncWithRegisteredData();
     const [notifications, receivables, contracts, tenants] = await Promise.all([
       repository.list('Notification'),
       repository.list('Receivable'),
@@ -494,6 +516,7 @@ export const notificationService = {
     if (!notification) {
       throw new Error('Notificação não encontrada.');
     }
+    if (isClosed(notification)) throw new Error('Esta pendência já foi resolvida. Atualize a central.');
 
     let tenantId = null;
 
@@ -530,12 +553,14 @@ export const notificationService = {
   },
 
   async sendNow(notificationId) {
+    await this.syncWithRegisteredData();
     const notifications = await repository.list('Notification');
     const notification = notifications.find((item) => item.id === notificationId);
 
     if (!notification) {
       throw new Error('Notificação não encontrada.');
     }
+    if (isClosed(notification)) throw new Error('Esta pendência já foi resolvida. Atualize a central.');
 
     try {
       const result = await notificationDeliveryService.sendEmail(notification);
@@ -559,6 +584,7 @@ export const notificationService = {
   },
 
   async sendPendingNow() {
+    await this.syncWithRegisteredData();
     const notifications = await repository.list('Notification');
     const pending = notifications.filter((notification) => notification.status === NOTIFICATION_STATUS.PENDING);
     const sent = [];

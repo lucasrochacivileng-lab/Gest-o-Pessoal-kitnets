@@ -17,12 +17,12 @@ const statusClass = {
 };
 
 export function NotificationCard({ notification, onSendNow, onWhatsApp }) {
+  const closed = ['confirmada', 'ignorada', 'resolvida'].includes(notification.status);
   // WhatsApp só faz sentido quando há locatário por trás (aluguel/contrato)
   // e a notificação ainda está em aberto.
   const canWhatsApp = Boolean(onWhatsApp)
     && (notification.entity === NOTIFICATION_ENTITY.RECEIVABLE || notification.entity === NOTIFICATION_ENTITY.CONTRACT)
-    && notification.status !== NOTIFICATION_STATUS.CONFIRMED
-    && notification.status !== NOTIFICATION_STATUS.IGNORED;
+    && !closed;
 
   return (
     <article className="ds-card">
@@ -58,9 +58,9 @@ export function NotificationCard({ notification, onSendNow, onWhatsApp }) {
               <MessageCircle className="h-4 w-4" /> Cobrar no WhatsApp
             </button>
           ) : null}
-          <button type="button" onClick={() => onSendNow(notification.id)} className="ds-btn ds-btn-primary">
+          {!closed && <button type="button" onClick={() => onSendNow(notification.id)} className="ds-btn ds-btn-primary">
             <Send className="h-4 w-4" /> Enviar lembrete agora
-          </button>
+          </button>}
         </div>
       </div>
 

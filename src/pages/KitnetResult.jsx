@@ -1,3 +1,4 @@
+import { useReportFilters } from '../hooks/useReportFilters.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { repository } from '../repository/index.js';
 import { useEntitySync } from '../hooks/useEntitySync.js';
@@ -11,24 +12,26 @@ const money = (value) => financialService.formatCurrency(value);
 const resultTone = (value) => (value < 0 ? 'text-red-600' : 'text-slate-900');
 
 export default function KitnetResult() {
-  const [competence, setCompetence] = useState(() => currentMonthLocal());
+  const { month: competence, setMonth: setCompetence } = useReportFilters();
   const [data, setData] = useState(null);
 
   const load = async () => {
-    const [kitnets, payments, expenses, personal] = await Promise.all([
+    const [kitnets, payments, expenses, personal, receivables, contracts] = await Promise.all([
       repository.list('Kitnet'),
       repository.list('Payment'),
       repository.list('Expense'),
       repository.list('PersonalIncome'),
+      repository.list('Receivable'),
+      repository.list('Contract'),
     ]);
-    setData({ kitnets, payments, expenses, personal });
+    setData({ kitnets, payments, expenses, personal, receivables, contracts });
   };
 
   useEffect(() => {
     load();
   }, []);
 
-  useEntitySync(['Kitnet', 'Payment', 'Expense', 'PersonalIncome'], load);
+  useEntitySync(['Kitnet', 'Payment', 'Expense', 'PersonalIncome', 'Receivable', 'Contract'], load);
 
   const result = useMemo(
     () => (data ? buildKitnetResults({ ...data, monthKey: competence }) : null),
@@ -40,7 +43,7 @@ export default function KitnetResult() {
       <PageHeader title="Resultado por kitnet" description={(
         <>
           Aluguel recebido de cada unidade menos as despesas vinculadas a ela. Custos "Geral" (que cobrem todas as
-          unidades) aparecem à parte e ainda não são rateados. Regime de caixa: só entra o que foi pago/recebido.
+          unidades) aparecem à parte e ainda não são rateados. Somente lançamentos confirmados. Valores sem unidade identificada ficam em Geral.
         </>
       )} />
 
@@ -82,13 +85,13 @@ export default function KitnetResult() {
                     </td>
                   </tr>
                 ))}
-                {result.geral.expense > 0 ? (
+                {result.geral.expense > 0 || result.geral.income > 0 ? (
                   <tr className="border-t border-slate-100 bg-slate-50/60">
-                    <td className="px-4 py-3 text-slate-600">Geral (não rateado)</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-400">—</td>
+                    <td className="px-4 py-3 text-slate-600">Geral / sem unidade (não rateado)</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{money(result.geral.income)}</td>
                     <td className="px-4 py-3 text-right tabular-nums text-red-600">{money(result.geral.expense)}</td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums text-red-600">
-                      {money(-result.geral.expense)}
+                      {money(result.geral.result)}
                     </td>
                   </tr>
                 ) : null}

@@ -1,10 +1,12 @@
+import { buildFinancialLedger, selectLedger } from './financialLedger.js';
+import { movementDate } from './financialClassification.js';
+import { addMoney, sumMoney } from './money.js';
 import { isPersonalExpense } from './personalMovementClassifier.js';
 import { resolveExpenseSegment } from './segmentConsolidationService.js';
 // Rótulos vêm do catálogo único de categorias — este serviço segue dono só da
 // NORMALIZAÇÃO (slug + aliases) que concilia os vocabulários legados.
 import { CATEGORY_LABELS } from './categoryCatalog.js';
 
-const toMoney = (value) => Number(value || 0);
 const monthOf = (date) => String(date || '').slice(0, 7);
 
 export const categoryLabel = (key) => CATEGORY_LABELS[key] || (key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Sem categoria');
@@ -35,91 +37,29 @@ export const normalizeCategory = (row) => {
   return CATEGORY_ALIASES[raw] || raw || 'sem_categoria';
 };
 
-// Só o que efetivamente saiu do caixa conta como gasto realizado — mesma
-// regra de "pago" do cashflowService. Uma despesa recorrente ainda
-// PENDENTE (gerada pro mês mas não paga) não pode contar aqui só por ser
-// recorrente: isso inflava "Gastos por categoria" acima do que a "Caixa
-// geral do mês" mostrava para os MESMOS lançamentos.
-const isRealizedExpense = (row) => ['pago', 'recebido'].includes(String(row.status || '').toLowerCase()) && toMoney(row.value) > 0;
-const isIncludedCardExpense = (row) => row.type === 'card_transaction' && row.status !== 'ignorar' && toMoney(row.value) > 0;
-const isIncludedPersonalExpense = (row) => isPersonalExpense(row) && (isIncludedCardExpense(row) || isRealizedExpense(row));
 
-const excludedReason = (row) => {
-  if (toMoney(row.value) <= 0) return 'Valor não informado';
-  if (row.type === 'transfer') return 'Transferência / ajuste de saldo';
-  if (row.status === 'revisar') return 'Aguardando revisão';
-  if (!isRealizedExpense(row)) return `Status: ${row.status || 'não informado'}`;
-  return '';
-};
-
-// Cruza despesas das kitnets + finanças pessoais (exceto transações de cartão
-// ainda em revisão) e soma por categoria dentro do mês escolhido.
-export const buildCategoryReport = ({ expenses = [], personal = [], month }) => {
+export const buildCategoryReport = ({ expenses = [], personal = [], month, segment = '' }) => {
+  const items = selectLedger(buildFinancialLedger({ expenses, personal }), { month, segment }).filter(r => r.kind === 'saida');
   const totals = new Map();
-  const excluded = [];
-  const add = (category, value, origin) => {
-    const key = normalizeCategory({ category });
-    const current = totals.get(key) || { category: key, label: categoryLabel(key), total: 0, count: 0, origins: new Set() };
-    current.total += toMoney(value);
-    current.count += 1;
-    current.origins.add(origin);
-    totals.set(key, current);
-  };
-
-  expenses
-    .filter((row) => monthOf(row.date) === month && isRealizedExpense(row))
-    .forEach((row) => add(row.category, row.value, resolveExpenseSegment(row, 'kitnets')));
-
-  personal
-    .filter((row) => monthOf(row.date) === month && isIncludedPersonalExpense(row))
-    .forEach((row) => add(row.category, row.value, row.type === 'card_transaction' ? 'cartão' : 'pessoal'));
-
-  [...expenses, ...personal]
-    .filter((row) => monthOf(row.date) === month)
-    .filter((row) => row.type === 'transfer'
-      || (expenses.includes(row) && !isRealizedExpense(row))
-      || (isPersonalExpense(row) && !isIncludedPersonalExpense(row)))
-    .forEach((row) => excluded.push({
-      id: row.id,
-      date: row.date,
-      description: row.description || row.category || 'Lançamento',
-      value: toMoney(row.value),
-      reason: excludedReason(row),
-    }));
-
-  const rows = [...totals.values()]
-    .map((row) => ({ ...row, origins: [...row.origins] }))
-    .sort((a, b) => b.total - a.total);
-
-  const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
-  const includedCards = personal.filter((row) => monthOf(row.date) === month && isIncludedCardExpense(row));
-
-  return {
-    rows: rows.map((row) => ({ ...row, share: grandTotal ? row.total / grandTotal : 0 })),
-    grandTotal,
-    cardTotal: includedCards.reduce((sum, row) => sum + toMoney(row.value), 0),
-    cardCount: includedCards.length,
-    cardReviewCount: includedCards.filter((row) => row.status === 'revisar').length,
-    excluded: excluded.sort((a, b) => String(b.date).localeCompare(String(a.date))),
-  };
+  for (const item of items) {
+    const key = normalizeCategory(item);
+    const group = totals.get(key) || { category: key, label: categoryLabel(key), total: 0, count: 0, origins: new Set(), items: [] };
+    group.total = addMoney(group.total, item.value); group.count += 1;
+    group.origins.add(item.segment); group.items.push(item); totals.set(key, group);
+  }
+  const rows = [...totals.values()].map(r => ({ ...r, origins: [...r.origins] })).sort((a,b)=>b.total-a.total);
+  const grandTotal = sumMoney(items.map(r=>r.value));
+  const candidates = [...expenses.map(r=>({...r, entity:'Expense'})), ...personal.filter(r=>isPersonalExpense(r)||r.type==='transfer').map(r=>({...r, entity:'PersonalIncome'}))];
+  const excluded = candidates.filter(r=>r.active!==false && monthOf(movementDate(r))===month && (!segment || resolveExpenseSegment(r,r.entity==='Expense'?'kitnets':'pessoal')===segment))
+    .filter(r=>r.type==='transfer' || (r.entity==='Expense' ? r.status!=='pago' : !['pago','recebido'].includes(r.status)))
+    .map(r=>({ ...r, reason: r.type==='transfer'?'Transferência / ajuste de saldo': r.status==='revisar'?'Aguardando revisão': 'Status: '+(r.status||'não informado') }));
+  const cards = items.filter(r=>r.card);
+  return { rows: rows.map(r=>({...r,share:grandTotal?r.total/grandTotal:0})), grandTotal,
+    cardTotal:sumMoney(cards.map(r=>r.value)),cardCount:cards.length,
+    cardReviewCount:excluded.filter(r=>r.type==='card_transaction'&&r.status==='revisar').length,excluded };
 };
-
-// Evolução de uma categoria (ou de tudo) nos últimos N meses — para o gráfico.
-export const buildCategoryTrend = ({ expenses = [], personal = [], months = [], category = null }) => {
-  const matches = (rowCategory) => !category || normalizeCategory({ category: rowCategory }) === category;
-
-  return months.map((month) => {
-    const kitnetTotal = expenses
-      .filter((row) => monthOf(row.date) === month && isRealizedExpense(row) && matches(row.category))
-      .reduce((sum, row) => sum + toMoney(row.value), 0);
-
-    const personalTotal = personal
-      .filter((row) => isIncludedPersonalExpense(row) && monthOf(row.date) === month)
-      .filter((row) => matches(row.category))
-      .reduce((sum, row) => sum + toMoney(row.value), 0);
-
-    return { month, total: kitnetTotal + personalTotal };
-  });
-};
-
+export const buildCategoryTrend = ({ expenses = [], personal = [], months = [], category = null, segment = '' }) => months.map(month=>{
+  const report = buildCategoryReport({expenses,personal,month,segment});
+  return {month,total:category?(report.rows.find(r=>r.category===category)?.total||0):report.grandTotal};
+});
 export default buildCategoryReport;

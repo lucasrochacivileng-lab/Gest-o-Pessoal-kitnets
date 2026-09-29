@@ -1,3 +1,4 @@
+import { useReportFilters } from '../hooks/useReportFilters.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { repository } from '../repository/index.js';
@@ -63,7 +64,7 @@ function ForecastTable({ title, rows, total, tone }) {
 }
 
 export default function Forecast() {
-  const [month, setMonth] = useState(currentMonthKey);
+  const { month, setMonth } = useReportFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 

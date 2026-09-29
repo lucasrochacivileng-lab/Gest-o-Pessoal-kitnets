@@ -115,7 +115,7 @@ describe('dashboardService', () => {
     const receivable = await repository.create('Receivable', {
       kitnet_id: kitnet.id,
       competence: currentMonth,
-      due_date: `${currentMonth}-28`,
+      due_date: `${currentMonth}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, "0")}`,
       expected_value: 950,
       paid_value: 0,
       status: 'pendente',

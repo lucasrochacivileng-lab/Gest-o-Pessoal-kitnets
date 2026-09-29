@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEntitySync } from '../../../hooks/useEntitySync.js';
 import { Bell, RefreshCw, Send } from 'lucide-react';
 import NotificationCard from '../components/NotificationCard.jsx';
 import NotificationSettings from '../components/NotificationSettings.jsx';
@@ -7,6 +8,7 @@ import { NOTIFICATION_STATUS, notificationStatusLabels } from '../types/notifica
 import PageHeader from '../../../components/ui/PageHeader.jsx';
 
 const statusFilters = [
+  { value: 'ativos', label: 'Em aberto' },
   { value: 'todos', label: 'Todos' },
   ...Object.values(NOTIFICATION_STATUS).map((status) => ({
     value: status,
@@ -17,20 +19,29 @@ const statusFilters = [
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [settings, setSettings] = useState(notificationService.readSettings());
-  const [filter, setFilter] = useState('todos');
+  const [filter, setFilter] = useState('ativos');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    setLoading(true);
-    const result = await notificationService.loadCenterData();
-    setNotifications(result.notifications);
-    setSettings(result.settings);
-    setLoading(false);
+  const requestVersion = useRef(0);
+  const load = async ({ silent = false } = {}) => {
+    const version = ++requestVersion.current;
+    if (!silent) setLoading(true);
+    try {
+      const result = await notificationService.loadCenterData();
+      if (version === requestVersion.current) setNotifications(result.notifications);
+    } catch (error) {
+      if (version === requestVersion.current) setMessage(error.message || 'Não foi possível atualizar as notificações.');
+    } finally {
+      if (version === requestVersion.current) setLoading(false);
+    }
   };
+  useEntitySync(['Notification', 'NotificationEvent', 'Payment', 'Receivable', 'Expense', 'Contract', 'Tenant', 'Kitnet', 'ComplementaryProject', 'ExpertReport'], () => load({ silent: true }));
 
   useEffect(() => {
     load();
+    const timer = setInterval(() => load({ silent: true }), 60000);
+    return () => { clearInterval(timer); requestVersion.current += 1; };
   }, []);
 
   const summary = useMemo(() => {
@@ -41,6 +52,7 @@ export default function NotificationsPage() {
   }, [notifications]);
 
   const visibleNotifications = useMemo(() => {
+    if (filter === 'ativos') return notifications.filter((row) => ['pendente', 'enviada', 'erro'].includes(row.status));
     if (filter === 'todos') return notifications;
     return notifications.filter((notification) => notification.status === filter);
   }, [filter, notifications]);
@@ -56,21 +68,27 @@ export default function NotificationsPage() {
   };
 
   const generateNotifications = async () => {
-    const result = await notificationService.generateDueNotifications();
-    setMessage(`${result.created.length} notificação(ões) criada(s). ${result.skipped.length} já existia(m).`);
-    await load();
+    try {
+      const result = await notificationService.generateDueNotifications();
+      setMessage(`${result.created.length} notificação(ões) criada(s). ${result.skipped.length} já existia(m).`);
+      await load();
+    } catch (error) { setMessage(error.message); }
   };
 
   const sendPendingNow = async () => {
-    const sent = await notificationService.sendPendingNow();
-    setMessage(`${sent.length} lembrete(s) processado(s) em modo local/simulado.`);
-    await load();
+    try {
+      const sent = await notificationService.sendPendingNow();
+      setMessage(`${sent.length} lembrete(s) processado(s) em modo local/simulado.`);
+      await load();
+    } catch (error) { setMessage(error.message); }
   };
 
   const sendOneNow = async (notificationId) => {
-    await notificationService.sendNow(notificationId);
-    setMessage('Lembrete processado em modo local/simulado.');
-    await load();
+    try {
+      await notificationService.sendNow(notificationId);
+      setMessage('Lembrete processado em modo local/simulado.');
+      await load();
+    } catch (error) { setMessage(error.message); await load(); }
   };
 
   const sendWhatsApp = async (notificationId) => {

@@ -4,6 +4,7 @@ import { repository } from '../repository/index.js';
 import { applyPaymentMethodFix } from '../services/paymentMethodFixService.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import { todayLocalISO } from '../services/dateUtils.js';
+import { isSupabaseEnabled } from '../services/supabaseClient.js';
 
 const SETTINGS_KEY = '@kitmanager/settings';
 
@@ -27,6 +28,14 @@ export default function Settings() {
   const [settings, setSettings] = useState(defaultSettings);
   const [message, setMessage] = useState('');
   const fileInputRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const safetyCopyRef = useRef(null);
+  const [hasSafetyCopy, setHasSafetyCopy] = useState(false);
+  const saveSafetyCopy = (backup) => {
+    safetyCopyRef.current = backup;
+    setHasSafetyCopy(true);
+    downloadBackupFile(backup, `kitmanager-seguranca-${Date.now()}.json`);
+  };
 
   useEffect(() => {
     setSettings(readSettings());
@@ -52,17 +61,21 @@ export default function Settings() {
   };
 
   const exportBackup = async () => {
-    const backup = await repository.exportBackup();
-    downloadBackupFile(backup, `kitmanager-backup-${todayLocalISO()}.json`);
-    setMessage('Backup exportado.');
+    setBusy(true);
+    try {
+      const backup = await repository.exportBackup();
+      downloadBackupFile(backup, `kitmanager-backup-${todayLocalISO()}.json`);
+      setMessage('Backup exportado com todos os registros acessíveis e anexos incluídos no escopo.');
+    } catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
   };
 
   const importBackup = async (event) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || busy) return;
 
     const confirmed = window.confirm(
-      'Importar substitui TODOS os dados atuais pelos do arquivo. '
+      `Importar substitui os dados ${isSupabaseEnabled ? 'NA NUVEM' : 'deste navegador'} pelos do arquivo. `
       + 'Uma cópia de segurança dos dados atuais será baixada antes. Continuar?',
     );
 
@@ -71,29 +84,50 @@ export default function Settings() {
       return;
     }
 
+    setBusy(true);
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
 
       // Cópia de segurança dos dados atuais antes de qualquer alteração.
       const safetyCopy = await repository.exportBackup();
-      downloadBackupFile(safetyCopy, `kitmanager-backup-seguranca-${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16)}.json`);
+      saveSafetyCopy(safetyCopy);
 
-      await repository.importBackup(parsed);
+      await repository.importBackup(parsed, { expectedRevision: safetyCopy.revision });
       setMessage('Backup importado. Recarregue a página para atualizar todos os módulos.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível importar o backup.');
     } finally {
       event.target.value = '';
+      setBusy(false);
     }
   };
 
   const resetData = async () => {
+    if (isSupabaseEnabled || busy) return;
     const confirmed = window.confirm('Resetar a base local e apagar todos os dados salvos neste navegador?');
     if (!confirmed) return;
 
-    await repository.resetData();
-    setMessage('Base local resetada. Recarregue a página para atualizar todos os módulos.');
+    setBusy(true);
+    try {
+      saveSafetyCopy(await repository.exportBackup());
+      await repository.resetData();
+      setMessage('Base local resetada. A cópia anterior está disponível para recuperação nesta sessão e no arquivo baixado.');
+    } catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
+  };
+
+  const recover = async () => {
+    if (!safetyCopyRef.current || busy || !window.confirm('Restaurar a cópia anterior? Os dados atuais serão substituídos.')) return;
+    setBusy(true);
+    try {
+      const previous = safetyCopyRef.current;
+      const current = await repository.exportBackup();
+      saveSafetyCopy(current);
+      await repository.importBackup(previous, { expectedRevision: current.revision });
+      setMessage('Cópia anterior restaurada.');
+    } catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
   };
 
   const [fixing, setFixing] = useState(false);
@@ -157,17 +191,21 @@ export default function Settings() {
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Dados locais</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{isSupabaseEnabled ? 'Backup e recuperação da base na nuvem' : 'Backup e dados deste navegador'}</h2>
+        <p className="mt-2 text-sm text-slate-600">{isSupabaseEnabled
+          ? 'Disponível para administradores. Inclui registros, caixa financeira e PDFs referenciados. Usuários, senhas, preferências e auditoria não são substituídos. Backups antigos restauram apenas registros.'
+          : 'Faça download do backup para poder recuperar seus dados mesmo após fechar o navegador.'}</p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button type="button" onClick={exportBackup} className="ds-btn ds-btn-secondary">
+          <button type="button" disabled={busy} onClick={exportBackup} className="ds-btn ds-btn-secondary">
             <Download className="h-4 w-4" /> Exportar backup
           </button>
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="ds-btn ds-btn-secondary">
+          <button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()} className="ds-btn ds-btn-secondary">
             <Upload className="h-4 w-4" /> Importar backup
           </button>
-          <button type="button" onClick={resetData} className="inline-flex items-center gap-2 rounded-[var(--radius-lg)] border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50">
+          {!isSupabaseEnabled && <button type="button" disabled={busy} onClick={resetData} className="inline-flex items-center gap-2 rounded-[var(--radius-lg)] border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50">
             <RotateCcw className="h-4 w-4" /> Resetar base local
-          </button>
+          </button>}
+          {hasSafetyCopy && <button type="button" disabled={busy} onClick={recover} className="ds-btn ds-btn-secondary">Restaurar cópia anterior</button>}
           <input ref={fileInputRef} type="file" accept="application/json" onChange={importBackup} className="hidden" />
         </div>
       </section>

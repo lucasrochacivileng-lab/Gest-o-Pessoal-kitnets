@@ -145,9 +145,9 @@ begin
   assert (select data ->> 'name' from public.records where id = 'audit-0006-admin') = 'K-0006b',
     '6: ADMIN nao conseguiu atualizar';
 
-  delete from public.records where id = 'audit-0006-admin';
-  assert not exists (select 1 from public.records where id = 'audit-0006-admin'),
-    '6: ADMIN nao conseguiu excluir';
+  update public.records set active=false where id = 'audit-0006-admin';
+  assert not exists (select 1 from public.records where id = 'audit-0006-admin' and active),
+    '6: ADMIN nao conseguiu excluir logicamente';
 end;
 $$;
 

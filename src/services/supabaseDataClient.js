@@ -1,10 +1,12 @@
 import { supabase } from './supabaseClient.js';
+import { paymentSnapshot, validatePayment } from './financialMutations.js';
+import { exportRemoteBackup, importRemoteBackup } from './remoteBackupService.js';
 
 // Todas as entidades vivem numa única tabela `records` (id, entity, active, data jsonb).
 // O objeto completo fica em `data`, preservando qualquer campo criado pelos formulários —
 // mesma semântica flexível do localStorage, mas na nuvem.
 const TABLE = 'records';
-const IMPORT_CHUNK_SIZE = 200;
+
 
 const createId = () => {
   if (globalThis.crypto?.randomUUID) {
@@ -52,41 +54,31 @@ const throwPaymentError = (error) => {
   if (!error) return;
   const message = PAYMENT_ERROR_MESSAGES[error.message]
     || (/fetch|network/i.test(error.message || '')
-      ? 'Nao foi possivel conectar ao banco. Nenhum pagamento foi confirmado.'
+      ? 'A conexão falhou. Confira o histórico antes de repetir; o pagamento pode ter sido salvo.'
       : 'Nao foi possivel registrar o pagamento. Nenhuma confirmacao foi exibida.');
   const safeError = new Error(message);
   safeError.code = error.message || error.code || 'PAYMENT_UNKNOWN_ERROR';
   throw safeError;
 };
 
-const validateDb = (value) => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Backup inválido: o conteúdo precisa ser um objeto.');
-  }
-
-  Object.entries(value).forEach(([entity, rows]) => {
-    if (!Array.isArray(rows)) {
-      throw new Error(`Backup inválido: ${entity} precisa ser uma lista.`);
-    }
-  });
-};
-
-const deleteAllRows = async () => {
-  const { error } = await supabase.from(TABLE).delete().not('id', 'is', null);
-  throwIfError(error, 'Falha ao limpar a base remota');
-};
-
 export const supabaseDataClient = {
   async list(entity) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('id, active, data')
-      .eq('entity', entity)
-      .neq('active', false)
-      .order('created_at', { ascending: true });
-
-    throwIfError(error, `Falha ao listar ${entity}`);
-    return (data || []).map(toEntityRow);
+    const rows = [];
+    let cursor = null;
+    // Cursor estável; continua até página vazia, mesmo se o servidor limitar a menos de 500.
+    while (true) {
+      let query = supabase.from(TABLE).select('id, active, data').eq('entity', entity)
+        .neq('active', false).order('id', { ascending: true }).limit(500);
+      if (cursor) query = query.gt('id', cursor);
+      const { data, error } = await query;
+      throwIfError(error, `Falha ao listar ${entity}`);
+      if (!data?.length) break;
+      const next = data[data.length - 1].id;
+      if (next === cursor) throw new Error('A paginação não avançou. Tente recarregar.');
+      rows.push(...data.map(toEntityRow));
+      cursor = next;
+    }
+    return rows;
   },
 
   async create(entity, payload) {
@@ -154,81 +146,38 @@ export const supabaseDataClient = {
     };
   },
 
-  async exportBackup() {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('id, entity, active, data')
-      .order('created_at', { ascending: true });
-
-    throwIfError(error, 'Falha ao exportar backup');
-
-    return (data || []).reduce((acc, row) => {
-      if (!acc[row.entity]) acc[row.entity] = [];
-      acc[row.entity].push(toEntityRow(row));
-      return acc;
-    }, {});
+  async correctPayment(payment, values) {
+    const validated = validatePayment({ ...payment, ...values });
+    const { data, error } = await supabase.rpc('amend_receivable_payment', {
+      p_payment_id: payment.id, p_values: paymentSnapshot(validated),
+      p_previous: paymentSnapshot(payment), p_reverse: false,
+      p_justification: values.justification || 'Correção pela tela de pagamentos',
+    });
+    if (error) throw new Error('Não foi possível corrigir o pagamento: ' + error.message);
+    if (!data?.payment?.id) throw new Error('Correção não confirmada. Atualize a tela.');
+    return data;
   },
-
-  async importBackup(value) {
-    validateDb(value);
-
-    // Monta todas as linhas ANTES de tocar na base: se o arquivo estiver
-    // malformado, a falha acontece sem apagar nada.
-    const rows = Object.entries(value).flatMap(([entity, entityRows]) =>
-      entityRows.map((row) => {
-        const withId = { id: createId(), ...row };
-        return {
-          id: String(withId.id),
-          entity,
-          active: withId.active !== false,
-          data: withId,
-        };
-      }),
-    );
-
-    // Snapshot dos dados atuais para restaurar caso a importação falhe no meio.
-    const { data: snapshot, error: snapshotError } = await supabase
-      .from(TABLE)
-      .select('id, entity, active, data')
-      .order('created_at', { ascending: true });
-
-    throwIfError(snapshotError, 'Falha ao preparar a cópia de segurança antes da importação');
-
-    const insertInChunks = async (list) => {
-      for (let start = 0; start < list.length; start += IMPORT_CHUNK_SIZE) {
-        const { error } = await supabase.from(TABLE).insert(list.slice(start, start + IMPORT_CHUNK_SIZE));
-        throwIfError(error, 'Falha ao importar backup');
-      }
-    };
-
-    await deleteAllRows();
-
-    try {
-      await insertInChunks(rows);
-    } catch (importError) {
-      let restored = false;
-
-      try {
-        await deleteAllRows();
-        await insertInChunks(snapshot || []);
-        restored = true;
-      } catch {
-        // restauração automática falhou; a orientação vai no erro abaixo
-      }
-
-      const detail = importError instanceof Error ? importError.message : String(importError);
-      throw new Error(restored
-        ? `A importação falhou e os dados anteriores foram restaurados automaticamente. Detalhe: ${detail}`
-        : `A importação falhou e não foi possível restaurar automaticamente. Use o arquivo de segurança baixado antes da importação para recuperar os dados. Detalhe: ${detail}`);
-    }
-
-    return value;
+  async reversePayment(payment, justification) {
+    const { data, error } = await supabase.rpc('amend_receivable_payment', {
+      p_payment_id: payment.id, p_values: {}, p_previous: paymentSnapshot(payment),
+      p_reverse: true, p_justification: justification || 'Estorno pela tela de pagamentos',
+    });
+    if (error) throw new Error('Não foi possível estornar: ' + error.message);
+    if (!data?.payment?.id) throw new Error('Estorno não confirmado. Atualize a tela.');
+    return data;
   },
-
+  async terminateContract(contractId, { exitDate, launchFine }) {
+    const { data, error } = await supabase.rpc('terminate_rental_contract', {
+      p_contract_id: contractId, p_exit_date: exitDate, p_launch_fine: launchFine,
+    });
+    if (error) throw new Error('Não foi possível encerrar o contrato: ' + error.message);
+    if (!data || !Number.isInteger(data.canceledReceivables)) throw new Error('Encerramento não confirmado. Atualize a tela.');
+    return data;
+  },
+  exportBackup: exportRemoteBackup,
+  importBackup: importRemoteBackup,
   async resetData() {
-    await deleteAllRows();
-    return {};
+    throw new Error('O reset local não pode apagar dados do Supabase.');
   },
 };
-
 export default supabaseDataClient;

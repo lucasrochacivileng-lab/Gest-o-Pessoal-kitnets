@@ -26,6 +26,6 @@ describe('enrichPaymentRow', () => {
 
   it('devolve a linha original quando nao ha recebivel vinculado (pagamento manual)', () => {
     const row = { id: 'p3', paid_value: 100 };
-    expect(enrichPaymentRow(row, { Receivable: [] })).toEqual(row);
+    expect(enrichPaymentRow(row, { Receivable: [] })).toEqual({ ...row, net_value: 100 });
   });
 });

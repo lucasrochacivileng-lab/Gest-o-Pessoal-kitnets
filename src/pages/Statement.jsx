@@ -1,3 +1,4 @@
+import { useReportFilters } from '../hooks/useReportFilters.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Building2, Clock, Search, User } from 'lucide-react';
@@ -90,10 +91,7 @@ export default function Statement() {
   const [searchParams] = useSearchParams();
   // `?mes=YYYY-MM` abre o extrato já no mês pedido — é assim que o clique numa
   // barra do dashboard cai no mês certo em vez de sempre no mês atual.
-  const [month, setMonth] = useState(() => {
-    const requested = searchParams.get('mes') || '';
-    return MONTH_PARAM.test(requested) ? requested : currentMonthKey();
-  });
+  const { month, setMonth } = useReportFilters();
   const [filter, setFilter] = useState('todos');
   const [search, setSearch] = useState('');
   const [data, setData] = useState(null);
@@ -139,8 +137,8 @@ export default function Statement() {
       if (filter === 'entrada' && movement.kind !== 'entrada') return false;
       if (filter === 'saida' && movement.kind !== 'saida') return false;
       if (filter === 'kitnets' && movement.origin !== 'kitnets') return false;
-      if (filter === 'extras' && movement.origin !== 'extras') return false;
-      if (filter === 'pessoal' && movement.origin !== 'pessoal') return false;
+      if (filter === 'extras' && !['extras', 'projetos', 'pericias'].includes(movement.origin)) return false;
+      if (filter === 'pessoal' && !['pessoal', 'trabalho'].includes(movement.origin)) return false;
 
       if (search) {
         const text = `${movement.label} ${movement.detail} ${movement.category}`.toLowerCase();

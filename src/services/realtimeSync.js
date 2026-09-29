@@ -3,13 +3,13 @@ import { supabase, isSupabaseEnabled } from './supabaseClient.js';
 // Sincronização em tempo real: escuta INSERT/UPDATE/DELETE na tabela `records`
 // (Supabase Realtime) e avisa as telas interessadas para recarregarem a lista.
 // Requer que a tabela esteja na publicação `supabase_realtime`
-// (ver supabase/migrations/0002_realtime.sql). Em modo local é um no-op.
+// (ver supabase/migrations/0002_realtime.sql). Também recebe alterações locais.
 const DEBOUNCE_MS = 400;
 
 const listeners = new Set();
 let channel = null;
 
-const notifyEntity = (entity) => {
+export const notifyEntity = (entity = null) => {
   listeners.forEach((listener) => {
     // entity === null acontece em eventos sem payload (ex.: DELETE sem replica
     // identity full); na dúvida, recarrega todo mundo.
@@ -40,7 +40,7 @@ const ensureChannel = () => {
  * Retorna a função de cancelamento.
  */
 export const subscribeToEntityChanges = (entities, callback) => {
-  if (!isSupabaseEnabled || !entities?.length) {
+  if (!entities?.length) {
     return () => {};
   }
 
@@ -59,9 +59,25 @@ export const subscribeToEntityChanges = (entities, callback) => {
 
   listeners.add(listener);
 
+  const refresh = () => listener.schedule();
+  const visibility = () => { if (document.visibilityState === 'visible') refresh(); };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    window.addEventListener('storage', refresh);
+    document.addEventListener('visibilitychange', visibility);
+  }
+
   return () => {
     clearTimeout(listener.timer);
     listeners.delete(listener);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('storage', refresh);
+      document.removeEventListener('visibilitychange', visibility);
+    }
+    if (!listeners.size && channel) { supabase?.removeChannel(channel); channel = null; }
   };
 };
 

@@ -1,3 +1,4 @@
+import { resolveExpenseSegment, movementDate } from './financialClassification.js';
 // Extrato: cruza pagamentos de aluguel (entrada), despesas das kitnets (saída)
 // e finanças pessoais (entrada/saída) num único extrato cronológico, com a
 // origem de cada lançamento legível ("Aluguel — Kitnet 03 · Maria").
@@ -19,7 +20,7 @@ const inMonth = (date, monthKey) => String(date || '').startsWith(monthKey);
 // o MESMO lançamento repetido. O mês continua vindo de `date` (é ele que
 // agrupa), então só troca o dia exibido — e só quando cai no mesmo mês.
 const displayDate = (row, monthKey) => (
-  inMonth(row.paid_at, monthKey) ? row.paid_at : row.date
+  inMonth(row.paid_at, monthKey) ? row.paid_at : movementDate(row)
 );
 
 const PERSONAL_TYPE_LABELS = {
@@ -62,7 +63,7 @@ export const buildStatement = ({
   };
 
   const rentIncome = rentPaymentsOnly(payments)
-    .filter((row) => inMonth(row.payment_date, monthKey))
+    .filter((row) => row.active !== false && row.status !== 'estornado' && inMonth(row.payment_date, monthKey))
     .map((row) => {
       const { kitnet, tenant, competence } = resolvePaymentOrigin(row);
 
@@ -79,7 +80,7 @@ export const buildStatement = ({
       };
     });
 
-  const extraIncome = buildExtraIncomeRows({ projects, expertReports, month: monthKey })
+  const extraIncome = buildExtraIncomeRows({ projects: projects.filter(r => r.active !== false), expertReports: expertReports.filter(r => r.active !== false), month: monthKey })
     .map((row) => ({
       id: `extra-${row.id}`,
       date: row.date,
@@ -93,14 +94,14 @@ export const buildStatement = ({
     }));
 
   const kitnetExpenses = expenses
-    .filter((row) => inMonth(row.date, monthKey))
+    .filter((row) => row.active !== false && inMonth(movementDate(row), monthKey))
     .map((row) => {
       const kitnet = kitnetById.get(row.kitnet_id);
       return {
         id: `expense-${row.id}`,
         date: displayDate(row, monthKey),
         kind: 'saida',
-        origin: 'kitnets',
+        origin: resolveExpenseSegment(row, 'kitnets'),
         category: row.category || 'outro',
         label: row.description || row.category || 'Despesa',
         detail: kitnet?.name || '',
@@ -110,12 +111,12 @@ export const buildStatement = ({
     });
 
   const personalMovements = personal
-    .filter((row) => (row.type === 'income' || isPersonalExpense(row)) && row.status !== 'ignorar' && row.status !== 'revisar' && inMonth(row.date, monthKey))
+    .filter((row) => row.active !== false && (row.type === 'income' || isPersonalExpense(row)) && row.status !== 'ignorar' && row.status !== 'revisar' && inMonth(movementDate(row), monthKey))
     .map((row) => ({
       id: `personal-${row.id}`,
-      date: row.date,
+      date: movementDate(row),
       kind: row.type === 'income' ? 'entrada' : 'saida',
-      origin: row.context === 'pessoal' || !row.context ? 'pessoal' : row.context,
+      origin: resolveExpenseSegment(row),
       category: row.category || PERSONAL_TYPE_LABELS[row.type] || 'outro',
       label: row.description || row.category || PERSONAL_TYPE_LABELS[row.type] || 'Lançamento',
       detail: row.card_name || '',
