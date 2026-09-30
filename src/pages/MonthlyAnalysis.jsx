@@ -28,7 +28,9 @@ export default function MonthlyAnalysis() {
       <Link className="ds-btn ds-btn-primary" to={`/receitas?month=${filters.month}&novo=1`}>Adicionar entrada</Link>
       <Link className="ds-btn ds-btn-secondary" to={`/despesas?month=${filters.month}&novo=1`}>Adicionar despesa</Link>
     </>} />
-    <ReportFilters {...filters} setMonth={(v) => { filters.setMonth(v); setCategory(''); }} setSegment={(v) => { filters.setSegment(v); setCategory(''); }} />
+    <div className="sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 -mx-2 rounded-xl bg-[var(--color-bg)] px-2 py-2 shadow-sm lg:top-0">
+      <ReportFilters {...filters} setMonth={(v) => { filters.setMonth(v); setCategory(''); }} setSegment={(v) => { filters.setSegment(v); setCategory(''); }} />
+    </div>
     {error && <div role="alert" className="ds-alert ds-alert-warning">{error} <button className="underline" onClick={reload}>Tentar novamente</button></div>}
     {!result ? <p role="status">{error ? 'Os totais não estão disponíveis.' : 'Carregando análise mensal...'}</p> : <>
       <p className="text-sm text-slate-600">{result.partial ? 'Mês em andamento. Comparação até o mesmo dia do mês anterior.' : `Comparação com ${result.previousMonth}.`}
@@ -54,7 +56,7 @@ export default function MonthlyAnalysis() {
         </button>)}{!result.categories.length && <p className="text-slate-500">Nenhum gasto confirmado no recorte.</p>}</div></section>
       </div>
       <details className="ds-card"><summary className="cursor-pointer font-semibold">Ver números dos gráficos</summary><div className="overflow-x-auto"><table className="mt-3 w-full text-left text-sm"><thead><tr><th>Mês</th><th>Entradas</th><th>Gastos</th><th>Resultado</th></tr></thead><tbody>{result.trend.map((r) => <tr key={r.month}><td className="py-2"><button className="text-blue-700 underline" onClick={() => filters.setMonth(r.month)}>{r.label}</button></td><td>{money(r.income)}</td><td>{money(r.expense)}</td><td>{money(r.result)}</td></tr>)}</tbody></table></div></details>
-      <section id="monthly-details" className="ds-card scroll-mt-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">Composição do mês{category ? ` · ${result.categories.find((r) => r.key === category)?.name || category}` : ''}</h2><div className="flex gap-2"><select aria-label="Tipo de movimento" className="ds-input" value={kind} onChange={(e) => setKind(e.target.value)}><option value="">Entradas e saídas</option><option value="entrada">Entradas</option><option value="saida">Saídas</option></select>{category && <button className="text-blue-700 underline" onClick={() => setCategory('')}>Todas as categorias</button>}</div></div><MovementDetails items={details} month={filters.month} segment={filters.segment} /></section>
+      <section id="monthly-details" className="ds-card scroll-mt-[calc(22rem+env(safe-area-inset-top))] lg:scroll-mt-52"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">Composição do mês{category ? ` · ${result.categories.find((r) => r.key === category)?.name || category}` : ''}</h2><div className="flex gap-2"><select aria-label="Tipo de movimento" className="ds-input" value={kind} onChange={(e) => setKind(e.target.value)}><option value="">Entradas e saídas</option><option value="entrada">Entradas</option><option value="saida">Saídas</option></select>{category && <button className="text-blue-700 underline" onClick={() => setCategory('')}>Todas as categorias</button>}</div></div><MovementDetails items={details} month={filters.month} segment={filters.segment} /></section>
       <p className="text-xs text-slate-500">Atualizado às {updatedAt?.toLocaleTimeString('pt-BR')}. Resultado do mês não é saldo bancário nem valorização patrimonial.</p>
     </>}
   </div>;
