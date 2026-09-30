@@ -5,6 +5,18 @@ import { incomeDate } from '../modules/receivables/services/extraIncomeService.j
 import { resolveExpenseSegment, isConfirmed, movementDate } from './financialClassification.js';
 import { fromCents, toCents, sumMoney, subtractMoney } from './money.js';
 
+export function spendingMethod(row = {}) {
+  if (row.type === 'card_transaction') return 'cartao';
+  const method = String(row.payment_method || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (method.includes('pix')) return 'pix';
+  if (method.includes('boleto')) return 'boleto';
+  if (method.includes('cartao') || method.includes('credito')) return 'cartao';
+  const description = String(row.description || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (/^pix\b/.test(description)) return 'pix';
+  if (/^boleto\b/.test(description)) return 'boleto';
+  return 'outros';
+}
+
 // Fonte comum dos indicadores de resultado. Cartão confirmado é gasto;
 // quitação de fatura e transferências são movimentos de saldo, não novos gastos.
 export function buildFinancialLedger({ payments = [], expenses = [], personal = [], projects = [], expertReports = [] } = {}) {
@@ -19,6 +31,7 @@ export function buildFinancialLedger({ payments = [], expenses = [], personal = 
       costType: row.cost_type || (row.context === 'obra' ? 'investimento' : 'custeio'),
       legacySegment: kind === 'saida' && !row.segment && !row.context,
       card: row.type === 'card_transaction',
+      paymentMethod: spendingMethod(row),
     });
   };
   rentPaymentsOnly(payments).filter((r) => r.active !== false && r.status !== 'estornado').forEach((r) =>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMonthlyAnalysis } from './monthlyAnalysisService.js';
+import { buildMonthlyAnalysis, buildSpendingBreakdown } from './monthlyAnalysisService.js';
 import { buildSegmentConsolidation } from './segmentConsolidationService.js';
 import { buildCategoryReport } from './categoryReportService.js';
 import { buildCashflow } from './cashflowService.js';
@@ -57,5 +57,39 @@ describe('totais integrados e comparação mensal', () => {
       { date: '2026-08-01', status: 'pago', value: 0.2 },
     ], payments: [{ receivable_id: 'r', payment_date: '2026-08-01', net_value: 1000, status: 'estornado' }] }, { month: '2026-08' });
     expect(a.totals).toEqual({ income: 0, expense: 0.3, result: -0.3 });
+  });
+  it('filtra Pix, boleto e cartão sem contar a quitação da fatura duas vezes', () => {
+    const analysis = buildMonthlyAnalysis({
+      expenses: [
+        { id: 'boleto', date: '2026-09-05', status: 'pago', payment_method: 'boleto', category: 'internet', value: 120 },
+      ],
+      personal: [
+        { id: 'pix', type: 'expense', date: '2026-09-06', status: 'pago', payment_method: 'pix', category: 'combustivel', value: 150 },
+        { id: 'card-confirmed', type: 'card_transaction', date: '2026-09-10', status: 'pago', category: 'compras', value: 80 },
+        { id: 'card-review', type: 'card_transaction', date: '2026-09-10', status: 'revisar', category: 'farmacia', value: 60 },
+        { id: 'invoice', type: 'card_payment', date: '2026-09-10', status: 'pago', value: 140 },
+        { id: 'ignored', type: 'card_transaction', date: '2026-09-10', status: 'ignorar', value: 30 },
+        { id: 'other-month', type: 'card_transaction', date: '2026-08-10', status: 'revisar', value: 40 },
+      ],
+    }, { month: '2026-09' });
+
+    expect(analysis.totals.expense).toBe(350);
+    expect(buildSpendingBreakdown(analysis.spendingItems).total).toBe(410);
+    expect(buildSpendingBreakdown(analysis.spendingItems, 'pix').total).toBe(150);
+    expect(buildSpendingBreakdown(analysis.spendingItems, 'boleto').total).toBe(120);
+    const card = buildSpendingBreakdown(analysis.spendingItems, 'cartao');
+    expect(card.total).toBe(140);
+    expect(card.reviewCount).toBe(1);
+    expect(card.reviewTotal).toBe(60);
+    expect(card.categories.map((row) => row.key)).toEqual(['compras', 'farmacia']);
+    expect(buildSpendingBreakdown(analysis.spendingItems, 'pix_cartao').total).toBe(290);
+  });
+  it('aplica o segmento também às compras de cartão em revisão', () => {
+    const analysis = buildMonthlyAnalysis({ personal: [
+      { id: 'project', type: 'card_transaction', date: '2026-09-10', segment: 'projetos', status: 'revisar', value: 90 },
+      { id: 'personal', type: 'card_transaction', date: '2026-09-10', segment: 'pessoal', status: 'revisar', value: 40 },
+    ] }, { month: '2026-09', segment: 'projetos' });
+    expect(buildSpendingBreakdown(analysis.spendingItems, 'cartao').total).toBe(90);
+    expect(analysis.totals.expense).toBe(0);
   });
 });
